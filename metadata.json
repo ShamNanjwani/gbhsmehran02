@@ -1,0 +1,6 @@
+{
+  "name": "Government Boys High School Mehrand",
+  "description": "Official Web & Mobile App Portal for Government Boys High School Mehrand (SEMIS Code: 406020752), Taluka Kaloi, District Tharparkar @ Mithi. Admin, Teacher, and Student Portals with Admission, Attendance, ID Cards, and Timetable management.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

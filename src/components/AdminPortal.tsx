@@ -1,0 +1,1108 @@
+import React, { useState } from 'react';
+import { useSchool } from '../context/SchoolContext';
+import {
+  Shield,
+  Users,
+  GraduationCap,
+  Calendar,
+  Clock,
+  BookOpen,
+  Award,
+  FileCheck,
+  FileText,
+  Settings as SettingsIcon,
+  CheckCircle2,
+  XCircle,
+  AlertTriangle,
+  Plus,
+  Trash2,
+  Edit,
+  Save,
+  Lock,
+  Upload,
+  Sparkles,
+  Inbox,
+  UserCheck,
+  HelpCircle,
+  Eye,
+  EyeOff,
+} from 'lucide-react';
+import { Student, Teacher, TimetableSlot, StudentResult, LeavingCertificateData } from '../types';
+
+export const AdminPortal: React.FC = () => {
+  const {
+    currentRole,
+    loginAsAdmin,
+    logout,
+    settings,
+    updateSettings,
+    leaderMessages,
+    updateLeaderMessage,
+    students,
+    approveStudent,
+    rejectStudent,
+    deleteStudent,
+    teachers,
+    approveTeacher,
+    rejectTeacher,
+    deleteTeacher,
+    timetable,
+    updateTimetableSlot,
+    assignProxyTeacher,
+    clearProxySubstitution,
+    attendance,
+    markDailyAttendance,
+    results,
+    issueOrUpdateResult,
+    leavingCertificates,
+    issueLeavingCertificate,
+    inquiries,
+    markInquiryRead,
+  } = useSchool();
+
+  // Login credentials state
+  const [adminUsername, setAdminUsername] = useState('');
+  const [adminPassword, setAdminPassword] = useState('');
+  const [showAdminPassword, setShowAdminPassword] = useState(false);
+
+  // Admin Active Tab
+  const [activeAdminTab, setActiveAdminTab] = useState<
+    'overview' | 'admissions' | 'teachers' | 'timetable' | 'attendance' | 'certificates' | 'cms' | 'messages'
+  >('overview');
+
+  // State for allotting GR No modal
+  const [selectedStudentForApproval, setSelectedStudentForApproval] = useState<Student | null>(null);
+  const [allottedGrNo, setAllottedGrNo] = useState('');
+  const [allottedSection, setAllottedSection] = useState('A');
+  const [allottedRollNo, setAllottedRollNo] = useState('01');
+
+  // State for adding/editing timetable slot
+  const [editSlot, setEditSlot] = useState<TimetableSlot | null>(null);
+
+  // State for substituting a class (if teacher on leave)
+  const [proxySlotId, setProxySlotId] = useState<string>('');
+  const [proxyTeacherId, setProxyTeacherId] = useState<string>('');
+  const [proxyReason, setProxyReason] = useState<string>('Regular teacher on leave');
+
+  // CMS state
+  const [cmsSchoolName, setCmsSchoolName] = useState(settings.schoolName);
+  const [cmsMission, setCmsMission] = useState(settings.mission);
+  const [cmsVision, setCmsVision] = useState(settings.vision);
+  const [cmsAbout, setCmsAbout] = useState(settings.aboutHistory);
+  const [cmsEnrollmentValidTill, setCmsEnrollmentValidTill] = useState(settings.enrollmentCardValidTill);
+  const [cmsDesignerName, setCmsDesignerName] = useState(settings.designerName);
+  const [cmsDesignerPicture, setCmsDesignerPicture] = useState(settings.designerPictureUrl);
+
+  // If not logged in as admin, show login box
+  if (currentRole !== 'admin') {
+    return (
+      <div className="max-w-md mx-auto py-12 px-4 space-y-6">
+        <div className="bg-white rounded-2xl border-2 border-amber-400 shadow-2xl p-8 space-y-6">
+          <div className="text-center space-y-2">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-700 text-white flex items-center justify-center mx-auto shadow-lg">
+              <Shield className="w-8 h-8" />
+            </div>
+            <h2 className="text-2xl font-black text-slate-900">Admin Control Center</h2>
+            <p className="text-xs text-slate-500">
+              Government Boys High School Mehrand (SEMIS: 406020752)
+            </p>
+          </div>
+
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              loginAsAdmin(adminUsername, adminPassword);
+            }}
+            className="space-y-4 text-xs"
+          >
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">Admin Username</label>
+              <input
+                type="text"
+                required
+                placeholder="Enter admin username"
+                value={adminUsername}
+                onChange={(e) => setAdminUsername(e.target.value)}
+                className="w-full p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-amber-500 font-mono"
+              />
+            </div>
+
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">Admin Password</label>
+              <div className="relative">
+                <input
+                  type={showAdminPassword ? 'text' : 'password'}
+                  required
+                  placeholder="Enter administrator password"
+                  value={adminPassword}
+                  onChange={(e) => setAdminPassword(e.target.value)}
+                  className="w-full pl-3 pr-10 py-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-amber-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowAdminPassword(!showAdminPassword)}
+                  className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600"
+                >
+                  {showAdminPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              className="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-sm shadow-md transition"
+            >
+              Sign In to Master Control
+            </button>
+
+            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-center space-y-1">
+              <p className="text-[11px] text-slate-600 font-medium">
+                🔒 Restricted Access: Only authorized school administrators possess credentials.
+              </p>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  // Pending admissions count
+  const pendingAdmissions = students.filter((s) => s.status === 'pending');
+  const pendingTeachers = teachers.filter((t) => t.status === 'pending');
+
+  const handleOpenApproveStudent = (st: Student) => {
+    setSelectedStudentForApproval(st);
+    setAllottedGrNo(`GR-406020752-${Math.floor(1000 + Math.random() * 9000)}`);
+    setAllottedSection('A');
+    setAllottedRollNo('01');
+  };
+
+  const handleConfirmApproval = () => {
+    if (!selectedStudentForApproval) return;
+    approveStudent(selectedStudentForApproval.id, allottedGrNo, allottedSection, allottedRollNo);
+    setSelectedStudentForApproval(null);
+  };
+
+  const handleSaveCMS = (e: React.FormEvent) => {
+    e.preventDefault();
+    updateSettings({
+      schoolName: cmsSchoolName,
+      mission: cmsMission,
+      vision: cmsVision,
+      aboutHistory: cmsAbout,
+      enrollmentCardValidTill: cmsEnrollmentValidTill,
+      designerName: cmsDesignerName,
+      designerPictureUrl: cmsDesignerPicture,
+    });
+  };
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      {/* Admin Header Bar */}
+      <div className="bg-gradient-to-r from-slate-950 via-slate-900 to-amber-950 text-white rounded-2xl p-6 sm:p-8 shadow-xl border-b-4 border-amber-500">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="flex items-center gap-4">
+            <div className="w-16 h-16 rounded-2xl bg-amber-500 p-3 text-slate-950 flex items-center justify-center font-black shadow-lg">
+              <Shield className="w-10 h-10" />
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="bg-amber-500 text-slate-950 text-xs font-black px-2.5 py-0.5 rounded uppercase">
+                  Super Admin
+                </span>
+                <span className="text-amber-400 font-mono text-xs font-bold">
+                  SEMIS: {settings.semisCode}
+                </span>
+              </div>
+              <h2 className="text-xl sm:text-2xl font-black">GBHS Mehrand Administration Panel</h2>
+              <p className="text-xs text-slate-300">
+                Full authority over admissions, teachers, timetable auto-assignment, ID cards, certificates, and school CMS.
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={logout}
+            className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-400 font-bold text-xs border border-amber-500/40 transition"
+          >
+            Sign Out Admin
+          </button>
+        </div>
+      </div>
+
+      {/* Admin Navigation Pills */}
+      <div className="flex items-center gap-1.5 overflow-x-auto border-b border-slate-200 pb-2 text-xs">
+        {[
+          { id: 'overview', label: 'Overview & Stats', icon: Shield },
+          {
+            id: 'admissions',
+            label: `Student Admissions (${pendingAdmissions.length} Pending)`,
+            icon: GraduationCap,
+            badge: pendingAdmissions.length > 0 ? pendingAdmissions.length : undefined,
+          },
+          {
+            id: 'teachers',
+            label: `Faculty & Staff (${pendingTeachers.length} Review)`,
+            icon: Users,
+            badge: pendingTeachers.length > 0 ? pendingTeachers.length : undefined,
+          },
+          { id: 'timetable', label: 'Timetable & Proxy Substitution', icon: Clock },
+          { id: 'attendance', label: 'Attendance Hub', icon: Calendar },
+          { id: 'certificates', label: 'ID Cards & Certificate Formats', icon: FileCheck },
+          { id: 'cms', label: 'School CMS & Messages (Minister/Sec/HM)', icon: SettingsIcon },
+          { id: 'messages', label: `Inquiries (${inquiries.filter((i) => i.status === 'unread').length})`, icon: Inbox },
+        ].map((tab) => {
+          const Icon = tab.icon;
+          const isActive = activeAdminTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveAdminTab(tab.id as any)}
+              className={`px-3.5 py-2 rounded-xl font-bold flex items-center gap-1.5 shrink-0 transition ${
+                isActive
+                  ? 'bg-amber-500 text-slate-950 font-black shadow-sm'
+                  : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+              }`}
+            >
+              <Icon className="w-3.5 h-3.5" />
+              <span>{tab.label}</span>
+              {tab.badge && (
+                <span className="bg-red-600 text-white text-[10px] px-1.5 py-0.2 rounded-full font-mono">
+                  {tab.badge}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ADMIN TAB 1: Overview */}
+      {activeAdminTab === 'overview' && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-1">
+              <span className="text-[10px] uppercase font-bold text-slate-400">Total Registered Students</span>
+              <div className="text-2xl font-black text-slate-900">{students.length}</div>
+              <span className="text-xs text-emerald-700 font-semibold">
+                {students.filter((s) => s.status === 'approved').length} Approved & Enrolled
+              </span>
+            </div>
+
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-1">
+              <span className="text-[10px] uppercase font-bold text-slate-400">Teaching Faculty</span>
+              <div className="text-2xl font-black text-teal-800">{teachers.length}</div>
+              <span className="text-xs text-slate-500 font-semibold">
+                {teachers.filter((t) => t.status === 'approved').length} Active on Faculty Page
+              </span>
+            </div>
+
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-1">
+              <span className="text-[10px] uppercase font-bold text-slate-400">Pending Admission Queue</span>
+              <div className="text-2xl font-black text-amber-600">{pendingAdmissions.length}</div>
+              <button
+                onClick={() => setActiveAdminTab('admissions')}
+                className="text-xs text-amber-700 font-bold hover:underline"
+              >
+                Review Applications →
+              </button>
+            </div>
+
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-1">
+              <span className="text-[10px] uppercase font-bold text-slate-400">Timetable Slots</span>
+              <div className="text-2xl font-black text-blue-700">{timetable.length}</div>
+              <span className="text-xs text-slate-500">Periods 1-6 across classes</span>
+            </div>
+          </div>
+
+          {/* Quick Action Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold">
+                <GraduationCap className="w-5 h-5" />
+              </div>
+              <h4 className="font-extrabold text-slate-900 text-sm">Review New Admissions</h4>
+              <p className="text-xs text-slate-500">
+                Check uploaded B-Form copies and school leaving certificates, allot official GR Numbers, and generate confirmation letters.
+              </p>
+              <button
+                onClick={() => setActiveAdminTab('admissions')}
+                className="px-3 py-1.5 rounded-lg bg-amber-500 text-slate-950 font-bold text-xs hover:bg-amber-400"
+              >
+                Go to Admissions ({pendingAdmissions.length})
+              </button>
+            </div>
+
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+              <div className="w-10 h-10 rounded-xl bg-teal-100 text-teal-800 flex items-center justify-center font-bold">
+                <Clock className="w-5 h-5" />
+              </div>
+              <h4 className="font-extrabold text-slate-900 text-sm">Class Substitution & Timetable</h4>
+              <p className="text-xs text-slate-500">
+                If any teacher is on leave today, assign any other teacher as proxy to engage the class with instant timetable notice.
+              </p>
+              <button
+                onClick={() => setActiveAdminTab('timetable')}
+                className="px-3 py-1.5 rounded-lg bg-teal-800 text-white font-bold text-xs hover:bg-teal-700"
+              >
+                Manage Timetable & Proxy
+              </button>
+            </div>
+
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold">
+                <SettingsIcon className="w-5 h-5" />
+              </div>
+              <h4 className="font-extrabold text-slate-900 text-sm">Edit Dignitary Messages</h4>
+              <p className="text-xs text-slate-500">
+                Edit Minister Message, Secretary Message, Headmaster Message, School Mission & Vision, and Designer details.
+              </p>
+              <button
+                onClick={() => setActiveAdminTab('cms')}
+                className="px-3 py-1.5 rounded-lg bg-emerald-800 text-white font-bold text-xs hover:bg-emerald-700"
+              >
+                CMS Editor
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ADMIN TAB 2: Admissions & Allot GR */}
+      {/* Required by user prompt:
+          "after approved by admin and confirmation letter issue with GR Allotted to student
+           and displayed on Students Dashboard, Student Can see Enrollment Card, ID Card Result Sheet
+           and School Leaving certificate and also student download in pdf form" */}
+      {activeAdminTab === 'admissions' && (
+        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-4">
+            <div>
+              <h3 className="text-base font-extrabold text-slate-900">
+                Student Admission Control & GR Number Allotment
+              </h3>
+              <p className="text-xs text-slate-500">
+                Review submitted B-Form and School Leaving Certificates, approve with GR No, or reject.
+              </p>
+            </div>
+            <span className="text-xs font-bold text-amber-800 bg-amber-50 px-3 py-1 rounded-lg border border-amber-200">
+              Total: {students.length} Students ({pendingAdmissions.length} Pending Approval)
+            </span>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs text-left border border-slate-200 rounded-xl overflow-hidden">
+              <thead className="bg-slate-100 text-slate-700 uppercase font-bold text-[10px]">
+                <tr>
+                  <th className="py-2.5 px-3">Student Name & Father</th>
+                  <th className="py-2.5 px-3">Applied Class</th>
+                  <th className="py-2.5 px-3">B-Form / CNIC</th>
+                  <th className="py-2.5 px-3">B-Form Doc</th>
+                  <th className="py-2.5 px-3">Leaving Cert (SLC)</th>
+                  <th className="py-2.5 px-3">G.R. Number</th>
+                  <th className="py-2.5 px-3">Status</th>
+                  <th className="py-2.5 px-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200">
+                {students.map((st) => (
+                  <tr key={st.id} className="hover:bg-slate-50">
+                    <td className="py-2.5 px-3">
+                      <div className="font-extrabold text-slate-900">{st.name}</div>
+                      <div className="text-slate-500 text-[11px]">S/O {st.fatherName}</div>
+                      <div className="text-[10px] text-slate-400">{st.address.mohVillage}, {st.address.townCity}</div>
+                    </td>
+                    <td className="py-2.5 px-3 font-semibold text-emerald-800">{st.appliedClass}</td>
+                    <td className="py-2.5 px-3 font-mono">{st.cnicBForm}</td>
+                    <td className="py-2.5 px-3">
+                      <a
+                        href={st.bFormPictureUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 text-blue-600 hover:underline font-semibold"
+                      >
+                        <Eye className="w-3 h-3" /> View B-Form
+                      </a>
+                    </td>
+                    <td className="py-2.5 px-3">
+                      {st.leavingCertificateUrl ? (
+                        <a
+                          href={st.leavingCertificateUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 text-blue-600 hover:underline font-semibold"
+                        >
+                          <Eye className="w-3 h-3" /> View SLC
+                        </a>
+                      ) : (
+                        <span className="text-slate-400 italic">Not applicable (Class 1)</span>
+                      )}
+                    </td>
+                    <td className="py-2.5 px-3 font-mono font-bold text-red-700">
+                      {st.grNumber || 'Not Allotted'}
+                    </td>
+                    <td className="py-2.5 px-3">
+                      <span
+                        className={`px-2 py-0.5 rounded-full font-extrabold text-[10px] ${
+                          st.status === 'approved'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : st.status === 'pending'
+                            ? 'bg-amber-100 text-amber-800'
+                            : 'bg-red-100 text-red-800'
+                        }`}
+                      >
+                        {st.status.toUpperCase()}
+                      </span>
+                    </td>
+                    <td className="py-2.5 px-3 text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        {st.status === 'pending' && (
+                          <button
+                            onClick={() => handleOpenApproveStudent(st)}
+                            className="px-2.5 py-1 bg-emerald-800 hover:bg-emerald-700 text-white rounded font-bold text-xs"
+                          >
+                            Allot GR & Approve
+                          </button>
+                        )}
+                        {st.status !== 'rejected' && (
+                          <button
+                            onClick={() => rejectStudent(st.id)}
+                            className="px-2 py-1 bg-slate-100 hover:bg-red-50 text-red-600 rounded text-xs"
+                            title="Reject"
+                          >
+                            Reject
+                          </button>
+                        )}
+                        <button
+                          onClick={() => deleteStudent(st.id)}
+                          className="p-1 text-slate-400 hover:text-red-600"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ALLOT GR NUMBER MODAL */}
+      {selectedStudentForApproval && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 text-xs">
+            <div className="border-b border-slate-100 pb-2">
+              <h4 className="text-base font-black text-slate-900">
+                Allot Official GR Number & Section
+              </h4>
+              <p className="text-slate-500">
+                Approving admission for: <strong>{selectedStudentForApproval.name}</strong> ({selectedStudentForApproval.appliedClass})
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">
+                  General Register (GR) Number *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={allottedGrNo}
+                  onChange={(e) => setAllottedGrNo(e.target.value)}
+                  className="w-full p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-amber-500 font-mono font-bold text-red-700"
+                />
+                <span className="text-[10px] text-slate-400">e.g. GR-406020752-0145</span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Section</label>
+                  <input
+                    type="text"
+                    value={allottedSection}
+                    onChange={(e) => setAllottedSection(e.target.value)}
+                    className="w-full p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-amber-500"
+                    placeholder="Section A"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Roll Number</label>
+                  <input
+                    type="text"
+                    value={allottedRollNo}
+                    onChange={(e) => setAllottedRollNo(e.target.value)}
+                    className="w-full p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-amber-500"
+                    placeholder="01"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setSelectedStudentForApproval(null)}
+                className="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600 font-bold"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmApproval}
+                className="px-4 py-1.5 rounded-lg bg-emerald-800 text-white font-black hover:bg-emerald-700"
+              >
+                Approve & Issue Confirmation Letter
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ADMIN TAB 3: Faculty & Teacher Approvals */}
+      {/* Required by user prompt:
+          "Teacher registers via email and password... Then submit and review by Admin;
+           after approval by admin and confirmation pop-up to teacher, display teacher on Main Faculty section" */}
+      {activeAdminTab === 'teachers' && (
+        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-4">
+            <div>
+              <h3 className="text-base font-extrabold text-slate-900">
+                Faculty & Teacher Registration Review
+              </h3>
+              <p className="text-xs text-slate-500">
+                Approve teacher applications to feature them on the main Faculty section and grant dashboard access.
+              </p>
+            </div>
+            <span className="text-xs font-bold text-teal-800 bg-teal-50 px-3 py-1 rounded-lg border border-teal-200">
+              Total: {teachers.length} Teachers ({pendingTeachers.length} Pending Review)
+            </span>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs text-left border border-slate-200 rounded-xl overflow-hidden">
+              <thead className="bg-slate-100 text-slate-700 uppercase font-bold text-[10px]">
+                <tr>
+                  <th className="py-2.5 px-3">Teacher Name</th>
+                  <th className="py-2.5 px-3">PID Number</th>
+                  <th className="py-2.5 px-3">CNIC & Cell</th>
+                  <th className="py-2.5 px-3">Qualifications</th>
+                  <th className="py-2.5 px-3">Subject Specialist</th>
+                  <th className="py-2.5 px-3">Status</th>
+                  <th className="py-2.5 px-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200">
+                {teachers.map((tch) => (
+                  <tr key={tch.id} className="hover:bg-slate-50">
+                    <td className="py-2.5 px-3 flex items-center gap-2.5">
+                      <img
+                        src={tch.pictureUrl}
+                        alt={tch.name}
+                        className="w-9 h-9 rounded-full object-cover border border-slate-300"
+                      />
+                      <div>
+                        <div className="font-extrabold text-slate-900">{tch.name}</div>
+                        <div className="text-slate-400 text-[10px]">{tch.email}</div>
+                      </div>
+                    </td>
+                    <td className="py-2.5 px-3 font-mono font-bold text-slate-700">{tch.pid}</td>
+                    <td className="py-2.5 px-3 font-mono text-slate-600">
+                      <div>{tch.cnic}</div>
+                      <div className="text-[10px] text-slate-400">{tch.mobileNo}</div>
+                    </td>
+                    <td className="py-2.5 px-3 font-medium text-slate-700">{tch.qualification}</td>
+                    <td className="py-2.5 px-3 font-bold text-emerald-800">{tch.subjectSpecialist}</td>
+                    <td className="py-2.5 px-3">
+                      <span
+                        className={`px-2 py-0.5 rounded-full font-extrabold text-[10px] ${
+                          tch.status === 'approved'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : tch.status === 'pending'
+                            ? 'bg-amber-100 text-amber-800'
+                            : 'bg-red-100 text-red-800'
+                        }`}
+                      >
+                        {tch.status.toUpperCase()}
+                      </span>
+                    </td>
+                    <td className="py-2.5 px-3 text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        {tch.status === 'pending' ? (
+                          <button
+                            onClick={() => approveTeacher(tch.id)}
+                            className="px-2.5 py-1 bg-teal-800 hover:bg-teal-700 text-white rounded font-bold text-xs"
+                          >
+                            Approve Teacher
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => rejectTeacher(tch.id)}
+                            className="px-2 py-1 bg-slate-100 hover:bg-red-50 text-slate-600 hover:text-red-600 rounded text-xs"
+                          >
+                            Revoke
+                          </button>
+                        )}
+                        <button
+                          onClick={() => deleteTeacher(tch.id)}
+                          className="p-1 text-slate-400 hover:text-red-600"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ADMIN TAB 4: Timetable & Proxy Substitution */}
+      {/* Required by user prompt:
+          "real-time class teaching timetable, assign to teacher auto subject-wise set time
+           on a daily basis, teacher attendance, student attendance;
+           if any students/teachers are on leave, then assign any other teacher to engage the class." */}
+      {activeAdminTab === 'timetable' && (
+        <div className="space-y-6">
+          {/* Proxy / Teacher on Leave Substitution Box */}
+          <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-6 shadow-sm space-y-4">
+            <div className="flex items-center gap-2 text-amber-950 font-black text-sm">
+              <AlertTriangle className="w-5 h-5 text-amber-600" />
+              <span>Teacher Leave & Class Proxy Substitution Manager</span>
+            </div>
+            <p className="text-xs text-slate-700">
+              When a regular teacher is on casual leave or official duty, assign another available teacher to engage the class so students' instruction is not disrupted.
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Select Timetable Slot</label>
+                <select
+                  value={proxySlotId}
+                  onChange={(e) => setProxySlotId(e.target.value)}
+                  className="w-full p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-amber-500 bg-white"
+                >
+                  <option value="">-- Choose scheduled slot --</option>
+                  {timetable.map((slot) => (
+                    <option key={slot.id} value={slot.id}>
+                      {slot.day} - Period {slot.period} ({slot.className} - {slot.subject}) [Teacher: {slot.teacherName}]
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Assign Substitute Teacher</label>
+                <select
+                  value={proxyTeacherId}
+                  onChange={(e) => setProxyTeacherId(e.target.value)}
+                  className="w-full p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-amber-500 bg-white"
+                >
+                  <option value="">-- Select proxy teacher --</option>
+                  {teachers
+                    .filter((t) => t.status === 'approved')
+                    .map((tch) => (
+                      <option key={tch.id} value={tch.id}>
+                        {tch.name} ({tch.subjectSpecialist})
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Reason for Leave</label>
+                <input
+                  type="text"
+                  value={proxyReason}
+                  onChange={(e) => setProxyReason(e.target.value)}
+                  className="w-full p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-amber-500"
+                  placeholder="e.g. Regular teacher on medical leave"
+                />
+              </div>
+
+              <div className="flex items-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!proxySlotId || !proxyTeacherId) {
+                      alert('Please select both a timetable slot and a proxy teacher.');
+                      return;
+                    }
+                    assignProxyTeacher(proxySlotId, proxyTeacherId, proxyReason);
+                  }}
+                  className="w-full py-2.5 bg-amber-600 hover:bg-amber-500 text-white font-black rounded-lg shadow-sm transition"
+                >
+                  Assign Proxy Teacher
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Timetable Slot List */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h4 className="font-extrabold text-slate-900 text-sm">
+                Master Teaching Timetable (Period 1 to Period 6)
+              </h4>
+              <span className="text-xs text-slate-500">Auto-assigned daily across grades</span>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs text-left border border-slate-200 rounded-xl overflow-hidden">
+                <thead className="bg-slate-100 text-slate-700 uppercase font-bold text-[10px]">
+                  <tr>
+                    <th className="py-2.5 px-3">Day</th>
+                    <th className="py-2.5 px-3">Period & Time</th>
+                    <th className="py-2.5 px-3">Class</th>
+                    <th className="py-2.5 px-3">Subject</th>
+                    <th className="py-2.5 px-3">Assigned Teacher</th>
+                    <th className="py-2.5 px-3">Substitution Status</th>
+                    <th className="py-2.5 px-3 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {timetable.map((slot) => (
+                    <tr key={slot.id} className="hover:bg-slate-50">
+                      <td className="py-2.5 px-3 font-bold text-slate-900">{slot.day}</td>
+                      <td className="py-2.5 px-3 font-mono">
+                        <span className="font-bold text-amber-700">P{slot.period}</span> ({slot.time})
+                      </td>
+                      <td className="py-2.5 px-3 font-semibold text-emerald-800">{slot.className}</td>
+                      <td className="py-2.5 px-3 font-bold text-slate-800">{slot.subject}</td>
+                      <td className="py-2.5 px-3 text-slate-700">{slot.teacherName}</td>
+                      <td className="py-2.5 px-3">
+                        {slot.isSubstituted ? (
+                          <div className="inline-block bg-amber-100 text-amber-900 px-2 py-0.5 rounded text-[10px] font-bold">
+                            Substituted: {slot.substitutedTeacherName}
+                          </div>
+                        ) : (
+                          <span className="text-emerald-700 font-bold">Regular</span>
+                        )}
+                      </td>
+                      <td className="py-2.5 px-3 text-right">
+                        {slot.isSubstituted && (
+                          <button
+                            onClick={() => clearProxySubstitution(slot.id)}
+                            className="text-xs text-red-600 hover:underline font-bold"
+                          >
+                            Clear Proxy
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ADMIN TAB 5: Attendance Hub */}
+      {activeAdminTab === 'attendance' && (
+        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-6">
+          <div className="border-b border-slate-100 pb-3">
+            <h3 className="text-base font-extrabold text-slate-900">
+              School-Wide Daily Attendance Hub
+            </h3>
+            <p className="text-xs text-slate-500">
+              Comprehensive log of student and faculty attendance records.
+            </p>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs text-left border border-slate-200 rounded-xl overflow-hidden">
+              <thead className="bg-slate-100 text-slate-700 uppercase font-bold text-[10px]">
+                <tr>
+                  <th className="py-2.5 px-3">Date</th>
+                  <th className="py-2.5 px-3">Person Name</th>
+                  <th className="py-2.5 px-3">Type</th>
+                  <th className="py-2.5 px-3">Class & Period</th>
+                  <th className="py-2.5 px-3">Status</th>
+                  <th className="py-2.5 px-3">Marked By</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200">
+                {attendance.map((att) => (
+                  <tr key={att.id} className="hover:bg-slate-50">
+                    <td className="py-2.5 px-3 font-mono font-bold text-slate-700">{att.date}</td>
+                    <td className="py-2.5 px-3 font-extrabold text-slate-900">{att.personName}</td>
+                    <td className="py-2.5 px-3">
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                        att.type === 'teacher' ? 'bg-teal-100 text-teal-800' : 'bg-blue-100 text-blue-800'
+                      }`}>
+                        {att.type.toUpperCase()}
+                      </span>
+                    </td>
+                    <td className="py-2.5 px-3 text-slate-600">{att.className || 'General'} {att.period ? `(P${att.period})` : ''}</td>
+                    <td className="py-2.5 px-3">
+                      <span className={`px-2 py-0.5 rounded-full font-black text-[10px] ${
+                        att.status === 'Present' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'
+                      }`}>
+                        {att.status}
+                      </span>
+                    </td>
+                    <td className="py-2.5 px-3 text-slate-500">{att.markedBy}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ADMIN TAB 6: Certificates & ID Card Settings */}
+      {/* Required by user prompt:
+          "Issue GR No ID card, students' leaving certificate with school name and LOGO display,
+           and Format can be uploaded by admin; Enrollment Card (same as ID Card but differ some
+           assigned only GR No and till final exam can be set by admin)" */}
+      {activeAdminTab === 'certificates' && (
+        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-6">
+          <div className="border-b border-slate-100 pb-3">
+            <h3 className="text-base font-extrabold text-slate-900">
+              Cards & Certificates Configuration
+            </h3>
+            <p className="text-xs text-slate-500">
+              Set Enrollment Card validity date, ID Card design templates, and issue School Leaving Certificates.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-3 text-xs">
+              <h4 className="font-extrabold text-slate-900">Enrollment Card Settings</h4>
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">
+                  Enrollment Validity ("Till Final Exam Set by Admin")
+                </label>
+                <input
+                  type="text"
+                  value={cmsEnrollmentValidTill}
+                  onChange={(e) => setCmsEnrollmentValidTill(e.target.value)}
+                  className="w-full p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-amber-500"
+                  placeholder="e.g. 31st May 2027 (Annual Final Exams)"
+                />
+              </div>
+              <button
+                onClick={() => updateSettings({ enrollmentCardValidTill: cmsEnrollmentValidTill })}
+                className="px-4 py-2 bg-emerald-800 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs"
+              >
+                Save Validity Date
+              </button>
+            </div>
+
+            <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-3 text-xs">
+              <h4 className="font-extrabold text-slate-900">ID Card Graphics & AI Template</h4>
+              <p className="text-slate-600">
+                Official Sindh School Education Department ID Card layout with high-contrast crest and QR code verification.
+              </p>
+              <div className="flex gap-2">
+                <span className="px-3 py-1.5 rounded-lg bg-emerald-800 text-white font-bold text-xs">
+                  Sindh Emerald Prestige Template (Active)
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ADMIN TAB 7: CMS & Dignitary Messages */}
+      {/* Required by user prompt:
+          "HOME: Minister Message, Secretary Message, Headmaster Message (all contain name and Picture)"
+          "About Us section Mission and Vision. This section can be edited by the admin"
+          "Footer Displayed Designed By Ghanshamdas JEST & add picture option by admin uploaded" */}
+      {activeAdminTab === 'cms' && (
+        <div className="space-y-8">
+          {/* Form for School Mission, Vision, and Developer Picture */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4 text-xs">
+            <h3 className="text-base font-extrabold text-slate-900 border-b border-slate-100 pb-2">
+              Edit About Us, Mission & Vision & Designer Picture
+            </h3>
+
+            <form onSubmit={handleSaveCMS} className="space-y-4">
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">School Official Name</label>
+                <input
+                  type="text"
+                  value={cmsSchoolName}
+                  onChange={(e) => setCmsSchoolName(e.target.value)}
+                  className="w-full p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Mission Statement</label>
+                <textarea
+                  rows={2}
+                  value={cmsMission}
+                  onChange={(e) => setCmsMission(e.target.value)}
+                  className="w-full p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Vision Statement</label>
+                <textarea
+                  rows={2}
+                  value={cmsVision}
+                  onChange={(e) => setCmsVision(e.target.value)}
+                  className="w-full p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">School History & About Us</label>
+                <textarea
+                  rows={3}
+                  value={cmsAbout}
+                  onChange={(e) => setCmsAbout(e.target.value)}
+                  className="w-full p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              {/* Developer Credit & Upload Picture */}
+              <div className="bg-amber-50/60 p-4 rounded-xl border border-amber-200 space-y-3">
+                <h4 className="font-extrabold text-amber-950">
+                  Footer Developer Credit & Picture Upload (Designed By Ghanshamdas JEST)
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Designer / Developer Name</label>
+                    <input
+                      type="text"
+                      value={cmsDesignerName}
+                      onChange={(e) => setCmsDesignerName(e.target.value)}
+                      className="w-full p-2 rounded border border-slate-200"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Upload / Change Designer Picture URL</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="url"
+                        value={cmsDesignerPicture}
+                        onChange={(e) => setCmsDesignerPicture(e.target.value)}
+                        className="w-full p-2 rounded border border-slate-200 font-mono text-[10px]"
+                      />
+                      <img
+                        src={cmsDesignerPicture}
+                        alt="Preview"
+                        className="w-9 h-9 rounded-full object-cover border border-amber-400 shrink-0"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                className="px-6 py-2.5 bg-emerald-800 hover:bg-emerald-700 text-white font-black rounded-xl text-xs shadow-md transition"
+              >
+                Save All CMS Changes
+              </button>
+            </form>
+          </div>
+
+          {/* Edit Leadership Messages (Minister, Secretary, Headmaster) */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4 text-xs">
+            <h3 className="text-base font-extrabold text-slate-900 border-b border-slate-100 pb-2">
+              Edit Dignitary Messages (Minister, Secretary, Headmaster)
+            </h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {leaderMessages.map((msg) => (
+                <div key={msg.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-3 flex flex-col justify-between">
+                  <div className="space-y-2">
+                    <span className="font-extrabold text-emerald-900 uppercase block">{msg.title}</span>
+                    <input
+                      type="text"
+                      value={msg.name}
+                      onChange={(e) => updateLeaderMessage(msg.id, { name: e.target.value })}
+                      className="w-full p-2 bg-white rounded border border-slate-200 font-bold"
+                      placeholder="Name"
+                    />
+                    <input
+                      type="text"
+                      value={msg.designation}
+                      onChange={(e) => updateLeaderMessage(msg.id, { designation: e.target.value })}
+                      className="w-full p-2 bg-white rounded border border-slate-200 text-[11px]"
+                      placeholder="Designation"
+                    />
+                    <div className="flex gap-2 items-center">
+                      <input
+                        type="url"
+                        value={msg.pictureUrl}
+                        onChange={(e) => updateLeaderMessage(msg.id, { pictureUrl: e.target.value })}
+                        className="w-full p-2 bg-white rounded border border-slate-200 text-[10px] font-mono"
+                        placeholder="Picture URL"
+                      />
+                      <img
+                        src={msg.pictureUrl}
+                        alt="Photo"
+                        className="w-9 h-9 rounded-lg object-cover border border-slate-300 shrink-0"
+                      />
+                    </div>
+                    <textarea
+                      rows={4}
+                      value={msg.message}
+                      onChange={(e) => updateLeaderMessage(msg.id, { message: e.target.value })}
+                      className="w-full p-2 bg-white rounded border border-slate-200 text-[11px]"
+                      placeholder="Message content"
+                    />
+                  </div>
+                  <button
+                    onClick={() => alert(`Saved ${msg.title}!`)}
+                    className="w-full py-1.5 bg-emerald-800 text-white font-bold rounded"
+                  >
+                    Update {msg.title}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ADMIN TAB 8: Inquiries */}
+      {activeAdminTab === 'messages' && (
+        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4 text-xs">
+          <h3 className="text-base font-extrabold text-slate-900 border-b border-slate-100 pb-2">
+            Incoming Contact Us Inquiries ({inquiries.length})
+          </h3>
+
+          <div className="space-y-3">
+            {inquiries.map((inq) => (
+              <div
+                key={inq.id}
+                className={`p-4 rounded-xl border space-y-2 ${
+                  inq.status === 'unread' ? 'bg-amber-50/50 border-amber-300' : 'bg-slate-50 border-slate-200'
+                }`}
+              >
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    <span className="font-extrabold text-slate-900 text-sm">{inq.name}</span>
+                    <span className="font-mono text-slate-500">({inq.phone} • {inq.email})</span>
+                  </div>
+                  <span className="text-slate-400 font-mono text-[10px]">{inq.createdAt}</span>
+                </div>
+                <div className="font-bold text-emerald-900">{inq.subject}</div>
+                <p className="text-slate-700 leading-relaxed">{inq.message}</p>
+                {inq.status === 'unread' && (
+                  <button
+                    onClick={() => markInquiryRead(inq.id)}
+                    className="text-amber-800 font-bold hover:underline text-[11px]"
+                  >
+                    Mark as Read ✓
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
