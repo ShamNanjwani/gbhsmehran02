@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useSchool } from '../context/SchoolContext';
+import { SchoolLogo } from './common/SchoolLogo';
 import {
   GraduationCap,
   Users,
@@ -73,16 +74,18 @@ export const Navbar: React.FC = () => {
             onClick={() => setActiveTab('home')}
             className="flex items-center gap-3.5 cursor-pointer group"
           >
-            <div className="w-13 h-13 rounded-xl bg-gradient-to-br from-emerald-800 to-emerald-950 p-2 text-white shadow-md flex items-center justify-center border-2 border-amber-400/80 group-hover:scale-105 transition-transform">
-              <GraduationCap className="w-8 h-8 text-amber-300" />
-            </div>
+            <SchoolLogo
+              logoUrl={settings.logoUrl}
+              size="lg"
+              className="group-hover:scale-105 transition-transform shadow-md"
+            />
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-xs font-bold tracking-wider text-emerald-800 bg-emerald-100/80 px-2 py-0.5 rounded uppercase">
                   SEMIS: {settings.semisCode}
                 </span>
-                <span className="text-xs font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
-                  Est. {settings.establishedYear}
+                <span className="text-xs font-bold text-amber-900 bg-amber-100/90 px-2.5 py-0.5 rounded-md border border-amber-300/80 shadow-xs tracking-wide">
+                  Est. {settings.establishedYear || '1995'}
                 </span>
               </div>
               <h1 className="text-base sm:text-lg lg:text-xl font-extrabold text-slate-900 tracking-tight leading-tight group-hover:text-emerald-800 transition-colors">

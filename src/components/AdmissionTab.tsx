@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useSchool } from '../context/SchoolContext';
+import { FileUploadZone } from './common/FileUploadZone';
 import {
   GraduationCap,
   FileCheck,
@@ -31,11 +32,13 @@ export const AdmissionTab: React.FC = () => {
   const [loginError, setLoginError] = useState('');
 
   // Registration Form State
-  const [appliedClass, setAppliedClass] = useState('Class 9th');
+  const [appliedClass, setAppliedClass] = useState('Class ECCE');
   const [name, setName] = useState('');
   const [fatherName, setFatherName] = useState('');
   const [cnicBForm, setCnicBForm] = useState('');
-  const [dob, setDob] = useState('2010-01-15');
+  const [isBFormAvailable, setIsBFormAvailable] = useState<boolean>(true);
+  const [fatherCnic, setFatherCnic] = useState('');
+  const [dob, setDob] = useState('2019-03-15');
   const [fatherMobile, setFatherMobile] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -48,41 +51,70 @@ export const AdmissionTab: React.FC = () => {
   const [townCity, setTownCity] = useState('Kaloi');
   const [district, setDistrict] = useState('District Tharparkar @ Mithi');
 
-  // Uploads
+  // Uploads (PDF or Image format)
   const [studentPictureUrl, setStudentPictureUrl] = useState(
     'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=400&q=80'
   );
   const [bFormPictureUrl, setBFormPictureUrl] = useState(
     'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=400&q=80'
   );
+  const [fatherCnicFrontUrl, setFatherCnicFrontUrl] = useState(
+    'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=400&q=80'
+  );
+  const [fatherCnicBackUrl, setFatherCnicBackUrl] = useState(
+    'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=400&q=80'
+  );
   const [leavingCertificateUrl, setLeavingCertificateUrl] = useState(
     'https://images.unsplash.com/photo-1606326608606-aa0b62935f2b?auto=format&fit=crop&w=400&q=80'
   );
 
-  const isClass1 = appliedClass === 'Class 1' || appliedClass === 'Class 1st';
+  const isFreshEntry = appliedClass === 'Class ECCE' || appliedClass === 'Class 1';
 
   const handleRegisterSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!name || !fatherName || !cnicBForm || !fatherMobile || !email || !password) {
+    if (!name || !fatherName || !fatherMobile || !email || !password) {
       alert('Please fill all mandatory student and parent contact details.');
       return;
     }
 
-    if (!bFormPictureUrl) {
-      alert('B-Form Picture is mandatory for all classes!');
-      return;
+    if (isBFormAvailable) {
+      if (!cnicBForm) {
+        alert('Please enter student NADRA B-Form number.');
+        return;
+      }
+      if (!bFormPictureUrl) {
+        alert('Please upload student NADRA B-Form document in PDF or image format.');
+        return;
+      }
+    } else {
+      if (!fatherCnic) {
+        alert('Please enter Father CNIC Number as B-Form is not available.');
+        return;
+      }
+      if (!fatherCnicFrontUrl) {
+        alert('Please upload Father CNIC Front Side in PDF or image format.');
+        return;
+      }
+      if (!fatherCnicBackUrl) {
+        alert('Please upload Father CNIC Back Side in PDF or image format.');
+        return;
+      }
     }
 
-    if (!isClass1 && !leavingCertificateUrl) {
-      alert('Leaving Certificate is mandatory for admission in Class 2 to 10 (not applicable for Class 1).');
+    if (!isFreshEntry && !leavingCertificateUrl) {
+      alert('Leaving Certificate is mandatory for admission in Class 2 to 9 (not applicable for ECCE and Class 1).');
       return;
     }
 
     registerStudent({
       name,
       fatherName,
-      cnicBForm,
+      cnicBForm: isBFormAvailable ? cnicBForm : fatherCnic,
+      isBFormAvailable,
+      fatherCnic: isBFormAvailable ? undefined : fatherCnic,
+      fatherCnicFrontUrl: !isBFormAvailable ? fatherCnicFrontUrl : undefined,
+      fatherCnicBackUrl: !isBFormAvailable ? fatherCnicBackUrl : undefined,
       dob,
       fatherMobile,
       email,
@@ -96,8 +128,8 @@ export const AdmissionTab: React.FC = () => {
       },
       appliedClass,
       studentPictureUrl,
-      bFormPictureUrl,
-      leavingCertificateUrl: isClass1 ? undefined : leavingCertificateUrl,
+      bFormPictureUrl: isBFormAvailable ? bFormPictureUrl : undefined,
+      leavingCertificateUrl: isFreshEntry ? undefined : leavingCertificateUrl,
       bloodGroup: 'B+',
     });
   };
@@ -247,10 +279,10 @@ export const AdmissionTab: React.FC = () => {
             </h4>
             <ul className="list-disc pl-5 space-y-0.5 text-slate-700">
               <li>
-                <strong>B-Form Picture:</strong> Mandatory for all students (Class 1 to 10).
+                <strong>B-Form or Father CNIC:</strong> Mandatory for all students. If student NADRA B-Form is not yet available, you must upload <strong>Father CNIC Both Sides (Front & Back)</strong> in PDF or Image format.
               </li>
               <li>
-                <strong>Leaving Certificate (SLC):</strong> Mandatory for Class 2nd to 10th. (Not applicable for fresh Class 1 admissions).
+                <strong>Leaving Certificate (SLC):</strong> Mandatory for Class 2 to 9. (Exempted for fresh Class ECCE & Class 1 admissions).
               </li>
               <li>
                 Upon submission, the Headmaster/Admin will verify records, issue a confirmation letter, and allot an official <strong>GR Number</strong> displayed on your Student Dashboard.
@@ -266,12 +298,16 @@ export const AdmissionTab: React.FC = () => {
               </label>
               <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                 {[
+                  'Class ECCE',
                   'Class 1',
-                  'Class 6th',
-                  'Class 7th',
-                  'Class 8th',
-                  'Class 9th',
-                  'Class 10th',
+                  'Class 2',
+                  'Class 3',
+                  'Class 4',
+                  'Class 5',
+                  'Class 6',
+                  'Class 7',
+                  'Class 8',
+                  'Class 9',
                 ].map((cls) => (
                   <button
                     key={cls}
@@ -287,10 +323,10 @@ export const AdmissionTab: React.FC = () => {
                   </button>
                 ))}
               </div>
-              {isClass1 && (
+              {isFreshEntry && (
                 <p className="text-[11px] text-emerald-700 mt-2 font-medium flex items-center gap-1">
                   <CheckCircle2 className="w-3.5 h-3.5" />
-                  Primary Class 1 selected: School Leaving Certificate is not applicable.
+                  {appliedClass} selected: School Leaving Certificate is not applicable (Fresh Admission Entry).
                 </p>
               )}
             </div>
@@ -301,6 +337,54 @@ export const AdmissionTab: React.FC = () => {
                 <User className="w-4 h-4 text-emerald-700" />
                 1. Student & Guardian Particulars
               </h3>
+
+              {/* B-Form Availability Toggle */}
+              <div className="bg-emerald-50/50 border border-emerald-200 rounded-xl p-3 sm:p-4 space-y-2">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <span className="font-extrabold text-slate-900 text-xs sm:text-sm flex items-center gap-1.5">
+                      <Shield className="w-4 h-4 text-emerald-700" />
+                      Student NADRA B-Form Status *
+                    </span>
+                    <p className="text-[11px] text-slate-600">
+                      Does the student currently possess an official NADRA B-Form?
+                    </p>
+                  </div>
+                  <div className="inline-flex rounded-lg bg-slate-200 p-1 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setIsBFormAvailable(true)}
+                      className={`px-3 py-1.5 rounded-md font-bold text-xs transition ${
+                        isBFormAvailable
+                          ? 'bg-emerald-800 text-white shadow-xs'
+                          : 'text-slate-700 hover:text-slate-900'
+                      }`}
+                    >
+                      ✓ B-Form Available
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsBFormAvailable(false)}
+                      className={`px-3 py-1.5 rounded-md font-bold text-xs transition ${
+                        !isBFormAvailable
+                          ? 'bg-amber-600 text-white shadow-xs'
+                          : 'text-slate-700 hover:text-slate-900'
+                      }`}
+                    >
+                      ✕ B-Form Not Available
+                    </button>
+                  </div>
+                </div>
+
+                {!isBFormAvailable && (
+                  <div className="p-2.5 rounded-lg bg-amber-100/70 border border-amber-300 text-amber-900 text-[11px] font-medium flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-amber-700 shrink-0" />
+                    <span>
+                      <strong>Notice:</strong> As B-Form is not available, enter Father's CNIC number below and upload <strong>Father CNIC Both Sides (Front & Back)</strong> in Section 3.
+                    </span>
+                  </div>
+                )}
+              </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
@@ -327,17 +411,42 @@ export const AdmissionTab: React.FC = () => {
                   />
                 </div>
 
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">CNIC / B-Form Number *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="44301-XXXXXXX-X"
-                    value={cnicBForm}
-                    onChange={(e) => setCnicBForm(e.target.value)}
-                    className="w-full p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-emerald-600 font-mono"
-                  />
-                </div>
+                {isBFormAvailable ? (
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">
+                      Student NADRA B-Form Number *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="44301-XXXXXXX-X"
+                      value={cnicBForm}
+                      onChange={(e) => setCnicBForm(e.target.value)}
+                      className="w-full p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-emerald-600 font-mono"
+                    />
+                    <span className="text-[10px] text-slate-400">NADRA Birth Registration / B-Form Number</span>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block font-bold text-amber-900 mb-1 flex items-center gap-1">
+                      <span>Father's CNIC Number (B-Form Alternative) *</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="44301-XXXXXXX-X"
+                      value={fatherCnic}
+                      onChange={(e) => {
+                        setFatherCnic(e.target.value);
+                        setCnicBForm(e.target.value);
+                      }}
+                      className="w-full p-2.5 rounded-lg border-2 border-amber-400 bg-amber-50/30 focus:outline-none focus:border-amber-600 font-mono font-bold text-slate-900"
+                    />
+                    <span className="text-[10px] text-amber-700 font-semibold">
+                      Father's Computerized National Identity Card Number
+                    </span>
+                  </div>
+                )}
 
                 <div>
                   <label className="block font-bold text-slate-700 mb-1">Date of Birth (D.O.B.) *</label>
@@ -467,104 +576,110 @@ export const AdmissionTab: React.FC = () => {
 
             {/* Section 3: Upload Pictures */}
             {/* Required by user prompt:
-                "Upload Picture = B-Form Picture Mandatory for all classes and
-                 Leaving Certificate (2 to 9 & Class not applicable for 1)" */}
+                "Class ECCE, 1, 2, 3, 4, 5, 6, 7, 8, 9 in class Applying for change it.
+                 IF B-form Not available than upload Father CNIC Both side in PDF/ image format." */}
             <div className="space-y-4">
-              <h3 className="font-extrabold text-slate-900 text-sm uppercase tracking-wider border-b border-slate-200 pb-2 flex items-center gap-2">
-                <Upload className="w-4 h-4 text-emerald-700" />
-                3. Mandatory Document Uploads
-              </h3>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 pb-2">
+                <h3 className="font-extrabold text-slate-900 text-sm uppercase tracking-wider flex items-center gap-2">
+                  <Upload className="w-4 h-4 text-emerald-700" />
+                  3. Mandatory Document Uploads
+                </h3>
+                <span className="text-[11px] font-bold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-full">
+                  All documents supported in PDF or Image (PNG/JPG) format
+                </span>
+              </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {/* Dynamic Document Grid based on B-Form Availability */}
+              <div className={`grid grid-cols-1 ${isBFormAvailable ? 'sm:grid-cols-3' : 'sm:grid-cols-2 lg:grid-cols-4'} gap-4`}>
                 {/* 1. Student Passport Photo */}
-                <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-2">
-                  <label className="block font-bold text-slate-800">
-                    Student Passport Picture *
-                  </label>
-                  <div className="w-24 h-28 mx-auto rounded-lg overflow-hidden border border-slate-300 bg-white shadow-xs">
-                    <img
-                      src={studentPictureUrl}
-                      alt="Student"
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <input
-                    type="url"
-                    value={studentPictureUrl}
-                    onChange={(e) => setStudentPictureUrl(e.target.value)}
-                    className="w-full p-1.5 rounded border border-slate-200 text-[10px] font-mono"
-                    placeholder="Photo URL"
-                  />
-                  <span className="text-[10px] text-slate-400 block text-center">Blue / White background</span>
-                </div>
-
-                {/* 2. B-Form Picture (Mandatory for ALL classes) */}
-                <div className="p-4 rounded-xl border-2 border-emerald-300 bg-emerald-50/40 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="block font-bold text-emerald-950">
-                      B-Form Picture *
-                    </label>
-                    <span className="text-[10px] font-bold bg-emerald-700 text-white px-2 py-0.5 rounded">
-                      Mandatory (All Classes)
-                    </span>
-                  </div>
-                  <div className="w-full h-28 rounded-lg overflow-hidden border border-emerald-200 bg-white shadow-xs flex items-center justify-center">
-                    <img
-                      src={bFormPictureUrl}
-                      alt="B-Form Document"
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <input
-                    type="url"
+                <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/70">
+                  <FileUploadZone
+                    id="admission-student-photo"
+                    label="Student Passport Picture"
                     required
-                    value={bFormPictureUrl}
-                    onChange={(e) => setBFormPictureUrl(e.target.value)}
-                    className="w-full p-1.5 rounded border border-emerald-300 text-[10px] font-mono"
-                    placeholder="B-Form Image URL"
+                    value={studentPictureUrl}
+                    onChange={(val) => setStudentPictureUrl(val)}
+                    previewShape="avatar"
+                    helperText="Upload recent passport size photo in Image (PNG, JPG) or PDF"
+                    badgeText="Mandatory"
                   />
-                  <span className="text-[10px] text-emerald-700 block text-center">NADRA Official B-Form</span>
                 </div>
 
-                {/* 3. Leaving Certificate (Mandatory for 2-10, NOT applicable for 1) */}
-                <div className={`p-4 rounded-xl border space-y-2 ${
-                  isClass1 ? 'bg-slate-100 border-slate-200 opacity-60' : 'border-amber-300 bg-amber-50/40'
-                }`}>
-                  <div className="flex items-center justify-between">
-                    <label className="block font-bold text-slate-800">
-                      School Leaving Certificate *
-                    </label>
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                      isClass1 ? 'bg-slate-300 text-slate-600' : 'bg-amber-600 text-white'
-                    }`}>
-                      {isClass1 ? 'Not Applicable for Class 1' : 'Mandatory (Classes 2-10)'}
-                    </span>
+                {/* 2. B-Form OR Father CNIC Uploads */}
+                {isBFormAvailable ? (
+                  <div className="p-4 rounded-xl border-2 border-emerald-300 bg-emerald-50/30">
+                    <FileUploadZone
+                      id="admission-bform-doc"
+                      label="NADRA B-Form Document"
+                      required
+                      value={bFormPictureUrl}
+                      onChange={(val) => setBFormPictureUrl(val)}
+                      previewShape="document"
+                      helperText="Official NADRA B-Form in PDF or Image format (PNG/JPG)"
+                      badgeText="B-Form (PDF/Image)"
+                    />
                   </div>
+                ) : (
+                  <>
+                    {/* Father CNIC Front Side */}
+                    <div className="p-4 rounded-xl border-2 border-amber-400 bg-amber-50/40">
+                      <FileUploadZone
+                        id="admission-father-cnic-front"
+                        label="Father CNIC (Front Side)"
+                        required
+                        value={fatherCnicFrontUrl}
+                        onChange={(val) => setFatherCnicFrontUrl(val)}
+                        previewShape="document"
+                        helperText="Upload Father CNIC Front Side in PDF or Image format"
+                        badgeText="CNIC Front"
+                      />
+                    </div>
 
-                  {isClass1 ? (
-                    <div className="h-28 flex flex-col items-center justify-center text-center p-3 text-slate-500 text-xs">
-                      <CheckCircle2 className="w-8 h-8 text-slate-400 mb-1" />
-                      <span>Exempted for fresh Class 1 admissions.</span>
+                    {/* Father CNIC Back Side */}
+                    <div className="p-4 rounded-xl border-2 border-amber-400 bg-amber-50/40">
+                      <FileUploadZone
+                        id="admission-father-cnic-back"
+                        label="Father CNIC (Back Side)"
+                        required
+                        value={fatherCnicBackUrl}
+                        onChange={(val) => setFatherCnicBackUrl(val)}
+                        previewShape="document"
+                        helperText="Upload Father CNIC Back Side in PDF or Image format"
+                        badgeText="CNIC Back"
+                      />
+                    </div>
+                  </>
+                )}
+
+                {/* 3. Leaving Certificate (Mandatory for Classes 2-9, Exempted for ECCE & Class 1) */}
+                <div
+                  className={`p-4 rounded-xl border transition-all ${
+                    isFreshEntry
+                      ? 'bg-slate-100 border-slate-200 opacity-75'
+                      : 'border-blue-300 bg-blue-50/40'
+                  }`}
+                >
+                  {isFreshEntry ? (
+                    <div className="h-full flex flex-col items-center justify-center text-center p-3 text-slate-500 text-xs space-y-2">
+                      <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700">
+                        <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                      </div>
+                      <p className="font-bold text-slate-800">School Leaving Certificate</p>
+                      <p className="text-[11px] text-emerald-700 font-medium">
+                        Exempted for {appliedClass} fresh admission.
+                      </p>
                     </div>
                   ) : (
-                    <>
-                      <div className="w-full h-28 rounded-lg overflow-hidden border border-amber-200 bg-white shadow-xs">
-                        <img
-                          src={leavingCertificateUrl}
-                          alt="Leaving Certificate"
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                      <input
-                        type="url"
-                        required={!isClass1}
-                        value={leavingCertificateUrl}
-                        onChange={(e) => setLeavingCertificateUrl(e.target.value)}
-                        className="w-full p-1.5 rounded border border-amber-300 text-[10px] font-mono"
-                        placeholder="SLC Document Image URL"
-                      />
-                      <span className="text-[10px] text-amber-800 block text-center">Previous school certificate</span>
-                    </>
+                    <FileUploadZone
+                      id="admission-leaving-cert"
+                      label="School Leaving Certificate (SLC)"
+                      required={!isFreshEntry}
+                      value={leavingCertificateUrl}
+                      onChange={(val) => setLeavingCertificateUrl(val)}
+                      previewShape="document"
+                      helperText="Upload original SLC from previous school in PDF or Image format"
+                      badgeText="Mandatory (Classes 2-9)"
+                    />
                   )}
                 </div>
               </div>

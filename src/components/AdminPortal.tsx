@@ -28,6 +28,8 @@ import {
   EyeOff,
 } from 'lucide-react';
 import { Student, Teacher, TimetableSlot, StudentResult, LeavingCertificateData } from '../types';
+import { FileUploadZone } from './common/FileUploadZone';
+import { DocumentViewerModal } from './common/DocumentViewerModal';
 
 export const AdminPortal: React.FC = () => {
   const {
@@ -86,12 +88,17 @@ export const AdminPortal: React.FC = () => {
 
   // CMS state
   const [cmsSchoolName, setCmsSchoolName] = useState(settings.schoolName);
+  const [cmsLogoUrl, setCmsLogoUrl] = useState(settings.logoUrl);
+  const [cmsHeroBannerUrl, setCmsHeroBannerUrl] = useState(settings.heroBannerUrl);
   const [cmsMission, setCmsMission] = useState(settings.mission);
   const [cmsVision, setCmsVision] = useState(settings.vision);
   const [cmsAbout, setCmsAbout] = useState(settings.aboutHistory);
   const [cmsEnrollmentValidTill, setCmsEnrollmentValidTill] = useState(settings.enrollmentCardValidTill);
   const [cmsDesignerName, setCmsDesignerName] = useState(settings.designerName);
   const [cmsDesignerPicture, setCmsDesignerPicture] = useState(settings.designerPictureUrl);
+
+  // Document Viewer modal state
+  const [previewDoc, setPreviewDoc] = useState<{ url: string; title: string } | null>(null);
 
   // If not logged in as admin, show login box
   if (currentRole !== 'admin') {
@@ -187,6 +194,8 @@ export const AdminPortal: React.FC = () => {
     e.preventDefault();
     updateSettings({
       schoolName: cmsSchoolName,
+      logoUrl: cmsLogoUrl,
+      heroBannerUrl: cmsHeroBannerUrl,
       mission: cmsMission,
       vision: cmsVision,
       aboutHistory: cmsAbout,
@@ -194,6 +203,7 @@ export const AdminPortal: React.FC = () => {
       designerName: cmsDesignerName,
       designerPictureUrl: cmsDesignerPicture,
     });
+    alert('School Settings & Uploaded Logo/Banner successfully saved!');
   };
 
   return (
@@ -411,29 +421,81 @@ export const AdminPortal: React.FC = () => {
                       <div className="text-[10px] text-slate-400">{st.address.mohVillage}, {st.address.townCity}</div>
                     </td>
                     <td className="py-2.5 px-3 font-semibold text-emerald-800">{st.appliedClass}</td>
-                    <td className="py-2.5 px-3 font-mono">{st.cnicBForm}</td>
+                    <td className="py-2.5 px-3 font-mono">
+                      <div>{st.cnicBForm}</div>
+                      {st.isBFormAvailable === false && (
+                        <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 inline-block mt-0.5">
+                          Father CNIC (Alt)
+                        </span>
+                      )}
+                    </td>
                     <td className="py-2.5 px-3">
-                      <a
-                        href={st.bFormPictureUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1 text-blue-600 hover:underline font-semibold"
-                      >
-                        <Eye className="w-3 h-3" /> View B-Form
-                      </a>
+                      {st.isBFormAvailable !== false && st.bFormPictureUrl ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPreviewDoc({
+                              url: st.bFormPictureUrl,
+                              title: `${st.name}'s NADRA B-Form Document`,
+                            })
+                          }
+                          className="inline-flex items-center gap-1 text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 px-2 py-1 rounded font-semibold text-[11px] transition"
+                        >
+                          <Eye className="w-3 h-3" /> View B-Form
+                        </button>
+                      ) : (
+                        <div className="flex flex-col gap-1">
+                          {st.fatherCnicFrontUrl && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setPreviewDoc({
+                                  url: st.fatherCnicFrontUrl,
+                                  title: `${st.name}'s Father CNIC (Front Side)`,
+                                })
+                              }
+                              className="inline-flex items-center gap-1 text-amber-800 hover:text-amber-950 bg-amber-50 hover:bg-amber-100 px-2 py-0.5 rounded font-semibold text-[10px] transition border border-amber-200"
+                            >
+                              <Eye className="w-3 h-3" /> CNIC Front
+                            </button>
+                          )}
+                          {st.fatherCnicBackUrl && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setPreviewDoc({
+                                  url: st.fatherCnicBackUrl,
+                                  title: `${st.name}'s Father CNIC (Back Side)`,
+                                })
+                              }
+                              className="inline-flex items-center gap-1 text-amber-800 hover:text-amber-950 bg-amber-50 hover:bg-amber-100 px-2 py-0.5 rounded font-semibold text-[10px] transition border border-amber-200"
+                            >
+                              <Eye className="w-3 h-3" /> CNIC Back
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </td>
                     <td className="py-2.5 px-3">
                       {st.leavingCertificateUrl ? (
-                        <a
-                          href={st.leavingCertificateUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-1 text-blue-600 hover:underline font-semibold"
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPreviewDoc({
+                              url: st.leavingCertificateUrl!,
+                              title: `${st.name}'s School Leaving Certificate`,
+                            })
+                          }
+                          className="inline-flex items-center gap-1 text-blue-700 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded font-semibold text-[11px] transition"
                         >
                           <Eye className="w-3 h-3" /> View SLC
-                        </a>
+                        </button>
                       ) : (
-                        <span className="text-slate-400 italic">Not applicable (Class 1)</span>
+                        <span className="text-slate-400 italic text-[11px]">
+                          {st.appliedClass.includes('ECCE') || st.appliedClass === 'Class 1'
+                            ? 'Exempted (Fresh Entry)'
+                            : 'Not Provided'}
+                        </span>
                       )}
                     </td>
                     <td className="py-2.5 px-3 font-mono font-bold text-red-700">
@@ -919,10 +981,49 @@ export const AdminPortal: React.FC = () => {
           {/* Form for School Mission, Vision, and Developer Picture */}
           <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4 text-xs">
             <h3 className="text-base font-extrabold text-slate-900 border-b border-slate-100 pb-2">
-              Edit About Us, Mission & Vision & Designer Picture
+              Edit School Identity, Logo, About Us, Mission & Designer Picture
             </h3>
 
-            <form onSubmit={handleSaveCMS} className="space-y-4">
+            <form onSubmit={handleSaveCMS} className="space-y-5">
+              {/* School Official Logo & Campus Hero Banner Uploads */}
+              <div className="p-4 bg-emerald-50/50 rounded-xl border-2 border-emerald-200/80 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-extrabold text-emerald-950 text-sm flex items-center gap-2">
+                    <GraduationCap className="w-4 h-4 text-emerald-700" />
+                    Official School Logo & Campus Banner (PDF or Image Upload)
+                  </h4>
+                  <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                    No External Links Required
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                  <div className="bg-white p-3.5 rounded-xl border border-emerald-100 shadow-xs">
+                    <FileUploadZone
+                      id="cms-school-logo-upload"
+                      label="Official School Logo / Seal"
+                      value={cmsLogoUrl}
+                      onChange={(val) => setCmsLogoUrl(val)}
+                      previewShape="square"
+                      helperText="Upload official emblem in PDF or Image format (PNG, JPG, SVG, WebP)"
+                      badgeText="Displays in Header & ID Cards"
+                    />
+                  </div>
+
+                  <div className="bg-white p-3.5 rounded-xl border border-emerald-100 shadow-xs">
+                    <FileUploadZone
+                      id="cms-hero-banner-upload"
+                      label="Campus Hero Banner Image"
+                      value={cmsHeroBannerUrl}
+                      onChange={(val) => setCmsHeroBannerUrl(val)}
+                      previewShape="banner"
+                      helperText="Upload school building / campus photo in PDF or Image format"
+                      badgeText="Homepage Banner"
+                    />
+                  </div>
+                </div>
+              </div>
+
               <div>
                 <label className="block font-bold text-slate-700 mb-1">School Official Name</label>
                 <input
@@ -968,31 +1069,26 @@ export const AdminPortal: React.FC = () => {
                 <h4 className="font-extrabold text-amber-950">
                   Footer Developer Credit & Picture Upload (Designed By Ghanshamdas JEST)
                 </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block font-bold text-slate-700 mb-1">Designer / Developer Name</label>
                     <input
                       type="text"
                       value={cmsDesignerName}
                       onChange={(e) => setCmsDesignerName(e.target.value)}
-                      className="w-full p-2 rounded border border-slate-200"
+                      className="w-full p-2.5 rounded border border-slate-200"
                     />
                   </div>
-                  <div>
-                    <label className="block font-bold text-slate-700 mb-1">Upload / Change Designer Picture URL</label>
-                    <div className="flex gap-2">
-                      <input
-                        type="url"
-                        value={cmsDesignerPicture}
-                        onChange={(e) => setCmsDesignerPicture(e.target.value)}
-                        className="w-full p-2 rounded border border-slate-200 font-mono text-[10px]"
-                      />
-                      <img
-                        src={cmsDesignerPicture}
-                        alt="Preview"
-                        className="w-9 h-9 rounded-full object-cover border border-amber-400 shrink-0"
-                      />
-                    </div>
+                  <div className="bg-white p-3 rounded-lg border border-amber-200">
+                    <FileUploadZone
+                      id="cms-designer-picture-upload"
+                      label="Designer / Developer Picture"
+                      value={cmsDesignerPicture}
+                      onChange={(val) => setCmsDesignerPicture(val)}
+                      previewShape="avatar"
+                      helperText="Upload designer portrait in PDF or Image format (PNG, JPG)"
+                      badgeText="Footer Credit"
+                    />
                   </div>
                 </div>
               </div>
@@ -1031,18 +1127,15 @@ export const AdminPortal: React.FC = () => {
                       className="w-full p-2 bg-white rounded border border-slate-200 text-[11px]"
                       placeholder="Designation"
                     />
-                    <div className="flex gap-2 items-center">
-                      <input
-                        type="url"
+                    <div className="bg-white p-2.5 rounded-lg border border-slate-200">
+                      <FileUploadZone
+                        id={`dignitary-photo-${msg.id}`}
+                        label="Dignitary Portrait"
                         value={msg.pictureUrl}
-                        onChange={(e) => updateLeaderMessage(msg.id, { pictureUrl: e.target.value })}
-                        className="w-full p-2 bg-white rounded border border-slate-200 text-[10px] font-mono"
-                        placeholder="Picture URL"
-                      />
-                      <img
-                        src={msg.pictureUrl}
-                        alt="Photo"
-                        className="w-9 h-9 rounded-lg object-cover border border-slate-300 shrink-0"
+                        onChange={(val) => updateLeaderMessage(msg.id, { pictureUrl: val })}
+                        previewShape="avatar"
+                        helperText="Upload portrait in PDF or Image format (PNG, JPG)"
+                        badgeText={msg.title}
                       />
                     </div>
                     <textarea
@@ -1102,6 +1195,16 @@ export const AdminPortal: React.FC = () => {
             ))}
           </div>
         </div>
+      )}
+
+      {/* Global Document Viewer for Admin Verification */}
+      {previewDoc && (
+        <DocumentViewerModal
+          isOpen={!!previewDoc}
+          onClose={() => setPreviewDoc(null)}
+          fileUrl={previewDoc.url}
+          title={previewDoc.title}
+        />
       )}
     </div>
   );

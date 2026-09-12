@@ -13,14 +13,18 @@ export interface Student {
   name: string;
   fatherName: string;
   cnicBForm: string;
+  isBFormAvailable?: boolean; // If false, Father CNIC Both Sides is uploaded
+  fatherCnic?: string;
+  fatherCnicFrontUrl?: string; // Father CNIC Front in PDF or Image
+  fatherCnicBackUrl?: string;  // Father CNIC Back in PDF or Image
   dob: string;
   fatherMobile: string;
   email: string;
   password?: string;
   address: SchoolAddress;
-  appliedClass: string; // e.g. "Class 9" or "Class 1"
+  appliedClass: string; // e.g. "Class ECCE", "Class 1", "Class 2", ..., "Class 9"
   studentPictureUrl: string;
-  bFormPictureUrl: string;
+  bFormPictureUrl?: string;
   leavingCertificateUrl?: string;
   status: 'pending' | 'approved' | 'rejected';
   grNumber?: string; // e.g. "GR-406020752-0142"

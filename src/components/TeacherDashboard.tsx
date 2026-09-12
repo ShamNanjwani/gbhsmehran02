@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { useSchool } from '../context/SchoolContext';
+import { FileUploadZone } from './common/FileUploadZone';
+import { SafeMediaImage } from './common/SafeMediaImage';
 import {
   UserCheck,
   Calendar,
@@ -400,6 +402,19 @@ export const TeacherDashboard: React.FC = () => {
                   </div>
                 </div>
 
+                <div className="pt-1">
+                  <FileUploadZone
+                    id="teacher-reg-photo"
+                    label="Teacher Profile Picture / Official Photo"
+                    required
+                    value={regPictureUrl}
+                    onChange={(val) => setRegPictureUrl(val)}
+                    previewShape="avatar"
+                    helperText="Upload official passport size photo in PDF or Image format (PNG, JPG, WebP) — no links needed"
+                    badgeText="Govt Teacher Photo"
+                  />
+                </div>
+
                 <button
                   type="submit"
                   className="w-full py-3 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-sm shadow-md transition flex items-center justify-center gap-2"
@@ -495,11 +510,12 @@ export const TeacherDashboard: React.FC = () => {
       <div className="bg-gradient-to-r from-teal-950 via-teal-900 to-slate-950 text-white rounded-2xl p-6 sm:p-8 shadow-xl border-b-4 border-amber-400">
         <div className="flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-4">
-            <img
-              src={currentTeacher.pictureUrl}
-              alt={currentTeacher.name}
-              className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover border-2 border-amber-400 shadow-md shrink-0"
-            />
+            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden border-2 border-amber-400 shadow-md shrink-0 bg-slate-900">
+              <SafeMediaImage
+                src={currentTeacher.pictureUrl}
+                alt={currentTeacher.name}
+              />
+            </div>
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <span className="text-xs font-mono font-bold bg-amber-400 text-slate-950 px-2 py-0.5 rounded">

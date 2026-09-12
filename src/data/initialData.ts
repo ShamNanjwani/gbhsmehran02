@@ -3,7 +3,7 @@ import { Student, Teacher, TimetableSlot, DailyRemark, AttendanceRecord, Student
 export const initialSchoolSettings: SchoolSettings = {
   schoolName: 'GOVERNMENT BOYS HIGH SCHOOL MEHRAND',
   semisCode: '406020752',
-  establishedYear: '1985',
+  establishedYear: '1995',
   address: 'Village Mehrand P.O Kaloi Taluka Kaloi District Tharparkar @ Mithi',
   phone: '+92-346-3847836',
   email: 'info.gbhsmehrand@gmail.com',

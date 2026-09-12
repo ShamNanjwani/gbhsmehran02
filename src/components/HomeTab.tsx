@@ -1,5 +1,7 @@
 import React from 'react';
 import { useSchool } from '../context/SchoolContext';
+import { SchoolLogo } from './common/SchoolLogo';
+import { SafeMediaImage } from './common/SafeMediaImage';
 import {
   GraduationCap,
   Users,
@@ -99,10 +101,8 @@ export const HomeTab: React.FC = () => {
 
             {/* School Emblem & Quick Card */}
             <div className="w-full sm:w-80 bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20 text-center space-y-4 shadow-2xl">
-              <div className="w-20 h-20 mx-auto rounded-full bg-gradient-to-tr from-emerald-600 to-amber-400 p-1 flex items-center justify-center shadow-lg">
-                <div className="w-full h-full bg-emerald-950 rounded-full flex items-center justify-center">
-                  <GraduationCap className="w-10 h-10 text-amber-300" />
-                </div>
+              <div className="flex justify-center">
+                <SchoolLogo logoUrl={settings.logoUrl} size="xl" className="shadow-xl" />
               </div>
               <div>
                 <h3 className="text-lg font-black text-white uppercase tracking-wider">GBHS MEHRAND</h3>
@@ -210,11 +210,12 @@ export const HomeTab: React.FC = () => {
 
               <div className="p-6 flex-1 flex flex-col space-y-4">
                 <div className="flex items-center gap-4">
-                  <img
-                    src={minister.pictureUrl}
-                    alt={minister.name}
-                    className="w-18 h-18 sm:w-20 sm:h-20 rounded-2xl object-cover border-2 border-emerald-700 shadow-md shrink-0"
-                  />
+                  <div className="w-18 h-18 sm:w-20 sm:h-20 rounded-2xl overflow-hidden border-2 border-emerald-700 shadow-md shrink-0 bg-slate-100">
+                    <SafeMediaImage
+                      src={minister.pictureUrl}
+                      alt={minister.name}
+                    />
+                  </div>
                   <div>
                     <h4 className="text-base font-bold text-slate-900 leading-snug">
                       {minister.name}
@@ -255,11 +256,12 @@ export const HomeTab: React.FC = () => {
 
               <div className="p-6 flex-1 flex flex-col space-y-4">
                 <div className="flex items-center gap-4">
-                  <img
-                    src={secretary.pictureUrl}
-                    alt={secretary.name}
-                    className="w-18 h-18 sm:w-20 sm:h-20 rounded-2xl object-cover border-2 border-teal-700 shadow-md shrink-0"
-                  />
+                  <div className="w-18 h-18 sm:w-20 sm:h-20 rounded-2xl overflow-hidden border-2 border-teal-700 shadow-md shrink-0 bg-slate-100">
+                    <SafeMediaImage
+                      src={secretary.pictureUrl}
+                      alt={secretary.name}
+                    />
+                  </div>
                   <div>
                     <h4 className="text-base font-bold text-slate-900 leading-snug">
                       {secretary.name}
@@ -300,11 +302,12 @@ export const HomeTab: React.FC = () => {
 
               <div className="p-6 flex-1 flex flex-col space-y-4">
                 <div className="flex items-center gap-4">
-                  <img
-                    src={headmaster.pictureUrl}
-                    alt={headmaster.name}
-                    className="w-18 h-18 sm:w-20 sm:h-20 rounded-2xl object-cover border-2 border-amber-500 shadow-md shrink-0"
-                  />
+                  <div className="w-18 h-18 sm:w-20 sm:h-20 rounded-2xl overflow-hidden border-2 border-amber-500 shadow-md shrink-0 bg-slate-100">
+                    <SafeMediaImage
+                      src={headmaster.pictureUrl}
+                      alt={headmaster.name}
+                    />
+                  </div>
                   <div>
                     <h4 className="text-base font-bold text-slate-900 leading-snug">
                       {headmaster.name}

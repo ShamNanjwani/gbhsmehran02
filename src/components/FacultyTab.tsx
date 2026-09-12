@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { useSchool } from '../context/SchoolContext';
+import { FileUploadZone } from './common/FileUploadZone';
+import { SafeMediaImage } from './common/SafeMediaImage';
 import {
   Users,
   Mail,
@@ -173,11 +175,12 @@ export const FacultyTab: React.FC = () => {
             {/* Profile Content */}
             <div className="p-6 pt-0 flex-1 flex flex-col -mt-10">
               <div className="flex items-end justify-between mb-3">
-                <img
-                  src={teacher.pictureUrl}
-                  alt={teacher.name}
-                  className="w-20 h-20 rounded-2xl object-cover border-4 border-white shadow-md group-hover:scale-105 transition-transform"
-                />
+                <div className="w-20 h-20 rounded-2xl overflow-hidden border-4 border-white shadow-md group-hover:scale-105 transition-transform shrink-0 bg-slate-100">
+                  <SafeMediaImage
+                    src={teacher.pictureUrl}
+                    alt={teacher.name}
+                  />
+                </div>
                 <span className="text-xs font-extrabold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
                   {teacher.designation || 'Teacher'}
                 </span>
@@ -402,24 +405,16 @@ export const FacultyTab: React.FC = () => {
                 </div>
 
                 <div className="sm:col-span-2">
-                  <label className="block font-bold text-slate-700 mb-1">Upload Profile Picture URL / Avatar *</label>
-                  <div className="flex gap-2">
-                    <input
-                      type="url"
-                      required
-                      value={formData.pictureUrl}
-                      onChange={(e) => setFormData({ ...formData, pictureUrl: e.target.value })}
-                      className="w-full p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-emerald-600 text-xs font-mono"
-                    />
-                    <img
-                      src={formData.pictureUrl}
-                      alt="Preview"
-                      className="w-10 h-10 rounded-lg object-cover border border-slate-300 shrink-0"
-                    />
-                  </div>
-                  <span className="text-[10px] text-slate-400 mt-1 block">
-                    Default high-resolution photo provided. You can paste any photo URL or keep default.
-                  </span>
+                  <FileUploadZone
+                    id="teacher-profile-picture"
+                    label="Teacher Profile Picture / Photo"
+                    required
+                    value={formData.pictureUrl}
+                    onChange={(val) => setFormData({ ...formData, pictureUrl: val })}
+                    previewShape="avatar"
+                    helperText="Upload teacher official portrait in PDF or Image format (PNG, JPG, WebP) — no links needed"
+                    badgeText="Govt. Official ID"
+                  />
                 </div>
               </div>
 

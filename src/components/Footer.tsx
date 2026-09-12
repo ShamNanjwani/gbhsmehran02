@@ -1,5 +1,7 @@
 import React from 'react';
 import { useSchool } from '../context/SchoolContext';
+import { SchoolLogo } from './common/SchoolLogo';
+import { SafeMediaImage } from './common/SafeMediaImage';
 import {
   GraduationCap,
   Phone,
@@ -23,9 +25,7 @@ export const Footer: React.FC = () => {
           {/* Col 1: School Identity */}
           <div className="space-y-4">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-lg bg-emerald-800 p-2 text-white flex items-center justify-center border border-amber-400">
-                <GraduationCap className="w-7 h-7 text-amber-300" />
-              </div>
+              <SchoolLogo logoUrl={settings.logoUrl} size="md" />
               <div>
                 <h3 className="text-white font-extrabold text-sm tracking-wide">
                   GBHS MEHRAND
@@ -130,11 +130,12 @@ export const Footer: React.FC = () => {
             </h4>
             <div className="bg-slate-900 border border-slate-800 rounded-xl p-3.5 space-y-3">
               <div className="flex items-center gap-3">
-                <img
-                  src={settings.designerPictureUrl}
-                  alt={settings.designerName}
-                  className="w-12 h-12 rounded-full object-cover border-2 border-amber-400 shadow"
-                />
+                <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-amber-400 shadow shrink-0">
+                  <SafeMediaImage
+                    src={settings.designerPictureUrl}
+                    alt={settings.designerName}
+                  />
+                </div>
                 <div>
                   <p className="text-xs text-amber-400 font-bold uppercase tracking-wide">
                     Designed By

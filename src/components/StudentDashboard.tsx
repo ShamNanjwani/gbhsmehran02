@@ -22,6 +22,8 @@ import { StudentIdCard } from './cards/StudentIdCard';
 import { EnrollmentCard } from './cards/EnrollmentCard';
 import { ResultSheet } from './cards/ResultSheet';
 import { LeavingCertificate } from './cards/LeavingCertificate';
+import { DocumentViewerModal } from './common/DocumentViewerModal';
+import { SafeMediaImage } from './common/SafeMediaImage';
 import { Student } from '../types';
 
 export const StudentDashboard: React.FC = () => {
@@ -45,6 +47,8 @@ export const StudentDashboard: React.FC = () => {
   const [activeSubTab, setActiveSubTab] = useState<
     'overview' | 'idcard' | 'enrollment' | 'result' | 'slc' | 'remarks' | 'attendance' | 'timetable'
   >('overview');
+
+  const [previewDoc, setPreviewDoc] = useState<{ url: string; title: string } | null>(null);
 
   if (!currentStudent) {
     return (
@@ -92,10 +96,9 @@ export const StudentDashboard: React.FC = () => {
         <div className="flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-4">
             <div className="w-16 h-20 sm:w-20 sm:h-24 rounded-xl overflow-hidden border-2 border-amber-400 shadow-md shrink-0 bg-slate-800">
-              <img
+              <SafeMediaImage
                 src={currentStudent.studentPictureUrl}
                 alt={currentStudent.name}
-                className="w-full h-full object-cover"
               />
             </div>
             <div className="space-y-1">
@@ -292,6 +295,161 @@ export const StudentDashboard: React.FC = () => {
               <div className="text-right">
                 <p className="font-extrabold text-emerald-900">Headmaster</p>
                 <p className="text-[11px] text-slate-500">Seal & Signature</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Uploaded Documents Verification Box */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <h4 className="font-extrabold text-slate-900 text-sm">
+                  Submitted Verification Documents (PDF / Image Uploads)
+                </h4>
+                <p className="text-xs text-slate-500">
+                  Documents submitted during admission for government records
+                </p>
+              </div>
+              <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+                Verified Records
+              </span>
+            </div>
+
+            <div className={`grid grid-cols-1 ${currentStudent.isBFormAvailable === false ? 'sm:grid-cols-2 lg:grid-cols-4' : 'sm:grid-cols-3'} gap-4`}>
+              {/* NADRA B-Form OR Father CNIC Both Sides */}
+              {currentStudent.isBFormAvailable !== false && currentStudent.bFormPictureUrl ? (
+                <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/70 flex flex-col justify-between space-y-3">
+                  <div>
+                    <span className="text-[10px] font-extrabold text-emerald-800 uppercase tracking-wide block">
+                      NADRA B-Form / Birth Cert
+                    </span>
+                    <p className="font-mono text-xs text-slate-700 font-bold mt-0.5">
+                      {currentStudent.cnicBForm}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setPreviewDoc({
+                        url: currentStudent.bFormPictureUrl!,
+                        title: `${currentStudent.name} - NADRA B-Form Document`,
+                      })
+                    }
+                    className="w-full py-2 bg-emerald-800 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs transition"
+                  >
+                    <FileText className="w-3.5 h-3.5" /> View B-Form Document
+                  </button>
+                </div>
+              ) : (
+                <>
+                  {/* Father CNIC Front */}
+                  <div className="p-3.5 rounded-xl border-2 border-amber-300 bg-amber-50/40 flex flex-col justify-between space-y-3">
+                    <div>
+                      <span className="text-[10px] font-extrabold text-amber-900 uppercase tracking-wide block">
+                        Father CNIC (Front Side)
+                      </span>
+                      <p className="font-mono text-xs text-slate-700 font-bold mt-0.5">
+                        {currentStudent.fatherCnic || currentStudent.cnicBForm}
+                      </p>
+                      <span className="text-[10px] text-amber-700 font-semibold block">
+                        (B-Form Unavailable Alternative)
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setPreviewDoc({
+                          url: currentStudent.fatherCnicFrontUrl || currentStudent.bFormPictureUrl || '',
+                          title: `${currentStudent.name} - Father CNIC (Front Side)`,
+                        })
+                      }
+                      className="w-full py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs transition"
+                    >
+                      <FileText className="w-3.5 h-3.5" /> View CNIC Front
+                    </button>
+                  </div>
+
+                  {/* Father CNIC Back */}
+                  <div className="p-3.5 rounded-xl border-2 border-amber-300 bg-amber-50/40 flex flex-col justify-between space-y-3">
+                    <div>
+                      <span className="text-[10px] font-extrabold text-amber-900 uppercase tracking-wide block">
+                        Father CNIC (Back Side)
+                      </span>
+                      <p className="font-mono text-xs text-slate-700 font-bold mt-0.5">
+                        {currentStudent.fatherCnic || currentStudent.cnicBForm}
+                      </p>
+                      <span className="text-[10px] text-amber-700 font-semibold block">
+                        (Official Address & Issue Date)
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setPreviewDoc({
+                          url: currentStudent.fatherCnicBackUrl || currentStudent.bFormPictureUrl || '',
+                          title: `${currentStudent.name} - Father CNIC (Back Side)`,
+                        })
+                      }
+                      className="w-full py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs transition"
+                    >
+                      <FileText className="w-3.5 h-3.5" /> View CNIC Back
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {/* School Leaving Certificate */}
+              <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/70 flex flex-col justify-between space-y-3">
+                <div>
+                  <span className="text-[10px] font-extrabold text-blue-800 uppercase tracking-wide block">
+                    Previous School Leaving Cert
+                  </span>
+                  <p className="text-xs text-slate-700 font-medium mt-0.5">
+                    {currentStudent.leavingCertificateUrl ? 'Attached & Verified' : 'N/A (Fresh Admission)'}
+                  </p>
+                </div>
+                {currentStudent.leavingCertificateUrl ? (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setPreviewDoc({
+                        url: currentStudent.leavingCertificateUrl!,
+                        title: `${currentStudent.name} - Previous School Leaving Certificate`,
+                      })
+                    }
+                    className="w-full py-2 bg-blue-700 hover:bg-blue-600 text-white rounded-lg font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs transition"
+                  >
+                    <FileText className="w-3.5 h-3.5" /> View Leaving Certificate
+                  </button>
+                ) : (
+                  <div className="w-full py-2 bg-slate-100 text-slate-400 rounded-lg font-medium text-xs text-center border border-slate-200">
+                    Not Required (ECCE / Class 1 Entry)
+                  </div>
+                )}
+              </div>
+
+              {/* Student Passport Photo */}
+              <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/70 flex flex-col justify-between space-y-3">
+                <div>
+                  <span className="text-[10px] font-extrabold text-amber-800 uppercase tracking-wide block">
+                    Official Student Photo
+                  </span>
+                  <p className="text-xs text-slate-700 font-medium mt-0.5">
+                    Passport size format
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setPreviewDoc({
+                      url: currentStudent.studentPictureUrl,
+                      title: `${currentStudent.name} - Official Student Photo`,
+                    })
+                  }
+                  className="w-full py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-lg font-black text-xs flex items-center justify-center gap-1.5 shadow-xs transition"
+                >
+                  <Sparkles className="w-3.5 h-3.5" /> View Student Photo
+                </button>
               </div>
             </div>
           </div>
@@ -530,6 +688,16 @@ export const StudentDashboard: React.FC = () => {
             ))}
           </div>
         </div>
+      )}
+
+      {/* Global Document Viewer for Student Records */}
+      {previewDoc && (
+        <DocumentViewerModal
+          isOpen={!!previewDoc}
+          onClose={() => setPreviewDoc(null)}
+          fileUrl={previewDoc.url}
+          title={previewDoc.title}
+        />
       )}
     </div>
   );

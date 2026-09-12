@@ -2,6 +2,8 @@ import React from 'react';
 import { Student, SchoolSettings } from '../../types';
 import { Download, Printer, FileText, CheckCircle2, ShieldCheck, QrCode } from 'lucide-react';
 import { downloadEnrollmentCardPDF } from '../../utils/pdfGenerator';
+import { SchoolLogo } from '../common/SchoolLogo';
+import { SafeMediaImage } from '../common/SafeMediaImage';
 
 interface EnrollmentCardProps {
   student: Student;
@@ -47,6 +49,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({ student, setting
         {/* Top Header */}
         <div className="border-b-2 border-emerald-800 pb-4 text-center space-y-1">
           <div className="flex items-center justify-center gap-2 text-xs font-bold text-emerald-800 uppercase tracking-wider">
+            <SchoolLogo logoUrl={settings.logoUrl} size="sm" showBorder={false} />
             <span>School Education & Literacy Department Sindh</span>
           </div>
           <h3 className="text-xl sm:text-2xl font-black text-slate-950 uppercase tracking-tight">
@@ -65,10 +68,9 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({ student, setting
           {/* Photo & Validity Column */}
           <div className="sm:col-span-1 flex flex-col items-center text-center space-y-2">
             <div className="w-28 h-32 rounded-xl overflow-hidden border-2 border-emerald-700 shadow-md bg-slate-100">
-              <img
+              <SafeMediaImage
                 src={student.studentPictureUrl}
                 alt={student.name}
-                className="w-full h-full object-cover"
               />
             </div>
             <div className="w-full bg-emerald-50 border border-emerald-200 rounded-lg p-2 text-[10px] space-y-0.5">

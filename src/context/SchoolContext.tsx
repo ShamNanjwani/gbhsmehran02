@@ -119,7 +119,13 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const [activeTab, setActiveTab] = useState<string>(() => getStored<string>('activeTab', 'home'));
   const [deviceMode, setDeviceMode] = useState<'web' | 'android' | 'ios'>('web');
 
-  const [settings, setSettings] = useState<SchoolSettings>(() => getStored<SchoolSettings>('settings', initialSchoolSettings));
+  const [settings, setSettings] = useState<SchoolSettings>(() => {
+    const s = getStored<SchoolSettings>('settings', initialSchoolSettings);
+    if (s && s.establishedYear === '1985') {
+      return { ...s, establishedYear: '1995' };
+    }
+    return s;
+  });
   const [leaderMessages, setLeaderMessages] = useState<LeaderMessage[]>(() => getStored<LeaderMessage[]>('leaderMessages', initialLeaderMessages));
   const [teachers, setTeachers] = useState<Teacher[]>(() => getStored<Teacher[]>('teachers', initialTeachers));
   const [students, setStudents] = useState<Student[]>(() => getStored<Student[]>('students', initialStudents));

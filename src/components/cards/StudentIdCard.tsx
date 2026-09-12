@@ -2,6 +2,8 @@ import React from 'react';
 import { Student, SchoolSettings } from '../../types';
 import { Download, Printer, Shield, GraduationCap, QrCode } from 'lucide-react';
 import { downloadStudentIdCardPDF } from '../../utils/pdfGenerator';
+import { SchoolLogo } from '../common/SchoolLogo';
+import { SafeMediaImage } from '../common/SafeMediaImage';
 
 interface StudentIdCardProps {
   student: Student;
@@ -46,8 +48,8 @@ export const StudentIdCard: React.FC<StudentIdCardProps> = ({ student, settings 
       <div className="max-w-xs mx-auto bg-white rounded-2xl border-2 border-emerald-800 shadow-xl overflow-hidden font-sans text-slate-900 printable-card">
         {/* Card Header */}
         <div className="bg-gradient-to-r from-emerald-950 via-emerald-900 to-emerald-800 text-white p-3 text-center border-b-2 border-amber-400 relative">
-          <div className="flex items-center justify-center gap-1.5 mb-1">
-            <GraduationCap className="w-4 h-4 text-amber-400" />
+          <div className="flex items-center justify-center gap-2 mb-1.5">
+            <SchoolLogo logoUrl={settings.logoUrl} size="sm" showBorder={false} />
             <span className="text-[9px] font-black uppercase tracking-widest text-emerald-200">
               GOVERNMENT OF SINDH
             </span>
@@ -68,10 +70,9 @@ export const StudentIdCard: React.FC<StudentIdCardProps> = ({ student, settings 
           {/* Photo & GR Badge */}
           <div className="flex items-center gap-3">
             <div className="w-20 h-24 rounded-lg overflow-hidden border-2 border-emerald-700 shadow-sm shrink-0 bg-slate-100">
-              <img
+              <SafeMediaImage
                 src={student.studentPictureUrl}
                 alt={student.name}
-                className="w-full h-full object-cover"
               />
             </div>
             <div className="space-y-1 flex-1">
