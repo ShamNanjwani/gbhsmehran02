@@ -59,12 +59,14 @@ interface SchoolContextType {
 
   // Student Admissions
   registerStudent: (student: Omit<Student, 'id' | 'status' | 'admissionDate'>) => { success: boolean; studentId: string };
+  updateStudent: (studentId: string, updatedData: Partial<Student>) => void;
   approveStudent: (studentId: string, grNumber: string, section?: string, rollNo?: string) => void;
   rejectStudent: (studentId: string) => void;
   deleteStudent: (studentId: string) => void;
 
   // Teacher Management
   registerTeacher: (teacher: Omit<Teacher, 'id' | 'status' | 'joinDate'>) => { success: boolean; teacherId: string };
+  updateTeacher: (teacherId: string, updatedData: Partial<Teacher>) => void;
   approveTeacher: (teacherId: string) => void;
   rejectTeacher: (teacherId: string) => void;
   deleteTeacher: (teacherId: string) => void;
@@ -163,14 +165,34 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
   // Auth
   const loginAsAdmin = (user: string, pass: string): boolean => {
-    if (user.trim().toLowerCase() === 'admin' && pass === 'Admin@580') {
+    const cleanUser = user.trim().toLowerCase();
+    const isValidUser =
+      cleanUser === 'sham nanjwani' ||
+      cleanUser === 'sham' ||
+      cleanUser === 'admin' ||
+      cleanUser === 'sham_nanjwani';
+    const isValidPass = pass === 'Sham@580' || pass === 'Admin@580';
+
+    if (isValidUser && isValidPass) {
       setCurrentRole('admin');
-      setCurrentUser({ id: 'admin-root', name: 'Master Administrator', email: 'admin@gbhsmehrand.edu.pk' });
+      setCurrentUser({
+        id: 'admin-root',
+        name: 'Sham Nanjwani',
+        email: settings.email || 'sham.nanjwani@gbhsmehrand.edu.pk',
+      });
       setActiveTab('admin-portal');
-      showAlert('Welcome Admin', 'Successfully authenticated into GBHS Mehrand Control Center.', 'success');
+      showAlert(
+        'Welcome Sham Nanjwani',
+        'Successfully authenticated into GBHS Mehrand Administrative Control Center.',
+        'success'
+      );
       return true;
     }
-    showAlert('Login Failed', 'Invalid administrative credentials. Access is restricted to authorized school administrators.', 'error');
+    showAlert(
+      'Login Failed',
+      'Invalid administrative credentials. Please enter Username: "Sham Nanjwani" and Password: "Sham@580".',
+      'error'
+    );
     return false;
   };
 
@@ -291,6 +313,22 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     showAlert('Record Deleted', 'Student record removed.', 'info');
   };
 
+  const updateStudent = (studentId: string, updatedData: Partial<Student>) => {
+    setStudents((prev) =>
+      prev.map((s) => {
+        if (s.id === studentId) {
+          const updated = { ...s, ...updatedData };
+          if (currentUser?.id === studentId) {
+            setCurrentUser((u: any) => ({ ...u, extra: updated, name: updated.name, email: updated.email }));
+          }
+          return updated;
+        }
+        return s;
+      })
+    );
+    showAlert('Student Record Updated', 'The student particulars have been successfully updated in official school records.', 'success');
+  };
+
   // Teacher registration & approval
   const registerTeacher = (teacherData: Omit<Teacher, 'id' | 'status' | 'joinDate'>) => {
     const newId = 't-' + Date.now();
@@ -333,6 +371,22 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const deleteTeacher = (teacherId: string) => {
     setTeachers((prev) => prev.filter((t) => t.id !== teacherId));
     showAlert('Teacher Removed', 'Teacher record removed.', 'info');
+  };
+
+  const updateTeacher = (teacherId: string, updatedData: Partial<Teacher>) => {
+    setTeachers((prev) =>
+      prev.map((t) => {
+        if (t.id === teacherId) {
+          const updated = { ...t, ...updatedData };
+          if (currentUser?.id === teacherId) {
+            setCurrentUser((u: any) => ({ ...u, extra: updated, name: updated.name, email: updated.email }));
+          }
+          return updated;
+        }
+        return t;
+      })
+    );
+    showAlert('Teacher Record Updated', 'The faculty member record has been successfully updated.', 'success');
   };
 
   // Timetable slot update
@@ -479,10 +533,12 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         loginAsStudent,
         logout,
         registerStudent,
+        updateStudent,
         approveStudent,
         rejectStudent,
         deleteStudent,
         registerTeacher,
+        updateTeacher,
         approveTeacher,
         rejectTeacher,
         deleteTeacher,

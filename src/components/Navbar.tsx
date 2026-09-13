@@ -44,25 +44,16 @@ export const Navbar: React.FC = () => {
 
   return (
     <header className="sticky top-0 z-40 bg-white border-b border-emerald-900/10 shadow-sm">
-      {/* Top Govt of Sindh Notice & Emergency Line Bar */}
+      {/* Top Govt of Sindh Notice Bar */}
       <div className="bg-emerald-950 text-emerald-100 text-xs py-1.5 px-3 sm:px-6 hidden sm:flex justify-between items-center border-b border-emerald-800/40">
         <div className="flex items-center space-x-4">
           <span className="inline-flex items-center gap-1.5 font-medium">
             <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
             School Education & Literacy Department, Govt. of Sindh
           </span>
-          <span className="text-emerald-400 font-mono">SEMIS: {settings.semisCode}</span>
         </div>
-        <div className="flex items-center space-x-5 text-emerald-200 text-xs">
-          <a href={`tel:${settings.phone}`} className="flex items-center gap-1 hover:text-amber-300 transition-colors">
-            <Phone className="w-3.5 h-3.5 text-amber-400" />
-            <span>{settings.phone}</span>
-          </a>
-          <a href={`mailto:${settings.email}`} className="flex items-center gap-1 hover:text-amber-300 transition-colors">
-            <Mail className="w-3.5 h-3.5 text-amber-400" />
-            <span className="hidden md:inline">{settings.email}</span>
-          </a>
-          <span className="hidden lg:inline text-emerald-300/80">Taluka Kaloi, District Tharparkar</span>
+        <div className="flex items-center space-x-3 text-emerald-200 text-xs">
+          <span className="text-amber-300 font-semibold">Official Institutional Portal</span>
         </div>
       </div>
 
@@ -80,20 +71,17 @@ export const Navbar: React.FC = () => {
               className="group-hover:scale-105 transition-transform shadow-md"
             />
             <div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold tracking-wider text-emerald-800 bg-emerald-100/80 px-2 py-0.5 rounded uppercase">
-                  SEMIS: {settings.semisCode}
-                </span>
+              <div className="flex items-center gap-2 mb-1">
                 <span className="text-xs font-bold text-amber-900 bg-amber-100/90 px-2.5 py-0.5 rounded-md border border-amber-300/80 shadow-xs tracking-wide">
                   Est. {settings.establishedYear || '1995'}
+                </span>
+                <span className="text-xs font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                  Govt. of Sindh
                 </span>
               </div>
               <h1 className="text-base sm:text-lg lg:text-xl font-extrabold text-slate-900 tracking-tight leading-tight group-hover:text-emerald-800 transition-colors">
                 {settings.schoolName}
               </h1>
-              <p className="text-xs text-slate-500 font-medium">
-                Village Mehrand P.O Kaloi Taluka Kaloi District Tharparkar @ Mithi
-              </p>
             </div>
           </div>
 

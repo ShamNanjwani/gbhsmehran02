@@ -157,6 +157,9 @@ export interface SchoolSettings {
   address: string;
   phone: string;
   email: string;
+  officialHelpline?: string;
+  officialMobile?: string;
+  schoolTiming?: string;
   logoUrl: string;
   heroBannerUrl: string;
   mission: string;

@@ -17,6 +17,11 @@ import {
   Sparkles,
   FileCheck,
   LogOut,
+  Eye,
+  EyeOff,
+  User,
+  Shield,
+  KeyRound,
 } from 'lucide-react';
 import { StudentIdCard } from './cards/StudentIdCard';
 import { EnrollmentCard } from './cards/EnrollmentCard';
@@ -24,11 +29,13 @@ import { ResultSheet } from './cards/ResultSheet';
 import { LeavingCertificate } from './cards/LeavingCertificate';
 import { DocumentViewerModal } from './common/DocumentViewerModal';
 import { SafeMediaImage } from './common/SafeMediaImage';
+import { SchoolLogo } from './common/SchoolLogo';
 import { Student } from '../types';
 
 export const StudentDashboard: React.FC = () => {
   const {
     currentUser,
+    currentRole,
     students,
     settings,
     remarks,
@@ -37,12 +44,15 @@ export const StudentDashboard: React.FC = () => {
     leavingCertificates,
     timetable,
     logout,
+    loginAsStudent,
+    setActiveTab,
   } = useSchool();
 
-  // Find the student object (either from currentUser.extra or from students list)
-  const currentStudent: Student | undefined =
-    students.find((s) => s.id === currentUser?.id || s.email === currentUser?.email) ||
-    students[0]; // fallback to first sample student
+  // Student login form states
+  const [loginIdentifier, setLoginIdentifier] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [loginError, setLoginError] = useState('');
 
   const [activeSubTab, setActiveSubTab] = useState<
     'overview' | 'idcard' | 'enrollment' | 'result' | 'slc' | 'remarks' | 'attendance' | 'timetable'
@@ -50,10 +60,156 @@ export const StudentDashboard: React.FC = () => {
 
   const [previewDoc, setPreviewDoc] = useState<{ url: string; title: string } | null>(null);
 
-  if (!currentStudent) {
+  const handleStudentLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginError('');
+    const res = loginAsStudent(loginIdentifier, loginPassword);
+    if (!res.success) {
+      setLoginError(res.message || 'Invalid credentials.');
+    }
+  };
+
+  const handleQuickStudentLogin = (student: Student) => {
+    setLoginError('');
+    const identifier = student.grNumber || student.email || student.cnicBForm;
+    const pass = student.password || 'Student@123';
+    setLoginIdentifier(identifier);
+    setLoginPassword(pass);
+    const res = loginAsStudent(identifier, pass);
+    if (!res.success) {
+      setLoginError(res.message || 'Login failed.');
+    }
+  };
+
+  const handleStudentSignOut = () => {
+    logout();
+    setActiveTab('student-portal');
+  };
+
+  // Find logged in student object
+  const currentStudent: Student | undefined =
+    currentUser && currentRole === 'student'
+      ? students.find((s) => s.id === currentUser.id || s.email === currentUser.email)
+      : undefined;
+
+  // IF NOT LOGGED IN AS STUDENT, SHOW LOGIN VIEW
+  if (!currentStudent || currentRole !== 'student') {
     return (
-      <div className="max-w-md mx-auto py-16 text-center">
-        <p className="text-slate-600">Please log in to your student admission account.</p>
+      <div className="max-w-xl mx-auto py-12 px-4 space-y-6">
+        <div className="bg-white rounded-3xl border-2 border-emerald-800/20 shadow-2xl p-6 sm:p-8 space-y-6">
+          <div className="text-center space-y-3">
+            <div className="flex justify-center">
+              <SchoolLogo logoUrl={settings.logoUrl} size="lg" className="shadow-lg" />
+            </div>
+            <div>
+              <span className="text-[11px] font-bold text-emerald-800 bg-emerald-100/80 px-3 py-1 rounded-full uppercase tracking-wider">
+                Student & Parent Portal
+              </span>
+              <h2 className="text-2xl font-black text-slate-900 mt-2">
+                Sign In to Student Account
+              </h2>
+              <p className="text-xs text-slate-500 max-w-md mx-auto mt-1">
+                Access your Official Admission Record, Allotted GR Number, ID Card, Enrollment Card, Timetable & Result Sheet.
+              </p>
+            </div>
+          </div>
+
+          {loginError && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-800 flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+              <span>{loginError}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleStudentLogin} className="space-y-4 text-xs">
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">
+                Student Email / GR Number / B-Form
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. GR-406020752-0081 or student@gbhsmehrand.edu.pk"
+                  value={loginIdentifier}
+                  onChange={(e) => setLoginIdentifier(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-600 font-medium"
+                />
+                <User className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+              </div>
+            </div>
+
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">Password</label>
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  placeholder="Enter student password"
+                  value={loginPassword}
+                  onChange={(e) => setLoginPassword(e.target.value)}
+                  className="w-full pl-9 pr-10 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-600 font-medium"
+                />
+                <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-3 text-slate-400 hover:text-slate-600"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              className="w-full py-3 rounded-xl bg-emerald-800 hover:bg-emerald-700 text-white font-black text-sm shadow-md transition flex items-center justify-center gap-2"
+            >
+              <GraduationCap className="w-4 h-4 text-amber-300" />
+              Sign In to Student Dashboard
+            </button>
+
+            {/* Quick 1-click Demo logins */}
+            <div className="pt-3 border-t border-slate-100 space-y-2">
+              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wide block text-center">
+                Quick 1-Click Access for Enrolled Students:
+              </span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {students.slice(0, 2).map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => handleQuickStudentLogin(s)}
+                    className="p-2 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-xl text-left flex items-center gap-2 transition"
+                  >
+                    <div className="w-7 h-7 rounded-full bg-emerald-800 text-amber-300 flex items-center justify-center font-bold text-xs shrink-0">
+                      {s.name.charAt(0)}
+                    </div>
+                    <div className="overflow-hidden">
+                      <div className="font-bold text-slate-900 truncate">{s.name}</div>
+                      <div className="text-[10px] text-emerald-800 font-mono truncate">
+                        {s.grNumber || s.appliedClass}
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="text-center pt-2">
+              <p className="text-xs text-slate-500">
+                New student applying for admission?{' '}
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('admission')}
+                  className="font-bold text-emerald-800 hover:underline"
+                >
+                  Fill Online Admission Form →
+                </button>
+              </p>
+            </div>
+          </form>
+        </div>
       </div>
     );
   }
@@ -147,7 +303,7 @@ export const StudentDashboard: React.FC = () => {
               Enrollment Card
             </button>
             <button
-              onClick={logout}
+              onClick={handleStudentSignOut}
               className="px-3 py-2 rounded-xl bg-rose-900/60 hover:bg-rose-900 text-rose-200 font-bold text-xs border border-rose-700/60 transition flex items-center gap-1.5"
               title="Sign out of student account"
             >

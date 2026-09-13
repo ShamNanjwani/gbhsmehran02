@@ -70,12 +70,13 @@ export const ContactUsTab: React.FC = () => {
               </div>
               <div className="text-xs">
                 <h4 className="font-extrabold text-slate-900 text-sm">School Campus Address</h4>
-                <p className="text-slate-600 mt-1">
-                  Village Mehrand, Post Office Kaloi, Taluka Kaloi,
-                  <br />
-                  District Tharparkar @ Mithi, Sindh, Pakistan
+                <p className="text-slate-700 mt-1 font-medium leading-relaxed">
+                  {settings.address || 'Village Mehrand, Post Office Kaloi, Taluka Kaloi, District Tharparkar @ Mithi, Sindh, Pakistan'}
                 </p>
-                <p className="text-emerald-800 font-mono font-bold mt-1">SEMIS Code: {settings.semisCode}</p>
+                <div className="mt-2 inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded text-[11px] font-bold">
+                  <span>SEMIS Code:</span>
+                  <span className="font-mono">{settings.semisCode}</span>
+                </div>
               </div>
             </div>
 
@@ -83,10 +84,22 @@ export const ContactUsTab: React.FC = () => {
               <div className="w-10 h-10 rounded-xl bg-teal-100 text-teal-800 flex items-center justify-center shrink-0">
                 <Phone className="w-5 h-5" />
               </div>
-              <div className="text-xs">
+              <div className="text-xs space-y-1">
                 <h4 className="font-extrabold text-slate-900 text-sm">Official Helpline & Mobile</h4>
-                <p className="text-slate-600 mt-1 font-mono">Headmaster Office: +92-346-3957580</p>
-                <p className="text-slate-500 font-mono">IT & Inquiries: +92-344-0371580</p>
+                {settings.officialHelpline && (
+                  <p className="text-slate-700 font-mono flex items-center gap-1">
+                    <span className="font-bold text-slate-500">Helpline:</span>
+                    <a href={`tel:${settings.officialHelpline}`} className="hover:text-emerald-700 font-semibold underline">
+                      {settings.officialHelpline}
+                    </a>
+                  </p>
+                )}
+                <p className="text-slate-700 font-mono flex items-center gap-1">
+                  <span className="font-bold text-slate-500">Mobile / Office:</span>
+                  <a href={`tel:${settings.officialMobile || settings.phone}`} className="hover:text-emerald-700 font-semibold underline">
+                    {settings.officialMobile || settings.phone}
+                  </a>
+                </p>
               </div>
             </div>
 
@@ -94,10 +107,16 @@ export const ContactUsTab: React.FC = () => {
               <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-800 flex items-center justify-center shrink-0">
                 <Mail className="w-5 h-5" />
               </div>
-              <div className="text-xs">
+              <div className="text-xs space-y-1">
                 <h4 className="font-extrabold text-slate-900 text-sm">Official Email</h4>
-                <p className="text-slate-600 mt-1 font-mono">info@gbhsmehrand.edu.pk</p>
-                <p className="text-slate-500 font-mono">headmaster.mehrand@sindheducation.gov.pk</p>
+                <p className="text-slate-700 font-mono">
+                  <a href={`mailto:${settings.email}`} className="hover:text-blue-700 font-semibold underline">
+                    {settings.email}
+                  </a>
+                </p>
+                <p className="text-slate-400 font-mono text-[11px]">
+                  headmaster.mehrand@sindheducation.gov.pk
+                </p>
               </div>
             </div>
 
@@ -106,13 +125,11 @@ export const ContactUsTab: React.FC = () => {
                 <Clock className="w-5 h-5" />
               </div>
               <div className="text-xs">
-                <h4 className="font-extrabold text-slate-900 text-sm">School Office Hours</h4>
-                <p className="text-slate-600 mt-1">
-                  Monday to Thursday & Saturday: <strong>08:00 AM - 02:00 PM</strong>
+                <h4 className="font-extrabold text-slate-900 text-sm">Official School Timings</h4>
+                <p className="text-slate-700 mt-1 font-medium">
+                  {settings.schoolTiming || '08:00 AM - 01:30 PM (Mon - Sat, Friday: 08:00 AM - 12:00 PM)'}
                 </p>
-                <p className="text-slate-500">
-                  Friday: <strong>08:00 AM - 12:30 PM</strong> (Sunday Closed)
-                </p>
+                <p className="text-slate-400 text-[11px] mt-0.5">Sunday & Official Public Holidays Closed</p>
               </div>
             </div>
           </div>

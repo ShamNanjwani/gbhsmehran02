@@ -17,6 +17,7 @@ import {
   Plus,
   Trash2,
   Edit,
+  Edit3,
   Save,
   Lock,
   Upload,
@@ -26,10 +27,15 @@ import {
   HelpCircle,
   Eye,
   EyeOff,
+  PhoneCall,
+  MailCheck,
+  Building2,
 } from 'lucide-react';
 import { Student, Teacher, TimetableSlot, StudentResult, LeavingCertificateData } from '../types';
 import { FileUploadZone } from './common/FileUploadZone';
 import { DocumentViewerModal } from './common/DocumentViewerModal';
+import { EditStudentModal } from './admin/EditStudentModal';
+import { EditTeacherModal } from './admin/EditTeacherModal';
 
 export const AdminPortal: React.FC = () => {
   const {
@@ -41,10 +47,12 @@ export const AdminPortal: React.FC = () => {
     leaderMessages,
     updateLeaderMessage,
     students,
+    updateStudent,
     approveStudent,
     rejectStudent,
     deleteStudent,
     teachers,
+    updateTeacher,
     approveTeacher,
     rejectTeacher,
     deleteTeacher,
@@ -78,6 +86,10 @@ export const AdminPortal: React.FC = () => {
   const [allottedSection, setAllottedSection] = useState('A');
   const [allottedRollNo, setAllottedRollNo] = useState('01');
 
+  // State for editing student & teacher records (Required: "Admin can edit Teacher and student records")
+  const [editingStudent, setEditingStudent] = useState<Student | null>(null);
+  const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
+
   // State for adding/editing timetable slot
   const [editSlot, setEditSlot] = useState<TimetableSlot | null>(null);
 
@@ -86,7 +98,7 @@ export const AdminPortal: React.FC = () => {
   const [proxyTeacherId, setProxyTeacherId] = useState<string>('');
   const [proxyReason, setProxyReason] = useState<string>('Regular teacher on leave');
 
-  // CMS state
+  // CMS state (Required: Logo upload option, School time, Official Email, Official Helpline & Mobile)
   const [cmsSchoolName, setCmsSchoolName] = useState(settings.schoolName);
   const [cmsLogoUrl, setCmsLogoUrl] = useState(settings.logoUrl);
   const [cmsHeroBannerUrl, setCmsHeroBannerUrl] = useState(settings.heroBannerUrl);
@@ -96,6 +108,21 @@ export const AdminPortal: React.FC = () => {
   const [cmsEnrollmentValidTill, setCmsEnrollmentValidTill] = useState(settings.enrollmentCardValidTill);
   const [cmsDesignerName, setCmsDesignerName] = useState(settings.designerName);
   const [cmsDesignerPicture, setCmsDesignerPicture] = useState(settings.designerPictureUrl);
+  const [cmsSchoolTiming, setCmsSchoolTiming] = useState(
+    settings.schoolTiming || '08:00 AM - 01:30 PM (Mon - Sat, Friday: 08:00 AM - 12:00 PM)'
+  );
+  const [cmsEmail, setCmsEmail] = useState(settings.email || 'info.gbhsmehrand@gmail.com');
+  const [cmsOfficialHelpline, setCmsOfficialHelpline] = useState(
+    settings.officialHelpline || '+92-232-920045'
+  );
+  const [cmsOfficialMobile, setCmsOfficialMobile] = useState(
+    settings.officialMobile || '+92-346-3847836'
+  );
+  const [cmsPhone, setCmsPhone] = useState(settings.phone || '+92-346-3847836');
+  const [cmsAddress, setCmsAddress] = useState(
+    settings.address || 'Village Mehrand P.O Kaloi Taluka Kaloi District Tharparkar @ Mithi'
+  );
+  const [cmsSemisCode, setCmsSemisCode] = useState(settings.semisCode || '406020752');
 
   // Document Viewer modal state
   const [previewDoc, setPreviewDoc] = useState<{ url: string; title: string } | null>(null);
@@ -127,10 +154,10 @@ export const AdminPortal: React.FC = () => {
               <input
                 type="text"
                 required
-                placeholder="Enter admin username"
+                placeholder="Sham Nanjwani"
                 value={adminUsername}
                 onChange={(e) => setAdminUsername(e.target.value)}
-                className="w-full p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-amber-500 font-mono"
+                className="w-full p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-amber-500 font-mono font-medium"
               />
             </div>
 
@@ -140,10 +167,10 @@ export const AdminPortal: React.FC = () => {
                 <input
                   type={showAdminPassword ? 'text' : 'password'}
                   required
-                  placeholder="Enter administrator password"
+                  placeholder="Sham@580"
                   value={adminPassword}
                   onChange={(e) => setAdminPassword(e.target.value)}
-                  className="w-full pl-3 pr-10 py-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-amber-500"
+                  className="w-full pl-3 pr-10 py-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-amber-500 font-medium"
                 />
                 <button
                   type="button"
@@ -162,10 +189,20 @@ export const AdminPortal: React.FC = () => {
               Sign In to Master Control
             </button>
 
-            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-center space-y-1">
-              <p className="text-[11px] text-slate-600 font-medium">
-                🔒 Restricted Access: Only authorized school administrators possess credentials.
+            <div className="p-3 bg-amber-50/70 rounded-xl border border-amber-200 text-center space-y-2">
+              <p className="text-[11px] text-amber-950 font-semibold">
+                Authorized Administrator: <span className="font-mono font-bold">Sham Nanjwani</span> | Password: <span className="font-mono font-bold">Sham@580</span>
               </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setAdminUsername('Sham Nanjwani');
+                  setAdminPassword('Sham@580');
+                }}
+                className="w-full py-1.5 px-3 bg-amber-200/80 hover:bg-amber-300 text-amber-950 font-bold rounded-lg text-xs transition"
+              >
+                Auto-Fill Admin Credentials (Sham Nanjwani)
+              </button>
             </div>
           </form>
         </div>
@@ -202,8 +239,15 @@ export const AdminPortal: React.FC = () => {
       enrollmentCardValidTill: cmsEnrollmentValidTill,
       designerName: cmsDesignerName,
       designerPictureUrl: cmsDesignerPicture,
+      schoolTiming: cmsSchoolTiming,
+      email: cmsEmail,
+      officialHelpline: cmsOfficialHelpline,
+      officialMobile: cmsOfficialMobile,
+      phone: cmsPhone,
+      address: cmsAddress,
+      semisCode: cmsSemisCode,
     });
-    alert('School Settings & Uploaded Logo/Banner successfully saved!');
+    alert('School Settings, Timings, Official Helpline, Email & Uploaded Logo successfully saved!');
   };
 
   return (
@@ -516,6 +560,13 @@ export const AdminPortal: React.FC = () => {
                     </td>
                     <td className="py-2.5 px-3 text-right">
                       <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          onClick={() => setEditingStudent(st)}
+                          className="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded font-bold text-xs flex items-center gap-1 transition"
+                          title="Edit Student Record"
+                        >
+                          <Edit3 className="w-3 h-3" /> Edit
+                        </button>
                         {st.status === 'pending' && (
                           <button
                             onClick={() => handleOpenApproveStudent(st)}
@@ -692,6 +743,13 @@ export const AdminPortal: React.FC = () => {
                     </td>
                     <td className="py-2.5 px-3 text-right">
                       <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          onClick={() => setEditingTeacher(tch)}
+                          className="px-2 py-1 bg-teal-50 hover:bg-teal-100 text-teal-900 border border-teal-300 rounded font-bold text-xs flex items-center gap-1 transition"
+                          title="Edit Teacher Record"
+                        >
+                          <Edit3 className="w-3 h-3" /> Edit
+                        </button>
                         {tch.status === 'pending' ? (
                           <button
                             onClick={() => approveTeacher(tch.id)}
@@ -1064,6 +1122,114 @@ export const AdminPortal: React.FC = () => {
                 />
               </div>
 
+              {/* Official School Timing, Email, Helpline, Mobile & Address (Required by User) */}
+              <div className="bg-emerald-50/50 p-4 rounded-xl border border-emerald-200 space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-emerald-800 text-amber-300 flex items-center justify-center font-bold">
+                    <Clock className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="font-extrabold text-emerald-950 text-sm">
+                      Official Timings, Helpline, Email & Contact Settings
+                    </h4>
+                    <p className="text-[11px] text-emerald-800">
+                      These values populate the Contact Us page, Footer, and Official School Notices.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5 text-emerald-700" />
+                      Official School Timing *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={cmsSchoolTiming}
+                      onChange={(e) => setCmsSchoolTiming(e.target.value)}
+                      placeholder="08:00 AM - 01:30 PM (Mon - Sat)"
+                      className="w-full p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-emerald-600 font-semibold"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                      <MailCheck className="w-3.5 h-3.5 text-emerald-700" />
+                      Official School Email *
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      value={cmsEmail}
+                      onChange={(e) => setCmsEmail(e.target.value)}
+                      placeholder="info.gbhsmehrand@gmail.com"
+                      className="w-full p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-emerald-600 font-mono font-medium"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                      <PhoneCall className="w-3.5 h-3.5 text-emerald-700" />
+                      Official Helpline Number *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={cmsOfficialHelpline}
+                      onChange={(e) => setCmsOfficialHelpline(e.target.value)}
+                      placeholder="+92-232-920045"
+                      className="w-full p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-emerald-600 font-mono font-medium"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                      <PhoneCall className="w-3.5 h-3.5 text-emerald-700" />
+                      Official Mobile / WhatsApp *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={cmsOfficialMobile}
+                      onChange={(e) => setCmsOfficialMobile(e.target.value)}
+                      placeholder="+92-346-3847836"
+                      className="w-full p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-emerald-600 font-mono font-medium"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                      <Building2 className="w-3.5 h-3.5 text-emerald-700" />
+                      Official SEMIS Code
+                    </label>
+                    <input
+                      type="text"
+                      value={cmsSemisCode}
+                      onChange={(e) => setCmsSemisCode(e.target.value)}
+                      placeholder="406020752"
+                      className="w-full p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-emerald-600 font-mono font-bold text-emerald-800"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                      <Building2 className="w-3.5 h-3.5 text-emerald-700" />
+                      School Campus Full Address *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={cmsAddress}
+                      onChange={(e) => setCmsAddress(e.target.value)}
+                      placeholder="Village Mehrand P.O Kaloi Taluka Kaloi District Tharparkar @ Mithi"
+                      className="w-full p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-emerald-600"
+                    />
+                  </div>
+                </div>
+              </div>
+
               {/* Developer Credit & Upload Picture */}
               <div className="bg-amber-50/60 p-4 rounded-xl border border-amber-200 space-y-3">
                 <h4 className="font-extrabold text-amber-950">
@@ -1204,6 +1370,34 @@ export const AdminPortal: React.FC = () => {
           onClose={() => setPreviewDoc(null)}
           fileUrl={previewDoc.url}
           title={previewDoc.title}
+        />
+      )}
+
+      {/* Admin Edit Student Record Modal */}
+      {editingStudent && (
+        <EditStudentModal
+          isOpen={!!editingStudent}
+          student={editingStudent}
+          onClose={() => setEditingStudent(null)}
+          onSave={(studentId, updatedData) => {
+            updateStudent(studentId, updatedData);
+            setEditingStudent(null);
+            alert('Student record successfully updated!');
+          }}
+        />
+      )}
+
+      {/* Admin Edit Teacher Record Modal */}
+      {editingTeacher && (
+        <EditTeacherModal
+          isOpen={!!editingTeacher}
+          teacher={editingTeacher}
+          onClose={() => setEditingTeacher(null)}
+          onSave={(teacherId, updatedData) => {
+            updateTeacher(teacherId, updatedData);
+            setEditingTeacher(null);
+            alert('Teacher record successfully updated!');
+          }}
         />
       )}
     </div>

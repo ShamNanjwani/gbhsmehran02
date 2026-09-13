@@ -18,6 +18,7 @@ import {
   Sparkles,
   Eye,
   EyeOff,
+  Shield,
 } from 'lucide-react';
 
 export const AdmissionTab: React.FC = () => {
