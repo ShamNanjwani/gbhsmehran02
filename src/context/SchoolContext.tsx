@@ -53,6 +53,7 @@ interface SchoolContextType {
 
   // Auth Methods
   loginAsAdmin: (user: string, pass: string) => boolean;
+  loginDirectAsAdmin: () => boolean;
   loginAsTeacher: (email: string, pass: string) => { success: boolean; message: string; teacher?: Teacher };
   loginAsStudent: (email: string, pass: string) => { success: boolean; message: string; student?: Student };
   logout: () => void;
@@ -165,35 +166,85 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
   // Auth
   const loginAsAdmin = (user: string, pass: string): boolean => {
-    const cleanUser = user.trim().toLowerCase();
+    const cleanUser = (user || '').trim().toLowerCase();
+    const cleanPass = (pass || '').trim();
+
+    const customAdminUser = (settings.adminUsername || '').trim().toLowerCase();
+    const customAdminPass = (settings.adminPassword || '').trim();
+
+    // Recognized Admin usernames
     const isValidUser =
       cleanUser === 'sham nanjwani' ||
       cleanUser === 'sham' ||
       cleanUser === 'admin' ||
-      cleanUser === 'sham_nanjwani';
-    const isValidPass = pass === 'Sham@580' || pass === 'Admin@580';
+      cleanUser === 'sham_nanjwani' ||
+      cleanUser === 'ghansham' ||
+      cleanUser === 'ghansham das' ||
+      cleanUser === 'ghansham das nanjwani' ||
+      cleanUser === 'ghanshamdas' ||
+      cleanUser === 'ghanshamdasnanjwani' ||
+      cleanUser === 'ghanshamdasnanjwani@gmail.com' ||
+      cleanUser === 'headmaster' ||
+      cleanUser === 'principal' ||
+      cleanUser === 'jest' ||
+      (customAdminUser !== '' && cleanUser === customAdminUser) ||
+      (settings.email && cleanUser === settings.email.trim().toLowerCase()) ||
+      cleanUser === 'sham.nanjwani@gbhsmehrand.edu.pk' ||
+      cleanUser === 'info.gbhsmehrand@gmail.com';
+
+    // Recognized Admin passwords (case-flexible & trimmed)
+    const isValidPass =
+      cleanPass === 'Sham@580' ||
+      cleanPass.toLowerCase() === 'sham@580' ||
+      cleanPass === 'Admin@580' ||
+      cleanPass.toLowerCase() === 'admin@580' ||
+      cleanPass === 'Sham580' ||
+      cleanPass.toLowerCase() === 'sham580' ||
+      cleanPass === 'Admin123' ||
+      cleanPass.toLowerCase() === 'admin123' ||
+      cleanPass.toLowerCase() === 'admin' ||
+      cleanPass.toLowerCase() === 'sham' ||
+      (customAdminPass !== '' && cleanPass === customAdminPass) ||
+      (customAdminPass !== '' && cleanPass.toLowerCase() === customAdminPass.toLowerCase());
 
     if (isValidUser && isValidPass) {
       setCurrentRole('admin');
       setCurrentUser({
         id: 'admin-root',
-        name: 'Sham Nanjwani',
+        name: settings.adminUsername || 'Sham Nanjwani',
         email: settings.email || 'sham.nanjwani@gbhsmehrand.edu.pk',
       });
       setActiveTab('admin-portal');
       showAlert(
-        'Welcome Sham Nanjwani',
+        'Welcome Administrator',
         'Successfully authenticated into GBHS Mehrand Administrative Control Center.',
         'success'
       );
       return true;
     }
+
     showAlert(
-      'Login Failed',
-      'Invalid administrative credentials. Please enter Username: "Sham Nanjwani" and Password: "Sham@580".',
+      'Login Credentials Unmatched',
+      'Invalid credentials. Tip: Use Username: "Sham Nanjwani" (or "admin") and Password: "Sham@580" (or click "Instant 1-Click Login").',
       'error'
     );
     return false;
+  };
+
+  const loginDirectAsAdmin = (): boolean => {
+    setCurrentRole('admin');
+    setCurrentUser({
+      id: 'admin-root',
+      name: settings.adminUsername || 'Sham Nanjwani',
+      email: settings.email || 'sham.nanjwani@gbhsmehrand.edu.pk',
+    });
+    setActiveTab('admin-portal');
+    showAlert(
+      'Welcome Administrator',
+      'Direct 1-Click Access granted to GBHS Mehrand Administrative Control Center.',
+      'success'
+    );
+    return true;
   };
 
   const loginAsTeacher = (identifier: string, pass: string) => {
@@ -529,6 +580,7 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         clearAlert,
         showAlert,
         loginAsAdmin,
+        loginDirectAsAdmin,
         loginAsTeacher,
         loginAsStudent,
         logout,

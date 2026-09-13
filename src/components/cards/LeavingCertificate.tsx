@@ -2,6 +2,7 @@ import React from 'react';
 import { LeavingCertificateData, SchoolSettings } from '../../types';
 import { Download, Printer, Shield, FileCheck, CheckCircle2 } from 'lucide-react';
 import { downloadLeavingCertificatePDF } from '../../utils/pdfGenerator';
+import { HeadmasterSignatureDisplay } from '../common/HeadmasterSignatureDisplay';
 
 interface LeavingCertificateProps {
   certificate: LeavingCertificateData;
@@ -147,7 +148,7 @@ export const LeavingCertificate: React.FC<LeavingCertificateProps> = ({ certific
         </p>
 
         {/* Signatures */}
-        <div className="mt-8 pt-6 border-t border-slate-300 grid grid-cols-3 gap-4 text-center text-[10px] text-slate-700 font-sans">
+        <div className="mt-8 pt-4 border-t border-slate-300 grid grid-cols-3 gap-4 items-end text-center text-[10px] text-slate-700 font-sans">
           <div>
             <div className="h-8 border-b border-dashed border-slate-400 w-3/4 mx-auto mb-1"></div>
             <span className="font-medium">Prepared by (Junior Clerk)</span>
@@ -156,10 +157,12 @@ export const LeavingCertificate: React.FC<LeavingCertificateProps> = ({ certific
             <div className="h-8 border-b border-dashed border-slate-400 w-3/4 mx-auto mb-1"></div>
             <span className="font-medium">Verified by (JEST / Class Teacher)</span>
           </div>
-          <div>
-            <div className="h-8 border-b border-dashed border-slate-400 w-3/4 mx-auto mb-1"></div>
-            <span className="font-bold text-emerald-950">Headmaster Seal & Signature</span>
-          </div>
+          <HeadmasterSignatureDisplay
+            signatureUrl={settings.headmasterSignatureUrl}
+            label="Headmaster Seal & Signature"
+            subLabel="Authority Official Endorsement"
+            size="sm"
+          />
         </div>
       </div>
     </div>

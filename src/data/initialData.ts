@@ -20,6 +20,9 @@ export const initialSchoolSettings: SchoolSettings = {
   designerPictureUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
   enrollmentCardValidTill: '31st May 2027 (Annual Final Exams)',
   idCardTemplate: 'emerald',
+  headmasterSignatureUrl: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="220" height="70" viewBox="0 0 220 70"><path d="M20 45 Q 45 10, 75 32 T 130 25 Q 155 12, 185 36 M 50 40 C 65 18, 95 15, 115 42 M 100 32 L 170 30 M 135 20 Q 155 52, 195 38" stroke="%23064e3b" stroke-width="2.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/><text x="40" y="60" font-family="sans-serif" font-size="9" font-weight="900" fill="%23064e3b" letter-spacing="1">HM / GBHS MEHRAND</text></svg>',
+  adminUsername: 'Sham Nanjwani',
+  adminPassword: 'Sham@580',
   announcements: [
     { id: '1', title: 'Admissions Open for Academic Session 2026-2027 (Classes 1st to 10th)', date: 'Sept 10, 2026', tag: 'Admission' },
     { id: '2', title: 'Sindh School Education Department Annual Inspection & Science Fair', date: 'Sept 05, 2026', tag: 'Academic' },

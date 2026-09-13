@@ -170,6 +170,9 @@ export interface SchoolSettings {
   designerPictureUrl: string;
   enrollmentCardValidTill: string;
   idCardTemplate: 'classic' | 'modern' | 'emerald';
+  headmasterSignatureUrl?: string;
+  adminUsername?: string;
+  adminPassword?: string;
   announcements: { id: string; title: string; date: string; tag: string }[];
 }
 

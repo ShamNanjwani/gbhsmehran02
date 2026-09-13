@@ -30,17 +30,26 @@ import {
   PhoneCall,
   MailCheck,
   Building2,
+  Printer,
+  IdCard,
 } from 'lucide-react';
 import { Student, Teacher, TimetableSlot, StudentResult, LeavingCertificateData } from '../types';
 import { FileUploadZone } from './common/FileUploadZone';
 import { DocumentViewerModal } from './common/DocumentViewerModal';
 import { EditStudentModal } from './admin/EditStudentModal';
 import { EditTeacherModal } from './admin/EditTeacherModal';
+import { StudentIdCard } from './cards/StudentIdCard';
+import { TeacherIdCard } from './cards/TeacherIdCard';
+import { EnrollmentCard } from './cards/EnrollmentCard';
+import { StudentReportCard } from './cards/StudentReportCard';
+import { TeacherReportCard } from './cards/TeacherReportCard';
+import { HeadmasterSignatureDisplay } from './common/HeadmasterSignatureDisplay';
 
 export const AdminPortal: React.FC = () => {
   const {
     currentRole,
     loginAsAdmin,
+    loginDirectAsAdmin,
     logout,
     settings,
     updateSettings,
@@ -62,6 +71,7 @@ export const AdminPortal: React.FC = () => {
     clearProxySubstitution,
     attendance,
     markDailyAttendance,
+    remarks,
     results,
     issueOrUpdateResult,
     leavingCertificates,
@@ -70,9 +80,11 @@ export const AdminPortal: React.FC = () => {
     markInquiryRead,
   } = useSchool();
 
-  // Login credentials state
-  const [adminUsername, setAdminUsername] = useState('');
-  const [adminPassword, setAdminPassword] = useState('');
+  // Login credentials state pre-filled with active credentials for immediate ease of use
+  const defaultAdminUser = settings.adminUsername || 'Sham Nanjwani';
+  const defaultAdminPass = settings.adminPassword || 'Sham@580';
+  const [adminUsername, setAdminUsername] = useState(defaultAdminUser);
+  const [adminPassword, setAdminPassword] = useState(defaultAdminPass);
   const [showAdminPassword, setShowAdminPassword] = useState(false);
 
   // Admin Active Tab
@@ -98,10 +110,20 @@ export const AdminPortal: React.FC = () => {
   const [proxyTeacherId, setProxyTeacherId] = useState<string>('');
   const [proxyReason, setProxyReason] = useState<string>('Regular teacher on leave');
 
+  // Admin Card & Report Preview state
+  const [adminSelectedStudentId, setAdminSelectedStudentId] = useState<string>('');
+  const [adminSelectedTeacherId, setAdminSelectedTeacherId] = useState<string>('');
+  const [adminPreviewType, setAdminPreviewType] = useState<
+    'student_id' | 'enrollment' | 'student_report' | 'teacher_id' | 'teacher_report' | null
+  >(null);
+
   // CMS state (Required: Logo upload option, School time, Official Email, Official Helpline & Mobile)
   const [cmsSchoolName, setCmsSchoolName] = useState(settings.schoolName);
   const [cmsLogoUrl, setCmsLogoUrl] = useState(settings.logoUrl);
   const [cmsHeroBannerUrl, setCmsHeroBannerUrl] = useState(settings.heroBannerUrl);
+  const [cmsHeadmasterSignature, setCmsHeadmasterSignature] = useState(
+    settings.headmasterSignatureUrl || ''
+  );
   const [cmsMission, setCmsMission] = useState(settings.mission);
   const [cmsVision, setCmsVision] = useState(settings.vision);
   const [cmsAbout, setCmsAbout] = useState(settings.aboutHistory);
@@ -123,6 +145,9 @@ export const AdminPortal: React.FC = () => {
     settings.address || 'Village Mehrand P.O Kaloi Taluka Kaloi District Tharparkar @ Mithi'
   );
   const [cmsSemisCode, setCmsSemisCode] = useState(settings.semisCode || '406020752');
+  const [cmsAdminUsername, setCmsAdminUsername] = useState(settings.adminUsername || 'Sham Nanjwani');
+  const [cmsAdminPassword, setCmsAdminPassword] = useState(settings.adminPassword || 'Sham@580');
+  const [showCmsPassword, setShowCmsPassword] = useState(false);
 
   // Document Viewer modal state
   const [previewDoc, setPreviewDoc] = useState<{ url: string; title: string } | null>(null);
@@ -130,8 +155,8 @@ export const AdminPortal: React.FC = () => {
   // If not logged in as admin, show login box
   if (currentRole !== 'admin') {
     return (
-      <div className="max-w-md mx-auto py-12 px-4 space-y-6">
-        <div className="bg-white rounded-2xl border-2 border-amber-400 shadow-2xl p-8 space-y-6">
+      <div className="max-w-md mx-auto py-10 px-4 space-y-6">
+        <div className="bg-white rounded-2xl border-2 border-amber-400 shadow-2xl p-7 space-y-6">
           <div className="text-center space-y-2">
             <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-700 text-white flex items-center justify-center mx-auto shadow-lg">
               <Shield className="w-8 h-8" />
@@ -142,6 +167,37 @@ export const AdminPortal: React.FC = () => {
             </p>
           </div>
 
+          {/* Quick Direct Sign In Option (Zero Friction) */}
+          <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-300 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-black text-emerald-950 flex items-center gap-1.5">
+                <CheckCircle2 className="w-4 h-4 text-emerald-700" />
+                Quick Direct Access
+              </span>
+              <span className="text-[10px] font-bold bg-emerald-700 text-white px-2 py-0.5 rounded-full">
+                Recommended
+              </span>
+            </div>
+            <p className="text-[11px] text-emerald-800 leading-relaxed">
+              Skip manual typing and immediately unlock the Master Admin Control Center with authorized master credentials:
+            </p>
+            <button
+              type="button"
+              onClick={() => loginDirectAsAdmin()}
+              className="w-full py-2.5 px-4 rounded-xl bg-emerald-800 hover:bg-emerald-700 text-amber-300 font-extrabold text-xs shadow-md transition flex items-center justify-center gap-2"
+            >
+              <Shield className="w-4 h-4 text-amber-400" />
+              <span>Instant 1-Click Sign In (Sham Nanjwani)</span>
+            </button>
+          </div>
+
+          <div className="relative flex items-center justify-center">
+            <div className="border-t border-slate-200 w-full"></div>
+            <span className="bg-white px-3 text-[10px] uppercase font-bold text-slate-400 tracking-wider absolute">
+              Or Sign In with Credentials
+            </span>
+          </div>
+
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -150,7 +206,9 @@ export const AdminPortal: React.FC = () => {
             className="space-y-4 text-xs"
           >
             <div>
-              <label className="block font-bold text-slate-700 mb-1">Admin Username</label>
+              <label className="block font-bold text-slate-700 mb-1">
+                Admin Username / Email
+              </label>
               <input
                 type="text"
                 required
@@ -159,6 +217,9 @@ export const AdminPortal: React.FC = () => {
                 onChange={(e) => setAdminUsername(e.target.value)}
                 className="w-full p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-amber-500 font-mono font-medium"
               />
+              <span className="text-[10px] text-slate-400 mt-1 block">
+                Accepts: <code className="text-slate-600 font-bold">Sham Nanjwani</code>, <code className="text-slate-600 font-bold">admin</code>, or <code className="text-slate-600 font-bold">ghanshamdasnanjwani@gmail.com</code>
+              </span>
             </div>
 
             <div>
@@ -170,39 +231,53 @@ export const AdminPortal: React.FC = () => {
                   placeholder="Sham@580"
                   value={adminPassword}
                   onChange={(e) => setAdminPassword(e.target.value)}
-                  className="w-full pl-3 pr-10 py-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-amber-500 font-medium"
+                  className="w-full pl-3 pr-10 py-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-amber-500 font-mono font-medium"
                 />
                 <button
                   type="button"
                   onClick={() => setShowAdminPassword(!showAdminPassword)}
                   className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600"
+                  title={showAdminPassword ? 'Hide password' : 'Show password'}
                 >
                   {showAdminPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
+              <span className="text-[10px] text-slate-400 mt-1 block">
+                Default Password: <code className="text-slate-600 font-bold">Sham@580</code> (case-flexible)
+              </span>
             </div>
 
-            <button
-              type="submit"
-              className="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-sm shadow-md transition"
-            >
-              Sign In to Master Control
-            </button>
-
-            <div className="p-3 bg-amber-50/70 rounded-xl border border-amber-200 text-center space-y-2">
-              <p className="text-[11px] text-amber-950 font-semibold">
-                Authorized Administrator: <span className="font-mono font-bold">Sham Nanjwani</span> | Password: <span className="font-mono font-bold">Sham@580</span>
-              </p>
+            <div className="flex gap-2">
+              <button
+                type="submit"
+                className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow-md transition"
+              >
+                Sign In to Master Control
+              </button>
               <button
                 type="button"
                 onClick={() => {
                   setAdminUsername('Sham Nanjwani');
                   setAdminPassword('Sham@580');
+                  loginAsAdmin('Sham Nanjwani', 'Sham@580');
                 }}
-                className="w-full py-1.5 px-3 bg-amber-200/80 hover:bg-amber-300 text-amber-950 font-bold rounded-lg text-xs transition"
+                className="px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs transition shrink-0"
+                title="Auto-fill credentials and log in"
               >
-                Auto-Fill Admin Credentials (Sham Nanjwani)
+                Auto-Fill & Sign In
               </button>
+            </div>
+
+            {/* Helper Card */}
+            <div className="p-3 bg-amber-50/80 rounded-xl border border-amber-200 space-y-1.5">
+              <p className="text-[11px] text-amber-950 font-bold">
+                Admin Credential Details:
+              </p>
+              <ul className="text-[10px] text-amber-900 space-y-0.5 list-disc list-inside font-medium">
+                <li>Username: <span className="font-mono font-bold bg-amber-100 px-1 rounded">Sham Nanjwani</span> (or <span className="font-mono bg-amber-100 px-1 rounded">admin</span>)</li>
+                <li>Password: <span className="font-mono font-bold bg-amber-100 px-1 rounded">Sham@580</span></li>
+                <li>You can also click the green <strong>"Instant 1-Click Sign In"</strong> above at any time.</li>
+              </ul>
             </div>
           </form>
         </div>
@@ -233,6 +308,7 @@ export const AdminPortal: React.FC = () => {
       schoolName: cmsSchoolName,
       logoUrl: cmsLogoUrl,
       heroBannerUrl: cmsHeroBannerUrl,
+      headmasterSignatureUrl: cmsHeadmasterSignature,
       mission: cmsMission,
       vision: cmsVision,
       aboutHistory: cmsAbout,
@@ -246,8 +322,10 @@ export const AdminPortal: React.FC = () => {
       phone: cmsPhone,
       address: cmsAddress,
       semisCode: cmsSemisCode,
+      adminUsername: cmsAdminUsername,
+      adminPassword: cmsAdminPassword,
     });
-    alert('School Settings, Timings, Official Helpline, Email & Uploaded Logo successfully saved!');
+    alert('School Settings, Timings, Official Helpline, Email, Logo & Admin Credentials successfully saved!');
   };
 
   return (
@@ -1026,6 +1104,244 @@ export const AdminPortal: React.FC = () => {
               </div>
             </div>
           </div>
+
+          {/* Official Authority / Headmaster Signature Status */}
+          <div className="p-5 rounded-xl border-2 border-emerald-300 bg-emerald-50/50 space-y-3 text-xs">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="font-extrabold text-emerald-950 text-sm flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-700" />
+                  Official Headmaster (HM) Signature & Seal Placement Status
+                </h4>
+                <p className="text-slate-600 mt-0.5">
+                  This signature is automatically affixed to all Student ID Cards, Teacher ID Cards, Enrollment Slips, Result Sheets, and Academic/Service Reports.
+                </p>
+              </div>
+              <button
+                onClick={() => setActiveAdminTab('cms')}
+                className="px-3 py-1.5 bg-emerald-800 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs"
+              >
+                Upload / Change Sign in CMS →
+              </button>
+            </div>
+
+            <div className="bg-white p-4 rounded-xl border border-emerald-200 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="space-y-1">
+                <span className="text-[10px] font-mono text-slate-400 uppercase font-bold">Active Signature on File:</span>
+                <p className="font-bold text-slate-800">
+                  {settings.headmasterSignatureUrl ? 'Custom Authority Signature Active' : 'Default Official Seal Active'}
+                </p>
+                <span className="text-[11px] text-emerald-800">
+                  Placed as: <strong>Headmaster / Official Authority Signature & Seal</strong>
+                </span>
+              </div>
+              <div className="p-3 border border-slate-200 rounded-xl bg-slate-50 min-w-[180px] flex justify-center">
+                <HeadmasterSignatureDisplay
+                  signatureUrl={settings.headmasterSignatureUrl}
+                  label="Headmaster Official Seal"
+                  subLabel="GBHS Mehrand (Kaloi)"
+                  size="md"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Admin ID Card & Report Print Center */}
+          <div className="p-5 rounded-xl border border-slate-200 bg-white shadow-xs space-y-4 text-xs">
+            <div className="border-b border-slate-100 pb-3">
+              <h4 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
+                <Printer className="w-4 h-4 text-emerald-700" />
+                Admin Print Desk: Student & Teacher ID Cards & Official Reports
+              </h4>
+              <p className="text-slate-500 mt-0.5">
+                Generate and print instant PDF cards or comprehensive records for any registered student or teacher.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Student Print Box */}
+              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+                <h5 className="font-extrabold text-slate-900 flex items-center gap-1.5 text-xs">
+                  <GraduationCap className="w-4 h-4 text-emerald-700" />
+                  Student Cards & Academic Reports
+                </h5>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Select Enrolled Student</label>
+                  <select
+                    value={adminSelectedStudentId}
+                    onChange={(e) => {
+                      setAdminSelectedStudentId(e.target.value);
+                      if (!adminPreviewType) setAdminPreviewType('student_id');
+                    }}
+                    className="w-full p-2 rounded-lg border border-slate-200 bg-white font-medium text-xs"
+                  >
+                    <option value="">-- Choose a Student --</option>
+                    {students.map((st) => (
+                      <option key={st.id} value={st.id}>
+                        {st.name} ({st.appliedClass} - GR: {st.grNumber || 'Pending'})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {adminSelectedStudentId && (
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <button
+                      onClick={() => setAdminPreviewType('student_id')}
+                      className={`px-3 py-1.5 rounded-lg font-bold text-xs flex items-center gap-1 ${
+                        adminPreviewType === 'student_id'
+                          ? 'bg-emerald-800 text-white'
+                          : 'bg-white border border-slate-200 text-slate-700'
+                      }`}
+                    >
+                      <IdCard className="w-3.5 h-3.5" /> ID Card
+                    </button>
+                    <button
+                      onClick={() => setAdminPreviewType('enrollment')}
+                      className={`px-3 py-1.5 rounded-lg font-bold text-xs flex items-center gap-1 ${
+                        adminPreviewType === 'enrollment'
+                          ? 'bg-emerald-800 text-white'
+                          : 'bg-white border border-slate-200 text-slate-700'
+                      }`}
+                    >
+                      <FileText className="w-3.5 h-3.5" /> Enrollment
+                    </button>
+                    <button
+                      onClick={() => setAdminPreviewType('student_report')}
+                      className={`px-3 py-1.5 rounded-lg font-bold text-xs flex items-center gap-1 ${
+                        adminPreviewType === 'student_report'
+                          ? 'bg-emerald-800 text-white'
+                          : 'bg-white border border-slate-200 text-slate-700'
+                      }`}
+                    >
+                      <Printer className="w-3.5 h-3.5" /> Comprehensive Report
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Teacher Print Box */}
+              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+                <h5 className="font-extrabold text-slate-900 flex items-center gap-1.5 text-xs">
+                  <Users className="w-4 h-4 text-teal-700" />
+                  Teacher ID Cards & Service Reports
+                </h5>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Select Faculty Member</label>
+                  <select
+                    value={adminSelectedTeacherId}
+                    onChange={(e) => {
+                      setAdminSelectedTeacherId(e.target.value);
+                      if (!adminPreviewType) setAdminPreviewType('teacher_id');
+                    }}
+                    className="w-full p-2 rounded-lg border border-slate-200 bg-white font-medium text-xs"
+                  >
+                    <option value="">-- Choose a Teacher --</option>
+                    {teachers.map((tc) => (
+                      <option key={tc.id} value={tc.id}>
+                        {tc.name} ({tc.designation} - PID: {tc.pid})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {adminSelectedTeacherId && (
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <button
+                      onClick={() => setAdminPreviewType('teacher_id')}
+                      className={`px-3 py-1.5 rounded-lg font-bold text-xs flex items-center gap-1 ${
+                        adminPreviewType === 'teacher_id'
+                          ? 'bg-teal-800 text-white'
+                          : 'bg-white border border-slate-200 text-slate-700'
+                      }`}
+                    >
+                      <IdCard className="w-3.5 h-3.5" /> Staff ID Card
+                    </button>
+                    <button
+                      onClick={() => setAdminPreviewType('teacher_report')}
+                      className={`px-3 py-1.5 rounded-lg font-bold text-xs flex items-center gap-1 ${
+                        adminPreviewType === 'teacher_report'
+                          ? 'bg-teal-800 text-white'
+                          : 'bg-white border border-slate-200 text-slate-700'
+                      }`}
+                    >
+                      <Printer className="w-3.5 h-3.5" /> Service Report
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Render selected card/report preview for Admin */}
+            {adminPreviewType && (
+              <div className="pt-4 border-t border-slate-200">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="font-extrabold text-slate-900 text-sm">
+                    Print / Export Preview
+                  </span>
+                  <button
+                    onClick={() => setAdminPreviewType(null)}
+                    className="text-xs text-red-600 font-bold hover:underline"
+                  >
+                    Close Preview ✕
+                  </button>
+                </div>
+
+                <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 flex justify-center">
+                  {adminPreviewType === 'student_id' && (
+                    (() => {
+                      const st = students.find((s) => s.id === adminSelectedStudentId) || students[0];
+                      return st ? <StudentIdCard student={st} settings={settings} /> : null;
+                    })()
+                  )}
+
+                  {adminPreviewType === 'enrollment' && (
+                    (() => {
+                      const st = students.find((s) => s.id === adminSelectedStudentId) || students[0];
+                      return st ? <EnrollmentCard student={st} settings={settings} /> : null;
+                    })()
+                  )}
+
+                  {adminPreviewType === 'student_report' && (
+                    (() => {
+                      const st = students.find((s) => s.id === adminSelectedStudentId) || students[0];
+                      return st ? (
+                        <StudentReportCard
+                          student={st}
+                          settings={settings}
+                          attendance={attendance}
+                          results={results}
+                          remarks={remarks}
+                        />
+                      ) : null;
+                    })()
+                  )}
+
+                  {adminPreviewType === 'teacher_id' && (
+                    (() => {
+                      const tc = teachers.find((t) => t.id === adminSelectedTeacherId) || teachers[0];
+                      return tc ? <TeacherIdCard teacher={tc} settings={settings} /> : null;
+                    })()
+                  )}
+
+                  {adminPreviewType === 'teacher_report' && (
+                    (() => {
+                      const tc = teachers.find((t) => t.id === adminSelectedTeacherId) || teachers[0];
+                      return tc ? (
+                        <TeacherReportCard
+                          teacher={tc}
+                          settings={settings}
+                          timetable={timetable}
+                          attendance={attendance}
+                          remarks={remarks}
+                        />
+                      ) : null;
+                    })()
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -1079,6 +1395,34 @@ export const AdminPortal: React.FC = () => {
                       badgeText="Homepage Banner"
                     />
                   </div>
+                </div>
+
+                {/* Drag & Drop Headmaster / Authority Official Signature Upload (Required by User) */}
+                <div className="bg-white p-4 rounded-xl border-2 border-dashed border-emerald-300 shadow-xs mt-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <span className="text-xs font-black text-emerald-950 flex items-center gap-1.5 uppercase tracking-wide">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-700" />
+                        Official Headmaster (HM) / Authority Signature Upload (Drag & Drop)
+                      </span>
+                      <p className="text-[11px] text-slate-600 mt-0.5">
+                        This signature is automatically stamped as the <strong>Authority / Headmaster signature</strong> on Student ID cards, Teacher ID cards, Enrollment cards, Result sheets, Leaving certificates, and Exported reports.
+                      </p>
+                    </div>
+                    <span className="text-[10px] font-black bg-emerald-800 text-amber-300 px-2.5 py-1 rounded-full shrink-0">
+                      HM Authority Seal
+                    </span>
+                  </div>
+
+                  <FileUploadZone
+                    id="cms-headmaster-signature-upload"
+                    label="Headmaster Official Signature & Seal (PDF or Image)"
+                    value={cmsHeadmasterSignature}
+                    onChange={(val) => setCmsHeadmasterSignature(val)}
+                    previewShape="signature"
+                    helperText="Upload Headmaster signature image (PNG, JPG, SVG) or scanned PDF. Transparent background PNG recommended."
+                    badgeText="Auto-placed on all Cards & Reports"
+                  />
                 </div>
               </div>
 
@@ -1255,6 +1599,74 @@ export const AdminPortal: React.FC = () => {
                       helperText="Upload designer portrait in PDF or Image format (PNG, JPG)"
                       badgeText="Footer Credit"
                     />
+                  </div>
+                </div>
+              </div>
+
+              {/* Admin Master Credentials Configuration */}
+              <div className="bg-amber-50/80 p-4 rounded-xl border border-amber-300 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-amber-500 text-slate-950 flex items-center justify-center font-bold">
+                      <Shield className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="font-extrabold text-amber-950 text-sm">
+                        Admin Portal Login Credentials & Password
+                      </h4>
+                      <p className="text-[11px] text-amber-800">
+                        View or customize your Admin Master username and password. Changes take effect on next login.
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-bold bg-amber-200 text-amber-900 px-2 py-0.5 rounded border border-amber-300">
+                    Master Access
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">
+                      Admin Master Username / Identifier
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={cmsAdminUsername}
+                      onChange={(e) => setCmsAdminUsername(e.target.value)}
+                      placeholder="Sham Nanjwani"
+                      className="w-full p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-amber-500 font-mono font-bold"
+                    />
+                    <span className="text-[10px] text-slate-500 mt-1 block">
+                      Default: <code className="font-bold">Sham Nanjwani</code> (also accepts: <code className="font-bold">admin</code>)
+                    </span>
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">
+                      Admin Master Password
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showCmsPassword ? 'text' : 'password'}
+                        required
+                        value={cmsAdminPassword}
+                        onChange={(e) => setCmsAdminPassword(e.target.value)}
+                        placeholder="Sham@580"
+                        className="w-full pl-3 pr-10 py-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-amber-500 font-mono font-bold"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowCmsPassword(!showCmsPassword)}
+                        className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600"
+                        title={showCmsPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {showCmsPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                    <span className="text-[10px] text-slate-500 mt-1 block">
+                      Default: <code className="font-bold">Sham@580</code>
+                    </span>
                   </div>
                 </div>
               </div>

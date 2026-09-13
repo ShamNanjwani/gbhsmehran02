@@ -2,6 +2,7 @@ import React from 'react';
 import { StudentResult, SchoolSettings } from '../../types';
 import { Download, Printer, Award, CheckCircle2, TrendingUp } from 'lucide-react';
 import { downloadResultSheetPDF } from '../../utils/pdfGenerator';
+import { HeadmasterSignatureDisplay } from '../common/HeadmasterSignatureDisplay';
 
 interface ResultSheetProps {
   result: StudentResult;
@@ -148,7 +149,7 @@ export const ResultSheet: React.FC<ResultSheetProps> = ({ result, settings }) =>
         </div>
 
         {/* Official Signatures */}
-        <div className="mt-8 pt-6 border-t border-slate-200 grid grid-cols-3 gap-4 text-center text-[10px] text-slate-600">
+        <div className="mt-8 pt-4 border-t border-slate-200 grid grid-cols-3 gap-4 items-end text-center text-[10px] text-slate-600">
           <div>
             <div className="h-8 border-b border-dashed border-slate-400 w-3/4 mx-auto mb-1"></div>
             <span className="font-medium">Class Teacher</span>
@@ -157,10 +158,12 @@ export const ResultSheet: React.FC<ResultSheetProps> = ({ result, settings }) =>
             <div className="h-8 border-b border-dashed border-slate-400 w-3/4 mx-auto mb-1"></div>
             <span className="font-medium">Incharge Examination</span>
           </div>
-          <div>
-            <div className="h-8 border-b border-dashed border-slate-400 w-3/4 mx-auto mb-1"></div>
-            <span className="font-bold text-emerald-950">Headmaster Stamp & Signature</span>
-          </div>
+          <HeadmasterSignatureDisplay
+            signatureUrl={settings.headmasterSignatureUrl}
+            label="Headmaster Stamp & Signature"
+            subLabel="Authority Official Endorsement"
+            size="sm"
+          />
         </div>
       </div>
     </div>

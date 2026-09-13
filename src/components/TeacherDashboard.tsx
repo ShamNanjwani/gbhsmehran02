@@ -24,13 +24,19 @@ import {
   Phone,
   IdCard,
   LogOut,
+  Printer,
+  FileText,
+  Download,
 } from 'lucide-react';
 import { Teacher, TimetableSlot, Student, AttendanceRecord } from '../types';
+import { TeacherIdCard } from './cards/TeacherIdCard';
+import { TeacherReportCard } from './cards/TeacherReportCard';
 
 export const TeacherDashboard: React.FC = () => {
   const {
     currentRole,
     currentUser,
+    settings,
     teachers,
     students,
     timetable,
@@ -73,7 +79,9 @@ export const TeacherDashboard: React.FC = () => {
     teachers[0];
 
   // Tabs within Teacher Portal
-  const [subTab, setSubTab] = useState<'timetable' | 'attendance' | 'remarks' | 'proxy'>('timetable');
+  const [subTab, setSubTab] = useState<
+    'timetable' | 'attendance' | 'remarks' | 'proxy' | 'idcard' | 'report'
+  >('timetable');
 
   // Attendance marking state
   const [selectedClassForAttendance, setSelectedClassForAttendance] = useState('Class 9th');
@@ -535,10 +543,34 @@ export const TeacherDashboard: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => setSubTab('idcard')}
+              className={`px-3.5 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 transition ${
+                subTab === 'idcard'
+                  ? 'bg-amber-400 text-slate-950 shadow-md'
+                  : 'bg-teal-900/80 hover:bg-teal-800 text-amber-300 border border-amber-400/40'
+              }`}
+            >
+              <IdCard className="w-3.5 h-3.5" />
+              <span>Print ID Card</span>
+            </button>
+
+            <button
+              onClick={() => setSubTab('report')}
+              className={`px-3.5 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 transition ${
+                subTab === 'report'
+                  ? 'bg-amber-400 text-slate-950 shadow-md'
+                  : 'bg-teal-900/80 hover:bg-teal-800 text-amber-300 border border-amber-400/40'
+              }`}
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>Export Report</span>
+            </button>
+
             <button
               onClick={logout}
-              className="px-4 py-2 rounded-xl bg-teal-800 hover:bg-teal-700 text-white font-bold text-xs border border-teal-600 transition"
+              className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-teal-200 font-bold text-xs border border-teal-600 transition"
             >
               Sign Out
             </button>
@@ -572,10 +604,10 @@ export const TeacherDashboard: React.FC = () => {
       )}
 
       {/* Sub Tabs */}
-      <div className="flex items-center gap-2 border-b border-slate-200 pb-2 text-xs">
+      <div className="flex items-center gap-2 overflow-x-auto border-b border-slate-200 pb-2 text-xs">
         <button
           onClick={() => setSubTab('timetable')}
-          className={`px-4 py-2 rounded-xl font-black transition flex items-center gap-1.5 ${
+          className={`px-4 py-2 rounded-xl font-black transition flex items-center gap-1.5 shrink-0 ${
             subTab === 'timetable'
               ? 'bg-teal-800 text-white shadow-sm'
               : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
@@ -587,7 +619,7 @@ export const TeacherDashboard: React.FC = () => {
 
         <button
           onClick={() => setSubTab('attendance')}
-          className={`px-4 py-2 rounded-xl font-black transition flex items-center gap-1.5 ${
+          className={`px-4 py-2 rounded-xl font-black transition flex items-center gap-1.5 shrink-0 ${
             subTab === 'attendance'
               ? 'bg-teal-800 text-white shadow-sm'
               : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
@@ -599,7 +631,7 @@ export const TeacherDashboard: React.FC = () => {
 
         <button
           onClick={() => setSubTab('remarks')}
-          className={`px-4 py-2 rounded-xl font-black transition flex items-center gap-1.5 ${
+          className={`px-4 py-2 rounded-xl font-black transition flex items-center gap-1.5 shrink-0 ${
             subTab === 'remarks'
               ? 'bg-teal-800 text-white shadow-sm'
               : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
@@ -607,6 +639,30 @@ export const TeacherDashboard: React.FC = () => {
         >
           <BookOpen className="w-4 h-4" />
           Assign Classwork & Homework Remarks
+        </button>
+
+        <button
+          onClick={() => setSubTab('idcard')}
+          className={`px-4 py-2 rounded-xl font-black transition flex items-center gap-1.5 shrink-0 ${
+            subTab === 'idcard'
+              ? 'bg-teal-800 text-white shadow-sm'
+              : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+          }`}
+        >
+          <IdCard className="w-4 h-4" />
+          Print ID Card
+        </button>
+
+        <button
+          onClick={() => setSubTab('report')}
+          className={`px-4 py-2 rounded-xl font-black transition flex items-center gap-1.5 shrink-0 ${
+            subTab === 'report'
+              ? 'bg-teal-800 text-white shadow-sm'
+              : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+          }`}
+        >
+          <FileText className="w-4 h-4" />
+          Export Service Report
         </button>
       </div>
 
@@ -944,6 +1000,26 @@ export const TeacherDashboard: React.FC = () => {
               ))}
             </div>
           </div>
+        </div>
+      )}
+
+      {/* SUB-TAB 4: Printable Faculty ID Card */}
+      {subTab === 'idcard' && (
+        <div className="space-y-4">
+          <TeacherIdCard teacher={currentTeacher} settings={settings} />
+        </div>
+      )}
+
+      {/* SUB-TAB 5: Printable Faculty Service Report */}
+      {subTab === 'report' && (
+        <div className="space-y-4">
+          <TeacherReportCard
+            teacher={currentTeacher}
+            settings={settings}
+            timetable={timetable}
+            attendance={attendance}
+            remarks={remarks}
+          />
         </div>
       )}
     </div>

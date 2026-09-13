@@ -4,6 +4,7 @@ import { Download, Printer, Shield, GraduationCap, QrCode } from 'lucide-react';
 import { downloadStudentIdCardPDF } from '../../utils/pdfGenerator';
 import { SchoolLogo } from '../common/SchoolLogo';
 import { SafeMediaImage } from '../common/SafeMediaImage';
+import { HeadmasterSignatureDisplay } from '../common/HeadmasterSignatureDisplay';
 
 interface StudentIdCardProps {
   student: Student;
@@ -124,18 +125,22 @@ export const StudentIdCard: React.FC<StudentIdCardProps> = ({ student, settings 
           </div>
 
           {/* Signatures & Barcode */}
-          <div className="pt-2 border-t border-slate-200 flex items-center justify-between text-[9px] text-slate-500">
+          <div className="pt-2 border-t border-slate-200 grid grid-cols-3 items-end gap-1 text-[9px] text-slate-500">
             <div className="text-center">
-              <div className="h-6 border-b border-dashed border-slate-400 w-16 mb-0.5"></div>
+              <div className="h-6 border-b border-dashed border-slate-400 w-16 mx-auto mb-0.5"></div>
               <span>Student Sign</span>
             </div>
-            <div className="w-7 h-7 text-slate-700">
-              <QrCode className="w-full h-full text-emerald-800" />
+            <div className="flex justify-center items-center pb-1">
+              <div className="w-8 h-8 text-slate-700">
+                <QrCode className="w-full h-full text-emerald-800" />
+              </div>
             </div>
-            <div className="text-center">
-              <div className="h-6 border-b border-dashed border-slate-400 w-20 mb-0.5"></div>
-              <span className="font-bold text-emerald-900">Headmaster Seal</span>
-            </div>
+            <HeadmasterSignatureDisplay
+              signatureUrl={settings.headmasterSignatureUrl}
+              label="Headmaster Seal"
+              subLabel="Authority Sign"
+              size="sm"
+            />
           </div>
         </div>
 

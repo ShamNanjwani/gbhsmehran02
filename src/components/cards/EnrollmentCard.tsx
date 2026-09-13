@@ -4,6 +4,7 @@ import { Download, Printer, FileText, CheckCircle2, ShieldCheck, QrCode } from '
 import { downloadEnrollmentCardPDF } from '../../utils/pdfGenerator';
 import { SchoolLogo } from '../common/SchoolLogo';
 import { SafeMediaImage } from '../common/SafeMediaImage';
+import { HeadmasterSignatureDisplay } from '../common/HeadmasterSignatureDisplay';
 
 interface EnrollmentCardProps {
   student: Student;
@@ -141,7 +142,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({ student, setting
         </div>
 
         {/* Footer Signatures */}
-        <div className="border-t border-slate-200 pt-6 mt-2 grid grid-cols-3 gap-4 text-center text-[10px] text-slate-600">
+        <div className="border-t border-slate-200 pt-4 mt-2 grid grid-cols-3 gap-4 items-end text-center text-[10px] text-slate-600">
           <div>
             <div className="h-8 border-b border-dashed border-slate-400 w-3/4 mx-auto mb-1"></div>
             <span className="font-medium">Class Teacher / Incharge</span>
@@ -150,10 +151,12 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({ student, setting
             <div className="h-8 border-b border-dashed border-slate-400 w-3/4 mx-auto mb-1"></div>
             <span className="font-medium">Student Signature / Thumb</span>
           </div>
-          <div>
-            <div className="h-8 border-b border-dashed border-slate-400 w-3/4 mx-auto mb-1"></div>
-            <span className="font-bold text-emerald-950">Headmaster Official Seal</span>
-          </div>
+          <HeadmasterSignatureDisplay
+            signatureUrl={settings.headmasterSignatureUrl}
+            label="Headmaster Official Seal"
+            subLabel="Authority Sign & Stamp"
+            size="sm"
+          />
         </div>
       </div>
     </div>

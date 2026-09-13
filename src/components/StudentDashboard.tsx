@@ -27,6 +27,7 @@ import { StudentIdCard } from './cards/StudentIdCard';
 import { EnrollmentCard } from './cards/EnrollmentCard';
 import { ResultSheet } from './cards/ResultSheet';
 import { LeavingCertificate } from './cards/LeavingCertificate';
+import { StudentReportCard } from './cards/StudentReportCard';
 import { DocumentViewerModal } from './common/DocumentViewerModal';
 import { SafeMediaImage } from './common/SafeMediaImage';
 import { SchoolLogo } from './common/SchoolLogo';
@@ -293,7 +294,7 @@ export const StudentDashboard: React.FC = () => {
               className="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs shadow transition flex items-center gap-1.5"
             >
               <IdCard className="w-4 h-4" />
-              View Student ID Card
+              Print ID Card
             </button>
             <button
               onClick={() => setActiveSubTab('enrollment')}
@@ -301,6 +302,13 @@ export const StudentDashboard: React.FC = () => {
             >
               <FileText className="w-4 h-4 text-amber-300" />
               Enrollment Card
+            </button>
+            <button
+              onClick={() => setActiveSubTab('report')}
+              className="px-4 py-2 rounded-xl bg-teal-800 hover:bg-teal-700 text-amber-300 font-bold text-xs border border-teal-600 transition flex items-center gap-1.5"
+            >
+              <Printer className="w-4 h-4" />
+              Export Report
             </button>
             <button
               onClick={handleStudentSignOut}
@@ -341,6 +349,7 @@ export const StudentDashboard: React.FC = () => {
           { id: 'overview', label: 'Dashboard & Admission Letter', icon: FileCheck },
           { id: 'idcard', label: 'Official ID Card', icon: IdCard },
           { id: 'enrollment', label: 'Enrollment Card', icon: FileText },
+          { id: 'report', label: 'Export Report Card', icon: Printer },
           { id: 'result', label: 'Result Sheet', icon: Award },
           { id: 'slc', label: 'Leaving Certificate (SLC)', icon: GraduationCap },
           { id: 'remarks', label: 'Teachers Daily Remarks & Work', icon: Star },
@@ -623,6 +632,19 @@ export const StudentDashboard: React.FC = () => {
       {activeSubTab === 'enrollment' && (
         <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200">
           <EnrollmentCard student={currentStudent} settings={settings} />
+        </div>
+      )}
+
+      {/* SUB-TAB: Export Student Comprehensive Report */}
+      {activeSubTab === 'report' && (
+        <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200">
+          <StudentReportCard
+            student={currentStudent}
+            settings={settings}
+            attendance={attendance}
+            results={results}
+            remarks={remarks}
+          />
         </div>
       )}
 
