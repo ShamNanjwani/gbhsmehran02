@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useSchool } from '../context/SchoolContext';
 import { FileUploadZone } from './common/FileUploadZone';
 import { SafeMediaImage } from './common/SafeMediaImage';
+import { HeadmasterSignatureDisplay } from './common/HeadmasterSignatureDisplay';
 import {
   Users,
   Mail,
@@ -17,15 +18,19 @@ import {
   Upload,
   Eye,
   EyeOff,
+  ShieldCheck,
 } from 'lucide-react';
 import { Teacher } from '../types';
 
 export const FacultyTab: React.FC = () => {
-  const { teachers, registerTeacher, setActiveTab } = useSchool();
+  const { teachers, registerTeacher, setActiveTab, settings, leaderMessages } = useSchool();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSubject, setSelectedSubject] = useState<string>('All');
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [showModalPassword, setShowModalPassword] = useState(false);
+
+  const headmasterMsg = leaderMessages.find((m) => m.id === 'headmaster');
+  const activeHeadmasterName = settings.headmasterName || headmasterMsg?.name || 'Headmaster';
 
   // Form state for teacher registration popup
   const [formData, setFormData] = useState({
@@ -39,7 +44,7 @@ export const FacultyTab: React.FC = () => {
     qualification: '',
     subjectSpecialist: '',
     designation: 'JEST',
-    pictureUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+    pictureUrl: '',
   });
 
   // Filter approved teachers for public faculty page
@@ -78,7 +83,7 @@ export const FacultyTab: React.FC = () => {
       mobileNo: formData.mobileNo || '+92-346-XXXXXXX',
       qualification: formData.qualification,
       subjectSpecialist: formData.subjectSpecialist,
-      pictureUrl: formData.pictureUrl,
+      pictureUrl: formData.pictureUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
       designation: formData.designation,
       isAvailableToday: true,
     });
@@ -153,6 +158,57 @@ export const FacultyTab: React.FC = () => {
               {sub}
             </button>
           ))}
+        </div>
+      </div>
+
+      {/* Head of Institution / Headmaster Official Authority Card */}
+      <div className="bg-gradient-to-r from-slate-950 via-emerald-950 to-slate-900 text-white rounded-3xl p-6 sm:p-7 shadow-xl border-2 border-amber-400/40 relative overflow-hidden">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-6 relative z-10">
+          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5 text-center sm:text-left">
+            <div className="w-20 h-20 sm:w-22 sm:h-22 rounded-2xl overflow-hidden border-2 border-amber-400 shadow-xl bg-slate-900 shrink-0 flex items-center justify-center">
+              {headmasterMsg?.pictureUrl ? (
+                <SafeMediaImage
+                  src={headmasterMsg.pictureUrl}
+                  alt={activeHeadmasterName}
+                  className="w-full h-full object-cover"
+                />
+              ) : settings.logoUrl ? (
+                <img src={settings.logoUrl} alt="School Seal" className="w-full h-full object-contain p-2" />
+              ) : (
+                <Award className="w-10 h-10 text-amber-400" />
+              )}
+            </div>
+            <div className="space-y-1">
+              <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-amber-400/20 border border-amber-400/30 text-amber-300 text-[11px] font-extrabold uppercase tracking-wider">
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>Head of Institution</span>
+              </div>
+              <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white">
+                {activeHeadmasterName}
+              </h2>
+              <p className="text-xs sm:text-sm text-emerald-200 font-semibold">
+                Headmaster & Administrative Incharge • {settings.schoolName}
+              </p>
+              <p className="text-xs text-slate-300 max-w-xl pt-0.5 leading-relaxed">
+                Supervising academic quality, faculty duties, student evaluations, admissions, and institutional governance under School Education & Literacy Department, Govt. of Sindh.
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-3 sm:p-4 border border-white/20 text-center shrink-0 w-full sm:w-auto min-w-[170px]">
+            <span className="text-[10px] uppercase font-extrabold text-amber-300 block mb-1">
+              Institutional Authority Seal
+            </span>
+            <div className="bg-white rounded-xl p-2.5 shadow-inner">
+              <HeadmasterSignatureDisplay
+                signatureUrl={settings.headmasterSignatureUrl}
+                headmasterName={activeHeadmasterName}
+                label="Authority Signature & Seal"
+                subLabel="GBHS Mehrand"
+                size="sm"
+              />
+            </div>
+          </div>
         </div>
       </div>
 

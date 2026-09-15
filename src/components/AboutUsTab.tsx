@@ -1,5 +1,7 @@
 import React from 'react';
 import { useSchool } from '../context/SchoolContext';
+import { HeadmasterSignatureDisplay } from './common/HeadmasterSignatureDisplay';
+import { SafeMediaImage } from './common/SafeMediaImage';
 import {
   GraduationCap,
   Target,
@@ -10,10 +12,13 @@ import {
   Shield,
   Building,
   CheckCircle2,
+  ShieldCheck,
 } from 'lucide-react';
 
 export const AboutUsTab: React.FC = () => {
-  const { settings, setActiveTab } = useSchool();
+  const { settings, leaderMessages, setActiveTab } = useSchool();
+  const headmasterMsg = leaderMessages.find((m) => m.id === 'headmaster');
+  const activeHeadmasterName = settings.headmasterName || headmasterMsg?.name || 'Headmaster';
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-12">
@@ -89,6 +94,49 @@ export const AboutUsTab: React.FC = () => {
             <Shield className="w-5 h-5 text-amber-600" />
             <h4 className="font-extrabold text-slate-900 text-sm">Online Digital Portal</h4>
             <p className="text-xs text-slate-500">Modern real-time portal for admissions, ID cards, result sheets, and remarks.</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Institutional Leadership & Headmaster Administration Section */}
+      <div className="bg-white rounded-3xl p-8 sm:p-10 border-2 border-emerald-800/20 shadow-lg space-y-6">
+        <div className="flex items-center gap-3 border-b border-slate-200 pb-4">
+          <ShieldCheck className="w-6 h-6 text-emerald-800" />
+          <h3 className="text-xl font-extrabold text-slate-900">
+            Institutional Leadership & Governance
+          </h3>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
+          <div className="md:col-span-2 space-y-3">
+            <span className="text-xs font-bold uppercase tracking-wider text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded border border-emerald-200">
+              Headmaster & Incharge Principal
+            </span>
+            <h4 className="text-2xl font-black text-slate-900">
+              {activeHeadmasterName}
+            </h4>
+            <p className="text-xs font-semibold text-amber-900">
+              Head of Institution • Government Boys High School Mehrand
+            </p>
+            <p className="text-xs sm:text-sm text-slate-600 leading-relaxed pt-1">
+              {headmasterMsg?.message ||
+                'Dedicated to student-centric education, faculty excellence, scientific exploration, and moral growth under School Education & Literacy Department, Govt. of Sindh.'}
+            </p>
+          </div>
+
+          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex flex-col items-center justify-center text-center space-y-2">
+            <span className="text-[10px] font-extrabold uppercase text-slate-500 tracking-wider">
+              Official Headmaster Seal & Stamp
+            </span>
+            <div className="bg-white p-3 rounded-xl border border-slate-200 w-full shadow-xs">
+              <HeadmasterSignatureDisplay
+                signatureUrl={settings.headmasterSignatureUrl}
+                headmasterName={activeHeadmasterName}
+                label="Official Authority Seal"
+                subLabel="GBHS Mehrand • Taluka Kaloi"
+                size="md"
+              />
+            </div>
           </div>
         </div>
       </div>

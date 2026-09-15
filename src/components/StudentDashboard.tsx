@@ -170,34 +170,7 @@ export const StudentDashboard: React.FC = () => {
               Sign In to Student Dashboard
             </button>
 
-            {/* Quick 1-click Demo logins */}
-            <div className="pt-3 border-t border-slate-100 space-y-2">
-              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wide block text-center">
-                Quick 1-Click Access for Enrolled Students:
-              </span>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {students.slice(0, 2).map((s) => (
-                  <button
-                    key={s.id}
-                    type="button"
-                    onClick={() => handleQuickStudentLogin(s)}
-                    className="p-2 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-xl text-left flex items-center gap-2 transition"
-                  >
-                    <div className="w-7 h-7 rounded-full bg-emerald-800 text-amber-300 flex items-center justify-center font-bold text-xs shrink-0">
-                      {s.name.charAt(0)}
-                    </div>
-                    <div className="overflow-hidden">
-                      <div className="font-bold text-slate-900 truncate">{s.name}</div>
-                      <div className="text-[10px] text-emerald-800 font-mono truncate">
-                        {s.grNumber || s.appliedClass}
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="text-center pt-2">
+            <div className="text-center pt-2 border-t border-slate-100">
               <p className="text-xs text-slate-500">
                 New student applying for admission?{' '}
                 <button

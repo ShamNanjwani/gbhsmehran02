@@ -159,6 +159,7 @@ export const LeavingCertificate: React.FC<LeavingCertificateProps> = ({ certific
           </div>
           <HeadmasterSignatureDisplay
             signatureUrl={settings.headmasterSignatureUrl}
+            headmasterName={settings.headmasterName}
             label="Headmaster Seal & Signature"
             subLabel="Authority Official Endorsement"
             size="sm"

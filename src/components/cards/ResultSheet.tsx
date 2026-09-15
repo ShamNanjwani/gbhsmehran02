@@ -160,6 +160,7 @@ export const ResultSheet: React.FC<ResultSheetProps> = ({ result, settings }) =>
           </div>
           <HeadmasterSignatureDisplay
             signatureUrl={settings.headmasterSignatureUrl}
+            headmasterName={settings.headmasterName}
             label="Headmaster Stamp & Signature"
             subLabel="Authority Official Endorsement"
             size="sm"

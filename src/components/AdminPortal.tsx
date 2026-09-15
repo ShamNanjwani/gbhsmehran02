@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSchool } from '../context/SchoolContext';
 import {
   Shield,
@@ -32,8 +32,12 @@ import {
   Building2,
   Printer,
   IdCard,
+  Globe,
+  RefreshCw,
+  ExternalLink,
+  Check,
 } from 'lucide-react';
-import { Student, Teacher, TimetableSlot, StudentResult, LeavingCertificateData } from '../types';
+import { Student, Teacher, TimetableSlot, StudentResult, LeavingCertificateData, SchoolSettings } from '../types';
 import { FileUploadZone } from './common/FileUploadZone';
 import { DocumentViewerModal } from './common/DocumentViewerModal';
 import { EditStudentModal } from './admin/EditStudentModal';
@@ -48,6 +52,13 @@ import { HeadmasterSignatureDisplay } from './common/HeadmasterSignatureDisplay'
 export const AdminPortal: React.FC = () => {
   const {
     currentRole,
+    setActiveTab,
+    isSyncing,
+    lastSyncedAt,
+    syncStatus,
+    isLiveConnected,
+    syncWithWebsite,
+    refreshFromWebsite,
     loginAsAdmin,
     loginDirectAsAdmin,
     logout,
@@ -80,11 +91,9 @@ export const AdminPortal: React.FC = () => {
     markInquiryRead,
   } = useSchool();
 
-  // Login credentials state pre-filled with active credentials for immediate ease of use
-  const defaultAdminUser = settings.adminUsername || 'Sham Nanjwani';
-  const defaultAdminPass = settings.adminPassword || 'Sham@580';
-  const [adminUsername, setAdminUsername] = useState(defaultAdminUser);
-  const [adminPassword, setAdminPassword] = useState(defaultAdminPass);
+  // Login credentials state
+  const [adminUsername, setAdminUsername] = useState('');
+  const [adminPassword, setAdminPassword] = useState('');
   const [showAdminPassword, setShowAdminPassword] = useState(false);
 
   // Admin Active Tab
@@ -119,6 +128,9 @@ export const AdminPortal: React.FC = () => {
 
   // CMS state (Required: Logo upload option, School time, Official Email, Official Helpline & Mobile)
   const [cmsSchoolName, setCmsSchoolName] = useState(settings.schoolName);
+  const [cmsHeadmasterName, setCmsHeadmasterName] = useState(
+    settings.headmasterName || ''
+  );
   const [cmsLogoUrl, setCmsLogoUrl] = useState(settings.logoUrl);
   const [cmsHeroBannerUrl, setCmsHeroBannerUrl] = useState(settings.heroBannerUrl);
   const [cmsHeadmasterSignature, setCmsHeadmasterSignature] = useState(
@@ -152,11 +164,46 @@ export const AdminPortal: React.FC = () => {
   // Document Viewer modal state
   const [previewDoc, setPreviewDoc] = useState<{ url: string; title: string } | null>(null);
 
+  // Picture direct save feedback states
+  const [pictureSaveFeedback, setPictureSaveFeedback] = useState<Record<string, string>>({});
+  const [adminToast, setAdminToast] = useState<{ title: string; message: string; type: 'success' | 'info' | 'error' } | null>(null);
+
+  const showAlert = (title: string, message: string, type: 'success' | 'info' | 'error' = 'success') => {
+    setAdminToast({ title, message, type });
+    setTimeout(() => setAdminToast(null), 5000);
+  };
+
+  // Keep local CMS state synced with latest context and server database settings
+  useEffect(() => {
+    if (settings) {
+      if (settings.schoolName) setCmsSchoolName(settings.schoolName);
+      if (settings.headmasterName) setCmsHeadmasterName(settings.headmasterName);
+      if (settings.logoUrl !== undefined) setCmsLogoUrl(settings.logoUrl);
+      if (settings.heroBannerUrl !== undefined) setCmsHeroBannerUrl(settings.heroBannerUrl);
+      if (settings.headmasterSignatureUrl !== undefined) setCmsHeadmasterSignature(settings.headmasterSignatureUrl);
+      if (settings.mission) setCmsMission(settings.mission);
+      if (settings.vision) setCmsVision(settings.vision);
+      if (settings.aboutHistory) setCmsAbout(settings.aboutHistory);
+      if (settings.enrollmentCardValidTill) setCmsEnrollmentValidTill(settings.enrollmentCardValidTill);
+      if (settings.designerName) setCmsDesignerName(settings.designerName);
+      if (settings.designerPictureUrl !== undefined) setCmsDesignerPicture(settings.designerPictureUrl);
+      if (settings.schoolTiming) setCmsSchoolTiming(settings.schoolTiming);
+      if (settings.email) setCmsEmail(settings.email);
+      if (settings.officialHelpline) setCmsOfficialHelpline(settings.officialHelpline);
+      if (settings.officialMobile) setCmsOfficialMobile(settings.officialMobile);
+      if (settings.phone) setCmsPhone(settings.phone);
+      if (settings.address) setCmsAddress(settings.address);
+      if (settings.semisCode) setCmsSemisCode(settings.semisCode);
+      if (settings.adminUsername) setCmsAdminUsername(settings.adminUsername);
+      if (settings.adminPassword) setCmsAdminPassword(settings.adminPassword);
+    }
+  }, [settings]);
+
   // If not logged in as admin, show login box
   if (currentRole !== 'admin') {
     return (
-      <div className="max-w-md mx-auto py-10 px-4 space-y-6">
-        <div className="bg-white rounded-2xl border-2 border-amber-400 shadow-2xl p-7 space-y-6">
+      <div className="max-w-md mx-auto py-12 px-4 space-y-6">
+        <div className="bg-white rounded-2xl border-2 border-amber-400 shadow-2xl p-8 space-y-6">
           <div className="text-center space-y-2">
             <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-700 text-white flex items-center justify-center mx-auto shadow-lg">
               <Shield className="w-8 h-8" />
@@ -165,37 +212,6 @@ export const AdminPortal: React.FC = () => {
             <p className="text-xs text-slate-500">
               Government Boys High School Mehrand (SEMIS: 406020752)
             </p>
-          </div>
-
-          {/* Quick Direct Sign In Option (Zero Friction) */}
-          <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-300 space-y-2.5">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-black text-emerald-950 flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-700" />
-                Quick Direct Access
-              </span>
-              <span className="text-[10px] font-bold bg-emerald-700 text-white px-2 py-0.5 rounded-full">
-                Recommended
-              </span>
-            </div>
-            <p className="text-[11px] text-emerald-800 leading-relaxed">
-              Skip manual typing and immediately unlock the Master Admin Control Center with authorized master credentials:
-            </p>
-            <button
-              type="button"
-              onClick={() => loginDirectAsAdmin()}
-              className="w-full py-2.5 px-4 rounded-xl bg-emerald-800 hover:bg-emerald-700 text-amber-300 font-extrabold text-xs shadow-md transition flex items-center justify-center gap-2"
-            >
-              <Shield className="w-4 h-4 text-amber-400" />
-              <span>Instant 1-Click Sign In (Sham Nanjwani)</span>
-            </button>
-          </div>
-
-          <div className="relative flex items-center justify-center">
-            <div className="border-t border-slate-200 w-full"></div>
-            <span className="bg-white px-3 text-[10px] uppercase font-bold text-slate-400 tracking-wider absolute">
-              Or Sign In with Credentials
-            </span>
           </div>
 
           <form
@@ -212,14 +228,11 @@ export const AdminPortal: React.FC = () => {
               <input
                 type="text"
                 required
-                placeholder="Sham Nanjwani"
+                placeholder="Enter admin username"
                 value={adminUsername}
                 onChange={(e) => setAdminUsername(e.target.value)}
-                className="w-full p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-amber-500 font-mono font-medium"
+                className="w-full p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-amber-500 font-medium"
               />
-              <span className="text-[10px] text-slate-400 mt-1 block">
-                Accepts: <code className="text-slate-600 font-bold">Sham Nanjwani</code>, <code className="text-slate-600 font-bold">admin</code>, or <code className="text-slate-600 font-bold">ghanshamdasnanjwani@gmail.com</code>
-              </span>
             </div>
 
             <div>
@@ -228,10 +241,10 @@ export const AdminPortal: React.FC = () => {
                 <input
                   type={showAdminPassword ? 'text' : 'password'}
                   required
-                  placeholder="Sham@580"
+                  placeholder="Enter admin password"
                   value={adminPassword}
                   onChange={(e) => setAdminPassword(e.target.value)}
-                  className="w-full pl-3 pr-10 py-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-amber-500 font-mono font-medium"
+                  className="w-full pl-3 pr-10 py-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-amber-500 font-medium"
                 />
                 <button
                   type="button"
@@ -242,43 +255,14 @@ export const AdminPortal: React.FC = () => {
                   {showAdminPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
-              <span className="text-[10px] text-slate-400 mt-1 block">
-                Default Password: <code className="text-slate-600 font-bold">Sham@580</code> (case-flexible)
-              </span>
             </div>
 
-            <div className="flex gap-2">
-              <button
-                type="submit"
-                className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow-md transition"
-              >
-                Sign In to Master Control
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setAdminUsername('Sham Nanjwani');
-                  setAdminPassword('Sham@580');
-                  loginAsAdmin('Sham Nanjwani', 'Sham@580');
-                }}
-                className="px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs transition shrink-0"
-                title="Auto-fill credentials and log in"
-              >
-                Auto-Fill & Sign In
-              </button>
-            </div>
-
-            {/* Helper Card */}
-            <div className="p-3 bg-amber-50/80 rounded-xl border border-amber-200 space-y-1.5">
-              <p className="text-[11px] text-amber-950 font-bold">
-                Admin Credential Details:
-              </p>
-              <ul className="text-[10px] text-amber-900 space-y-0.5 list-disc list-inside font-medium">
-                <li>Username: <span className="font-mono font-bold bg-amber-100 px-1 rounded">Sham Nanjwani</span> (or <span className="font-mono bg-amber-100 px-1 rounded">admin</span>)</li>
-                <li>Password: <span className="font-mono font-bold bg-amber-100 px-1 rounded">Sham@580</span></li>
-                <li>You can also click the green <strong>"Instant 1-Click Sign In"</strong> above at any time.</li>
-              </ul>
-            </div>
+            <button
+              type="submit"
+              className="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-sm shadow-md transition"
+            >
+              Sign In to Master Control
+            </button>
           </form>
         </div>
       </div>
@@ -302,10 +286,12 @@ export const AdminPortal: React.FC = () => {
     setSelectedStudentForApproval(null);
   };
 
-  const handleSaveCMS = (e: React.FormEvent) => {
+  const handleSaveCMS = async (e: React.FormEvent) => {
     e.preventDefault();
-    updateSettings({
-      schoolName: cmsSchoolName,
+    const cleanHeadmasterName = cmsHeadmasterName.trim();
+    const updatedSettings: Partial<SchoolSettings> = {
+      headmasterName: cleanHeadmasterName,
+      schoolName: cmsSchoolName.trim(),
       logoUrl: cmsLogoUrl,
       heroBannerUrl: cmsHeroBannerUrl,
       headmasterSignatureUrl: cmsHeadmasterSignature,
@@ -324,41 +310,178 @@ export const AdminPortal: React.FC = () => {
       semisCode: cmsSemisCode,
       adminUsername: cmsAdminUsername,
       adminPassword: cmsAdminPassword,
+    };
+    const ok = await updateSettings(updatedSettings);
+    if (ok) {
+      await refreshFromWebsite(true);
+      showAlert('CMS Settings Saved & Published', 'All school settings and Headmaster credentials have been permanently saved to the server and synchronized live.', 'success');
+    }
+  };
+
+  const handleQuickSaveHeadmaster = async () => {
+    const cleanName = cmsHeadmasterName.trim();
+    if (!cleanName) {
+      showAlert('Headmaster Name Required', 'Please enter a valid Headmaster name before saving.', 'error');
+      return;
+    }
+    setPictureSaveFeedback((prev) => ({ ...prev, hmSignature: 'Saving...' }));
+
+    // 1. Update settings through context (updates state, localStorage, and /api/school-data/sync)
+    await updateSettings({
+      headmasterName: cleanName,
+      headmasterSignatureUrl: cmsHeadmasterSignature,
     });
-    alert('School Settings, Timings, Official Helpline, Email, Logo & Admin Credentials successfully saved!');
+
+    // 2. Call /api/update-headmaster directly for server-side persistence and leaderMessages update
+    try {
+      const res = await fetch('/api/update-headmaster', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          headmasterName: cleanName,
+          headmasterSignatureUrl: cmsHeadmasterSignature,
+          signatureUrl: cmsHeadmasterSignature,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        await refreshFromWebsite(true);
+        setPictureSaveFeedback((prev) => ({ ...prev, hmSignature: 'Saved & Synced!' }));
+        showAlert(
+          'Headmaster Name & Signature Saved!',
+          `Headmaster "${cleanName}" and official signature have been permanently saved to the server. The new name is now displayed on all ID cards, certificates, reports, and website pages.`,
+          'success'
+        );
+      } else {
+        setPictureSaveFeedback((prev) => ({ ...prev, hmSignature: 'Saved locally' }));
+      }
+    } catch (err) {
+      console.warn('Direct headmaster update warning:', err);
+      setPictureSaveFeedback((prev) => ({ ...prev, hmSignature: 'Saved locally' }));
+    }
+
+    setTimeout(() => {
+      setPictureSaveFeedback((prev) => ({ ...prev, hmSignature: '' }));
+    }, 4000);
+  };
+
+  // Direct save option for individual picture uploads with instant synchronization
+  const handleSavePicture = async (
+    type: 'logo' | 'heroBanner' | 'designer',
+    url: string
+  ) => {
+    let partialSettings: Partial<SchoolSettings> = {};
+    let label = 'Picture';
+
+    if (type === 'logo') {
+      partialSettings = { logoUrl: url };
+      label = 'School Logo';
+    } else if (type === 'heroBanner') {
+      partialSettings = { heroBannerUrl: url };
+      label = 'Campus Hero Banner';
+    } else if (type === 'designer') {
+      partialSettings = { designerPictureUrl: url, designerName: cmsDesignerName };
+      label = 'Designer Profile Picture';
+    }
+
+    setPictureSaveFeedback((prev) => ({ ...prev, [type]: 'Saving...' }));
+    const ok = await updateSettings(partialSettings);
+    if (ok) {
+      await refreshFromWebsite(true);
+      setPictureSaveFeedback((prev) => ({ ...prev, [type]: 'Saved & Synced!' }));
+      showAlert(
+        `${label} Saved & Synced!`,
+        `The ${label.toLowerCase()} has been saved to the server and will display for all users across all devices.`,
+        'success'
+      );
+    } else {
+      setPictureSaveFeedback((prev) => ({ ...prev, [type]: 'Saved locally' }));
+    }
+
+    setTimeout(() => {
+      setPictureSaveFeedback((prev) => ({ ...prev, [type]: '' }));
+    }, 4000);
   };
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-      {/* Admin Header Bar */}
-      <div className="bg-gradient-to-r from-slate-950 via-slate-900 to-amber-950 text-white rounded-2xl p-6 sm:p-8 shadow-xl border-b-4 border-amber-500">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+      {/* Admin Header Bar with Website Sync Controls */}
+      <div className="bg-gradient-to-r from-slate-950 via-slate-900 to-amber-950 text-white rounded-2xl p-6 sm:p-8 shadow-xl border-b-4 border-amber-500 space-y-4">
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-2xl bg-amber-500 p-3 text-slate-950 flex items-center justify-center font-black shadow-lg">
+            <div className="w-16 h-16 rounded-2xl bg-amber-500 p-3 text-slate-950 flex items-center justify-center font-black shadow-lg shrink-0">
               <Shield className="w-10 h-10" />
             </div>
             <div className="space-y-1">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="bg-amber-500 text-slate-950 text-xs font-black px-2.5 py-0.5 rounded uppercase">
                   Super Admin
                 </span>
                 <span className="text-amber-400 font-mono text-xs font-bold">
                   SEMIS: {settings.semisCode}
                 </span>
+                <span className="inline-flex items-center gap-1.5 bg-emerald-900/80 text-emerald-300 text-[11px] font-bold px-2.5 py-0.5 rounded-full border border-emerald-600/50">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                  <span>Website Live Sync: Active</span>
+                </span>
               </div>
               <h2 className="text-xl sm:text-2xl font-black">GBHS Mehrand Administration Panel</h2>
               <p className="text-xs text-slate-300">
-                Full authority over admissions, teachers, timetable auto-assignment, ID cards, certificates, and school CMS.
+                Full authority over admissions, faculty, timetable auto-assignment, ID cards, certificates, and school CMS.
               </p>
+              <div className="flex items-center gap-2 text-[11px] text-slate-400 pt-0.5">
+                <span>Last Synced to Website:</span>
+                <strong className="text-amber-300 font-mono">
+                  {lastSyncedAt
+                    ? new Date(lastSyncedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+                    : 'Ready'}
+                </strong>
+                <span className="hidden sm:inline text-slate-500">• All saved data displays live on main page for all users</span>
+              </div>
             </div>
           </div>
 
-          <button
-            onClick={logout}
-            className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-400 font-bold text-xs border border-amber-500/40 transition"
-          >
-            Sign Out Admin
-          </button>
+          {/* Header Action Buttons (Save & Sync to Website, Refresh, View Main Page, Sign Out) */}
+          <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto justify-end">
+            <button
+              type="button"
+              onClick={() => syncWithWebsite(true)}
+              disabled={isSyncing}
+              className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-xs shadow-lg shadow-emerald-950/40 flex items-center gap-2 border border-emerald-400/40 transition-all transform hover:-translate-y-0.5 disabled:opacity-50"
+              title="Save and synchronize complete school records and CMS changes to the website server so all visitors see updates"
+            >
+              <Globe className={`w-4 h-4 ${isSyncing ? 'animate-spin' : 'text-amber-300'}`} />
+              <span>{isSyncing ? 'Syncing to Website...' : 'Save & Sync to Website (Display All Users)'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => refreshFromWebsite(true)}
+              disabled={isSyncing}
+              className="px-3 py-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-200 font-bold text-xs border border-slate-700 transition flex items-center gap-1.5"
+              title="Pull latest live records from website server"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-amber-400' : ''}`} />
+              <span className="hidden sm:inline">Refresh Live</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('home')}
+              className="px-3 py-2.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-bold text-xs border border-amber-500/30 transition flex items-center gap-1.5"
+              title="Preview public main page as visitors and students see it"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">View Main Page</span>
+            </button>
+
+            <button
+              onClick={logout}
+              className="px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-rose-300 font-bold text-xs border border-rose-500/30 transition"
+            >
+              Sign Out Admin
+            </button>
+          </div>
         </div>
       </div>
 
@@ -1352,6 +1475,38 @@ export const AdminPortal: React.FC = () => {
           "Footer Displayed Designed By Ghanshamdas JEST & add picture option by admin uploaded" */}
       {activeAdminTab === 'cms' && (
         <div className="space-y-8">
+          {/* Global Database Persistence & All-User Sync Banner */}
+          <div className="bg-gradient-to-r from-emerald-950 via-teal-900 to-slate-900 text-white p-4 sm:p-5 rounded-2xl shadow-md border border-emerald-500/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center font-black shrink-0 shadow-md">
+                <Globe className="w-5 h-5" />
+              </div>
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <h4 className="font-black text-amber-300 text-sm sm:text-base">
+                    Centralized Live Website Storage
+                  </h4>
+                  <span className="bg-emerald-800 text-emerald-200 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-600">
+                    Live Everywhere
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-300 leading-snug">
+                  Every picture, Headmaster profile, and school setting saved here is stored in the persistent database and automatically delivered to all visitors accessing via link on any smartphone, tablet, or computer.
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => syncWithWebsite(true)}
+              disabled={isSyncing}
+              className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold rounded-xl text-xs flex items-center gap-2 shrink-0 shadow-md border border-emerald-400/40 transition-all disabled:opacity-50"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : 'text-amber-300'}`} />
+              <span>{isSyncing ? 'Syncing...' : 'Save & Sync All Changes'}</span>
+            </button>
+          </div>
+
           {/* Form for School Mission, Vision, and Developer Picture */}
           <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4 text-xs">
             <h3 className="text-base font-extrabold text-slate-900 border-b border-slate-100 pb-2">
@@ -1372,7 +1527,8 @@ export const AdminPortal: React.FC = () => {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
-                  <div className="bg-white p-3.5 rounded-xl border border-emerald-100 shadow-xs">
+                  {/* Logo Upload Box with Individual Save Option */}
+                  <div className="bg-white p-3.5 rounded-xl border border-emerald-100 shadow-xs flex flex-col justify-between space-y-3">
                     <FileUploadZone
                       id="cms-school-logo-upload"
                       label="Official School Logo / Seal"
@@ -1382,9 +1538,43 @@ export const AdminPortal: React.FC = () => {
                       helperText="Upload official emblem in PDF or Image format (PNG, JPG, SVG, WebP)"
                       badgeText="Displays in Header & ID Cards"
                     />
+
+                    <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+                      <div className="text-[11px] font-semibold">
+                        {pictureSaveFeedback.logo ? (
+                          <span className="text-emerald-700 font-bold animate-pulse flex items-center gap-1">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            {pictureSaveFeedback.logo}
+                          </span>
+                        ) : cmsLogoUrl && cmsLogoUrl === settings.logoUrl ? (
+                          <span className="text-emerald-800 flex items-center gap-1">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                            Saved on Website
+                          </span>
+                        ) : cmsLogoUrl && cmsLogoUrl !== settings.logoUrl ? (
+                          <span className="text-amber-700 font-bold">
+                            ⚠️ New file selected
+                          </span>
+                        ) : (
+                          <span className="text-slate-400">Default Logo</span>
+                        )}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleSavePicture('logo', cmsLogoUrl)}
+                        disabled={!cmsLogoUrl || pictureSaveFeedback.logo === 'Saving...'}
+                        className="px-3 py-1.5 bg-emerald-800 hover:bg-emerald-700 text-amber-300 hover:text-white rounded-lg font-extrabold text-xs shadow-xs transition flex items-center gap-1.5 disabled:opacity-50"
+                        title="Save and synchronize logo to website for all visitors"
+                      >
+                        <Save className="w-3.5 h-3.5" />
+                        <span>Save & Sync Logo</span>
+                      </button>
+                    </div>
                   </div>
 
-                  <div className="bg-white p-3.5 rounded-xl border border-emerald-100 shadow-xs">
+                  {/* Campus Banner Upload Box with Individual Save Option */}
+                  <div className="bg-white p-3.5 rounded-xl border border-emerald-100 shadow-xs flex flex-col justify-between space-y-3">
                     <FileUploadZone
                       id="cms-hero-banner-upload"
                       label="Campus Hero Banner Image"
@@ -1394,35 +1584,194 @@ export const AdminPortal: React.FC = () => {
                       helperText="Upload school building / campus photo in PDF or Image format"
                       badgeText="Homepage Banner"
                     />
+
+                    <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+                      <div className="text-[11px] font-semibold">
+                        {pictureSaveFeedback.heroBanner ? (
+                          <span className="text-emerald-700 font-bold animate-pulse flex items-center gap-1">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            {pictureSaveFeedback.heroBanner}
+                          </span>
+                        ) : cmsHeroBannerUrl && cmsHeroBannerUrl === settings.heroBannerUrl ? (
+                          <span className="text-emerald-800 flex items-center gap-1">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                            Saved on Website
+                          </span>
+                        ) : cmsHeroBannerUrl && cmsHeroBannerUrl !== settings.heroBannerUrl ? (
+                          <span className="text-amber-700 font-bold">
+                            ⚠️ New banner selected
+                          </span>
+                        ) : (
+                          <span className="text-slate-400">Default Banner</span>
+                        )}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleSavePicture('heroBanner', cmsHeroBannerUrl)}
+                        disabled={!cmsHeroBannerUrl || pictureSaveFeedback.heroBanner === 'Saving...'}
+                        className="px-3 py-1.5 bg-emerald-800 hover:bg-emerald-700 text-amber-300 hover:text-white rounded-lg font-extrabold text-xs shadow-xs transition flex items-center gap-1.5 disabled:opacity-50"
+                        title="Save and synchronize banner to website for all visitors"
+                      >
+                        <Save className="w-3.5 h-3.5" />
+                        <span>Save & Sync Banner</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
 
-                {/* Drag & Drop Headmaster / Authority Official Signature Upload (Required by User) */}
-                <div className="bg-white p-4 rounded-xl border-2 border-dashed border-emerald-300 shadow-xs mt-3">
-                  <div className="flex items-center justify-between mb-2">
+                {/* Headmaster (HM) Official Profile & Authority Signature (Required by User: Update HeadMaster Name by Admin and Upload Sign) */}
+                <div className="bg-white p-5 rounded-2xl border-2 border-emerald-300 shadow-sm mt-3 space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-emerald-100 pb-3">
                     <div>
-                      <span className="text-xs font-black text-emerald-950 flex items-center gap-1.5 uppercase tracking-wide">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-700" />
-                        Official Headmaster (HM) / Authority Signature Upload (Drag & Drop)
-                      </span>
-                      <p className="text-[11px] text-slate-600 mt-0.5">
-                        This signature is automatically stamped as the <strong>Authority / Headmaster signature</strong> on Student ID cards, Teacher ID cards, Enrollment cards, Result sheets, Leaving certificates, and Exported reports.
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-black text-emerald-950 uppercase tracking-wide flex items-center gap-1.5">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-700" />
+                          Headmaster (HM) Official Name & Authority Signature
+                        </span>
+                        <span className="text-[10px] font-black bg-emerald-800 text-amber-300 px-2.5 py-0.5 rounded-full shrink-0">
+                          HM Master Seal
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-600 mt-1">
+                        Configure the Headmaster's official name and digitized signature. Both are automatically printed on all <strong>Student ID Cards, Teacher ID Cards, Enrollment Cards, Result Sheets, and Leaving Certificates</strong>.
                       </p>
                     </div>
-                    <span className="text-[10px] font-black bg-emerald-800 text-amber-300 px-2.5 py-1 rounded-full shrink-0">
-                      HM Authority Seal
-                    </span>
+
+                    <button
+                      type="button"
+                      onClick={handleQuickSaveHeadmaster}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-800 hover:bg-emerald-700 text-amber-300 hover:text-white rounded-lg font-extrabold text-xs shadow-sm transition shrink-0"
+                      title="Quick Save & Publish Headmaster Profile to Website"
+                    >
+                      <Save className="w-3.5 h-3.5" />
+                      <span>{pictureSaveFeedback.hmSignature || 'Save & Publish HM Info'}</span>
+                    </button>
                   </div>
 
-                  <FileUploadZone
-                    id="cms-headmaster-signature-upload"
-                    label="Headmaster Official Signature & Seal (PDF or Image)"
-                    value={cmsHeadmasterSignature}
-                    onChange={(val) => setCmsHeadmasterSignature(val)}
-                    previewShape="signature"
-                    helperText="Upload Headmaster signature image (PNG, JPG, SVG) or scanned PDF. Transparent background PNG recommended."
-                    badgeText="Auto-placed on all Cards & Reports"
-                  />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-start">
+                    {/* Headmaster Name Input */}
+                    <div className="space-y-3">
+                      <div className="bg-white p-3.5 rounded-xl border border-slate-200 space-y-2 shadow-xs">
+                        <label className="block font-extrabold text-slate-900 text-xs">
+                          Headmaster Official Full Name *
+                        </label>
+                        <div className="flex gap-2 items-center">
+                          <input
+                            type="text"
+                            required
+                            value={cmsHeadmasterName}
+                            onChange={(e) => setCmsHeadmasterName(e.target.value)}
+                            placeholder="Enter official Headmaster name"
+                            className="flex-1 p-2.5 rounded-lg border border-slate-300 focus:outline-none focus:border-emerald-600 font-bold text-slate-900 text-xs bg-slate-50 focus:bg-white"
+                          />
+                          <button
+                            type="button"
+                            onClick={handleQuickSaveHeadmaster}
+                            className="px-3.5 py-2.5 bg-emerald-800 hover:bg-emerald-700 text-amber-300 hover:text-white rounded-lg font-black text-xs shadow-xs transition flex items-center gap-1.5 shrink-0"
+                            title="Save Headmaster name and display everywhere across the site"
+                          >
+                            <Save className="w-3.5 h-3.5" />
+                            <span>Save Name</span>
+                          </button>
+                        </div>
+                        <div className="flex items-center justify-between text-[11px] pt-1">
+                          <span className="text-slate-600">
+                            Active in System: <strong className="text-emerald-950">{settings.headmasterName || 'Not Set'}</strong>
+                          </span>
+                          {cmsHeadmasterName !== settings.headmasterName ? (
+                            <span className="text-amber-700 font-bold">
+                              ⚠️ Unsaved changes
+                            </span>
+                          ) : (
+                            <span className="text-emerald-700 font-semibold flex items-center gap-1">
+                              <CheckCircle2 className="w-3 h-3" /> Live Everywhere
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Headmaster Signature Upload with Direct Save & Sync Option */}
+                      <div className="space-y-2">
+                        <FileUploadZone
+                          id="cms-headmaster-signature-upload"
+                          label="Upload Headmaster Official Signature & Stamp (PDF or Image)"
+                          value={cmsHeadmasterSignature}
+                          onChange={(val) => setCmsHeadmasterSignature(val)}
+                          previewShape="signature"
+                          helperText="Upload official signature file (PNG, JPG, SVG, or scanned PDF). Transparent background PNG recommended."
+                          badgeText="Auto-placed on all Cards & Reports"
+                        />
+
+                        <div className="pt-2 border-t border-slate-200 flex items-center justify-between gap-2">
+                          <div className="text-[11px] font-semibold">
+                            {pictureSaveFeedback.hmSignature ? (
+                              <span className="text-emerald-700 font-bold animate-pulse flex items-center gap-1">
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                {pictureSaveFeedback.hmSignature}
+                              </span>
+                            ) : cmsHeadmasterSignature && cmsHeadmasterSignature === settings.headmasterSignatureUrl ? (
+                              <span className="text-emerald-800 flex items-center gap-1">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                Saved on All Cards
+                              </span>
+                            ) : cmsHeadmasterSignature && cmsHeadmasterSignature !== settings.headmasterSignatureUrl ? (
+                              <span className="text-amber-700 font-bold">
+                                ⚠️ New signature uploaded
+                              </span>
+                            ) : (
+                              <span className="text-slate-400">Digital Seal Active</span>
+                            )}
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={handleQuickSaveHeadmaster}
+                            className="px-3 py-1.5 bg-emerald-800 hover:bg-emerald-700 text-amber-300 hover:text-white rounded-lg font-extrabold text-xs shadow-xs transition flex items-center gap-1.5"
+                            title="Save and synchronize signature for all certificates and ID cards"
+                          >
+                            <Save className="w-3.5 h-3.5" />
+                            <span>Save & Sync Signature</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Live Certificate & Card Preview Box */}
+                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col justify-between">
+                      <div>
+                        <span className="text-[11px] font-black uppercase text-slate-700 block tracking-wider mb-1">
+                          Live Authority Signature Preview
+                        </span>
+                        <p className="text-[10px] text-slate-500 mb-3">
+                          How the Headmaster's name & signature will appear at the bottom of student ID cards, certificates, and official school reports:
+                        </p>
+                      </div>
+
+                      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col items-center justify-center my-auto min-h-[110px]">
+                        <HeadmasterSignatureDisplay
+                          signatureUrl={cmsHeadmasterSignature}
+                          headmasterName={cmsHeadmasterName}
+                          label="Headmaster Official Seal"
+                          subLabel="Govt. Boys High School Mehrand"
+                          size="md"
+                        />
+                      </div>
+
+                      <div className="mt-3 pt-2 border-t border-slate-200 flex items-center justify-between text-[10px] text-slate-500">
+                        <span>Status: {cmsHeadmasterSignature ? 'Custom Signature Loaded' : 'Digital Default Fallback Active'}</span>
+                        {cmsHeadmasterSignature && (
+                          <button
+                            type="button"
+                            onClick={() => setCmsHeadmasterSignature('')}
+                            className="text-red-600 hover:underline font-bold"
+                          >
+                            Reset to Default
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -1580,16 +1929,21 @@ export const AdminPortal: React.FC = () => {
                   Footer Developer Credit & Picture Upload (Designed By Ghanshamdas JEST)
                 </h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block font-bold text-slate-700 mb-1">Designer / Developer Name</label>
-                    <input
-                      type="text"
-                      value={cmsDesignerName}
-                      onChange={(e) => setCmsDesignerName(e.target.value)}
-                      className="w-full p-2.5 rounded border border-slate-200"
-                    />
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">Designer / Developer Name</label>
+                      <input
+                        type="text"
+                        value={cmsDesignerName}
+                        onChange={(e) => setCmsDesignerName(e.target.value)}
+                        className="w-full p-2.5 rounded border border-slate-200 font-bold"
+                      />
+                    </div>
+                    <p className="text-[11px] text-slate-500">
+                      Displays in the website footer across all pages: &quot;Designed By {cmsDesignerName}&quot; with uploaded portrait picture.
+                    </p>
                   </div>
-                  <div className="bg-white p-3 rounded-lg border border-amber-200">
+                  <div className="bg-white p-3 rounded-lg border border-amber-200 flex flex-col justify-between space-y-3">
                     <FileUploadZone
                       id="cms-designer-picture-upload"
                       label="Designer / Developer Picture"
@@ -1599,6 +1953,39 @@ export const AdminPortal: React.FC = () => {
                       helperText="Upload designer portrait in PDF or Image format (PNG, JPG)"
                       badgeText="Footer Credit"
                     />
+
+                    <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+                      <div className="text-[11px] font-semibold">
+                        {pictureSaveFeedback.designer ? (
+                          <span className="text-emerald-700 font-bold animate-pulse flex items-center gap-1">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            {pictureSaveFeedback.designer}
+                          </span>
+                        ) : cmsDesignerPicture && cmsDesignerPicture === settings.designerPictureUrl ? (
+                          <span className="text-emerald-800 flex items-center gap-1">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                            Saved in Footer
+                          </span>
+                        ) : cmsDesignerPicture && cmsDesignerPicture !== settings.designerPictureUrl ? (
+                          <span className="text-amber-700 font-bold">
+                            ⚠️ New photo selected
+                          </span>
+                        ) : (
+                          <span className="text-slate-400">Default Avatar</span>
+                        )}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleSavePicture('designer', cmsDesignerPicture)}
+                        disabled={!cmsDesignerPicture || pictureSaveFeedback.designer === 'Saving...'}
+                        className="px-3 py-1.5 bg-emerald-800 hover:bg-emerald-700 text-amber-300 hover:text-white rounded-lg font-extrabold text-xs shadow-xs transition flex items-center gap-1.5 disabled:opacity-50"
+                        title="Save and synchronize designer picture to footer for all visitors"
+                      >
+                        <Save className="w-3.5 h-3.5" />
+                        <span>Save & Sync Picture</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1725,10 +2112,29 @@ export const AdminPortal: React.FC = () => {
                     />
                   </div>
                   <button
-                    onClick={() => alert(`Saved ${msg.title}!`)}
-                    className="w-full py-1.5 bg-emerald-800 text-white font-bold rounded"
+                    type="button"
+                    onClick={async () => {
+                      if (msg.id === 'headmaster' && msg.name) {
+                        setCmsHeadmasterName(msg.name);
+                        await updateSettings({ headmasterName: msg.name.trim() });
+                      }
+                      await updateLeaderMessage(msg.id, {
+                        name: msg.name,
+                        designation: msg.designation,
+                        pictureUrl: msg.pictureUrl,
+                        message: msg.message,
+                      });
+                      await refreshFromWebsite(true);
+                      showAlert(
+                        `${msg.title} Saved & Live!`,
+                        `The portrait photo, name, and message for ${msg.name || msg.title} have been saved to the server and will display for all visitors across all devices.`,
+                        'success'
+                      );
+                    }}
+                    className="w-full py-2.5 bg-emerald-800 hover:bg-emerald-700 text-amber-300 hover:text-white font-extrabold rounded-lg text-xs shadow-xs transition flex items-center justify-center gap-1.5"
                   >
-                    Update {msg.title}
+                    <Save className="w-3.5 h-3.5" />
+                    <span>Save & Sync {msg.title}</span>
                   </button>
                 </div>
               ))}
@@ -1811,6 +2217,24 @@ export const AdminPortal: React.FC = () => {
             alert('Teacher record successfully updated!');
           }}
         />
+      )}
+      {/* Floating Admin Action Toast */}
+      {adminToast && (
+        <div className="fixed bottom-6 right-6 z-50 max-w-sm bg-slate-950 text-white rounded-2xl p-4 shadow-2xl border-2 border-amber-400 animate-bounce flex items-start gap-3">
+          <div className="w-8 h-8 rounded-full bg-emerald-500 text-slate-950 flex items-center justify-center font-bold shrink-0 mt-0.5">
+            <CheckCircle2 className="w-5 h-5" />
+          </div>
+          <div className="space-y-1 flex-1">
+            <h5 className="font-extrabold text-sm text-amber-300">{adminToast.title}</h5>
+            <p className="text-xs text-slate-200 leading-snug">{adminToast.message}</p>
+          </div>
+          <button
+            onClick={() => setAdminToast(null)}
+            className="text-slate-400 hover:text-white text-xs font-bold px-1"
+          >
+            ✕
+          </button>
+        </div>
       )}
     </div>
   );

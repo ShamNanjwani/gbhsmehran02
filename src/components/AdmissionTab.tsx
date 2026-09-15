@@ -52,22 +52,12 @@ export const AdmissionTab: React.FC = () => {
   const [townCity, setTownCity] = useState('Kaloi');
   const [district, setDistrict] = useState('District Tharparkar @ Mithi');
 
-  // Uploads (PDF or Image format)
-  const [studentPictureUrl, setStudentPictureUrl] = useState(
-    'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=400&q=80'
-  );
-  const [bFormPictureUrl, setBFormPictureUrl] = useState(
-    'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=400&q=80'
-  );
-  const [fatherCnicFrontUrl, setFatherCnicFrontUrl] = useState(
-    'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=400&q=80'
-  );
-  const [fatherCnicBackUrl, setFatherCnicBackUrl] = useState(
-    'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=400&q=80'
-  );
-  const [leavingCertificateUrl, setLeavingCertificateUrl] = useState(
-    'https://images.unsplash.com/photo-1606326608606-aa0b62935f2b?auto=format&fit=crop&w=400&q=80'
-  );
+  // Uploads (PDF or Image format - clean upload interface)
+  const [studentPictureUrl, setStudentPictureUrl] = useState('');
+  const [bFormPictureUrl, setBFormPictureUrl] = useState('');
+  const [fatherCnicFrontUrl, setFatherCnicFrontUrl] = useState('');
+  const [fatherCnicBackUrl, setFatherCnicBackUrl] = useState('');
+  const [leavingCertificateUrl, setLeavingCertificateUrl] = useState('');
 
   const isFreshEntry = appliedClass === 'Class ECCE' || appliedClass === 'Class 1';
 
@@ -128,8 +118,8 @@ export const AdmissionTab: React.FC = () => {
         district: district || 'Tharparkar @ Mithi',
       },
       appliedClass,
-      studentPictureUrl,
-      bFormPictureUrl: isBFormAvailable ? bFormPictureUrl : undefined,
+      studentPictureUrl: studentPictureUrl || 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=400&q=80',
+      bFormPictureUrl: isBFormAvailable ? (bFormPictureUrl || undefined) : undefined,
       leavingCertificateUrl: isFreshEntry ? undefined : leavingCertificateUrl,
       bloodGroup: 'B+',
     });

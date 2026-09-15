@@ -310,7 +310,7 @@ export const HomeTab: React.FC = () => {
                   </div>
                   <div>
                     <h4 className="text-base font-bold text-slate-900 leading-snug">
-                      {headmaster.name}
+                      {settings.headmasterName || headmaster.name}
                     </h4>
                     <p className="text-xs text-amber-900 font-semibold mt-0.5">
                       {headmaster.designation}

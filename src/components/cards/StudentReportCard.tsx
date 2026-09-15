@@ -277,6 +277,7 @@ export const StudentReportCard: React.FC<StudentReportCardProps> = ({
           {/* Headmaster Official Seal & Signature */}
           <HeadmasterSignatureDisplay
             signatureUrl={settings.headmasterSignatureUrl}
+            headmasterName={settings.headmasterName}
             label="Headmaster Official Seal"
             subLabel="Authority / GBHS Mehrand"
             size="md"

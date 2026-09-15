@@ -88,10 +88,18 @@ interface SchoolContextType {
   issueLeavingCertificate: (certificate: LeavingCertificateData) => void;
 
   // CMS & Settings
-  updateSettings: (newSettings: Partial<SchoolSettings>) => void;
-  updateLeaderMessage: (id: string, updated: Partial<LeaderMessage>) => void;
+  updateSettings: (newSettings: Partial<SchoolSettings>) => Promise<boolean>;
+  updateLeaderMessage: (id: string, updated: Partial<LeaderMessage>) => Promise<boolean>;
   submitInquiry: (inquiry: Omit<ContactInquiry, 'id' | 'createdAt' | 'status'>) => void;
   markInquiryRead: (id: string) => void;
+
+  // Live Website Synchronization & Server Persistence
+  isSyncing: boolean;
+  lastSyncedAt: string | null;
+  syncStatus: 'synced' | 'unsaved' | 'syncing' | 'error';
+  isLiveConnected: boolean;
+  syncWithWebsite: (manual?: boolean, customData?: any) => Promise<boolean>;
+  refreshFromWebsite: (manual?: boolean) => Promise<boolean>;
 }
 
 const SchoolContext = createContext<SchoolContextType | undefined>(undefined);
@@ -141,6 +149,12 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
   const [alertMessage, setAlertMessage] = useState<{ type: 'success' | 'info' | 'warning' | 'error'; title: string; message: string } | null>(null);
 
+  // Live Website Sync & Server Persistence State
+  const [isSyncing, setIsSyncing] = useState<boolean>(false);
+  const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(() => getStored<string | null>('lastSyncedAt', null));
+  const [syncStatus, setSyncStatus] = useState<'synced' | 'unsaved' | 'syncing' | 'error'>('synced');
+  const [isLiveConnected, setIsLiveConnected] = useState<boolean>(true);
+
   // Sync to localStorage
   useEffect(() => { setStored('currentRole', currentRole); }, [currentRole]);
   useEffect(() => { setStored('currentUser', currentUser); }, [currentUser]);
@@ -155,6 +169,211 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   useEffect(() => { setStored('results', results); }, [results]);
   useEffect(() => { setStored('leavingCertificates', leavingCertificates); }, [leavingCertificates]);
   useEffect(() => { setStored('inquiries', inquiries); }, [inquiries]);
+
+  // Pull latest live data from website server
+  const refreshFromWebsite = async (manual = false): Promise<boolean> => {
+    try {
+      setIsSyncing(true);
+      const res = await fetch('/api/school-data');
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+      const json = await res.json();
+      if (json.success && json.data) {
+        const d = json.data;
+        if (d.settings) {
+          setSettings(d.settings);
+          setStored('settings', d.settings);
+        }
+        if (Array.isArray(d.leaderMessages)) {
+          setLeaderMessages(d.leaderMessages);
+          setStored('leaderMessages', d.leaderMessages);
+        }
+        if (Array.isArray(d.teachers) && d.teachers.length > 0) {
+          let teachersList = d.teachers;
+          if (currentUser?.role === 'teacher' && currentUser.extra?.id) {
+            const exists = teachersList.some((t: Teacher) => t.id === currentUser.extra.id);
+            if (!exists) {
+              teachersList = [currentUser.extra, ...teachersList];
+            }
+          }
+          setTeachers(teachersList);
+          setStored('teachers', teachersList);
+        }
+        if (Array.isArray(d.students) && d.students.length > 0) {
+          let studentsList = d.students;
+          if (currentUser?.role === 'student' && currentUser.extra?.id) {
+            const exists = studentsList.some((s: Student) => s.id === currentUser.extra.id);
+            if (!exists) {
+              studentsList = [currentUser.extra, ...studentsList];
+            }
+          }
+          setStudents(studentsList);
+          setStored('students', studentsList);
+        }
+        if (Array.isArray(d.timetable)) {
+          setTimetable(d.timetable);
+          setStored('timetable', d.timetable);
+        }
+        if (Array.isArray(d.remarks)) {
+          setRemarks(d.remarks);
+          setStored('remarks', d.remarks);
+        }
+        if (Array.isArray(d.attendance)) {
+          setAttendance(d.attendance);
+          setStored('attendance', d.attendance);
+        }
+        if (Array.isArray(d.results)) {
+          setResults(d.results);
+          setStored('results', d.results);
+        }
+        if (Array.isArray(d.leavingCertificates)) {
+          setLeavingCertificates(d.leavingCertificates);
+          setStored('leavingCertificates', d.leavingCertificates);
+        }
+        if (Array.isArray(d.inquiries)) {
+          setInquiries(d.inquiries);
+          setStored('inquiries', d.inquiries);
+        }
+
+        // Keep logged-in user profile synced with server updates (e.g. GR allotment, approval status)
+        if (currentUser && currentUser.extra?.id) {
+          if (currentUser.role === 'student' && Array.isArray(d.students)) {
+            const match = d.students.find((s: Student) => s.id === currentUser.extra.id);
+            if (match) {
+              setCurrentUser((prev: any) => ({
+                ...prev,
+                name: match.name,
+                email: match.email,
+                extra: match,
+              }));
+            }
+          } else if (currentUser.role === 'teacher' && Array.isArray(d.teachers)) {
+            const match = d.teachers.find((t: Teacher) => t.id === currentUser.extra.id);
+            if (match) {
+              setCurrentUser((prev: any) => ({
+                ...prev,
+                name: match.name,
+                email: match.email,
+                extra: match,
+              }));
+            }
+          }
+        }
+
+        const syncTime = json.lastSyncedAt || new Date().toISOString();
+        setLastSyncedAt(syncTime);
+        setStored('lastSyncedAt', syncTime);
+        setSyncStatus('synced');
+        setIsLiveConnected(true);
+
+        if (manual) {
+          showAlert(
+            'Website Data Refreshed',
+            'Successfully loaded the latest live school data published on the website.',
+            'success'
+          );
+        }
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.warn('Could not fetch latest data from server API, utilizing locally cached data:', err);
+      setIsLiveConnected(false);
+      if (manual) {
+        showAlert(
+          'Offline Mode',
+          'Could not contact website server. Displaying cached records.',
+          'info'
+        );
+      }
+      return false;
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  // On app initial load, pull latest data from server and periodically refresh to catch internet registrations
+  useEffect(() => {
+    refreshFromWebsite(false);
+    // Background sync every 10 seconds so admissions from any device appear live on admin portal
+    const pollTimer = setInterval(() => {
+      refreshFromWebsite(false);
+    }, 10000);
+
+    // Refresh when user returns to tab
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        refreshFromWebsite(false);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      clearInterval(pollTimer);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+
+  // Publish and sync complete school data to website server
+  const syncWithWebsite = async (manual = false, customData?: any): Promise<boolean> => {
+    setIsSyncing(true);
+    setSyncStatus('syncing');
+    try {
+      const payload = {
+        settings: customData?.settings ? { ...settings, ...customData.settings } : settings,
+        leaderMessages: customData?.leaderMessages || leaderMessages,
+        teachers: customData?.teachers || teachers,
+        students: customData?.students || students,
+        timetable: customData?.timetable || timetable,
+        remarks: customData?.remarks || remarks,
+        attendance: customData?.attendance || attendance,
+        results: customData?.results || results,
+        leavingCertificates: customData?.leavingCertificates || leavingCertificates,
+        inquiries: customData?.inquiries || inquiries,
+      };
+
+      const res = await fetch('/api/school-data/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: payload }),
+      });
+
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+      const json = await res.json();
+
+      if (json.success) {
+        const syncTime = json.lastSyncedAt || new Date().toISOString();
+        setLastSyncedAt(syncTime);
+        setStored('lastSyncedAt', syncTime);
+        setSyncStatus('synced');
+        setIsLiveConnected(true);
+
+        if (manual) {
+          showAlert(
+            'Synced & Published to Live Website!',
+            'All updates (school information, announcements, admissions, teachers, timetable, and CMS) are now live on the website and visible to all users across devices.',
+            'success'
+          );
+        }
+        return true;
+      } else {
+        throw new Error(json.message || 'Sync failed');
+      }
+    } catch (err: any) {
+      console.error('Failed to sync data with website server:', err);
+      setSyncStatus('error');
+      setIsLiveConnected(false);
+      if (manual) {
+        showAlert(
+          'Sync Notice',
+          'Could not reach the server API. Changes are safely saved in local browser storage.',
+          'warning'
+        );
+      }
+      return false;
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   const showAlert = (title: string, message: string, type: 'success' | 'info' | 'warning' | 'error' = 'success') => {
     setAlertMessage({ title, message, type });
@@ -321,6 +540,21 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     };
 
     setStudents((prev) => [newStudent, ...prev]);
+
+    // Push directly to central live server over internet
+    fetch('/api/register-student', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ student: newStudent }),
+    })
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success) {
+          setIsLiveConnected(true);
+        }
+      })
+      .catch((err) => console.warn('Online registration server sync notice:', err));
+
     // Automatically log in as student so they can see their application status & form receipt
     setCurrentRole('student');
     setCurrentUser({ id: newId, name: newStudent.name, email: newStudent.email, extra: newStudent });
@@ -330,8 +564,9 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   };
 
   const approveStudent = (studentId: string, grNumber: string, section: string = 'A', rollNo?: string) => {
-    setStudents((prev) =>
-      prev.map((s) => {
+    let updatedList: Student[] = [];
+    setStudents((prev) => {
+      updatedList = prev.map((s) => {
         if (s.id === studentId) {
           const updated = {
             ...s,
@@ -340,33 +575,62 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             section: section || s.section || 'A',
             rollNo: rollNo || s.rollNo || '01',
           };
-          // If current student is logged in, update extra
           if (currentUser?.id === studentId) {
             setCurrentUser((u: any) => ({ ...u, extra: updated }));
           }
           return updated;
         }
         return s;
-      })
-    );
+      });
+      return updatedList;
+    });
+
+    // Sync approval to server
+    fetch('/api/school-data/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data: { students: updatedList } }),
+    }).catch((e) => console.warn('Sync notice:', e));
+
     showAlert('Student Approved!', `Admission approved and GR Number [${grNumber}] allotted. Student can now access Enrollment Card, ID Card, and Result Sheet.`, 'success');
   };
 
   const rejectStudent = (studentId: string) => {
-    setStudents((prev) =>
-      prev.map((s) => (s.id === studentId ? { ...s, status: 'rejected' as const } : s))
-    );
+    let updatedList: Student[] = [];
+    setStudents((prev) => {
+      updatedList = prev.map((s) => (s.id === studentId ? { ...s, status: 'rejected' as const } : s));
+      return updatedList;
+    });
+
+    fetch('/api/school-data/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data: { students: updatedList } }),
+    }).catch((e) => console.warn('Sync notice:', e));
+
     showAlert('Application Rejected', 'The student application has been marked rejected.', 'info');
   };
 
   const deleteStudent = (studentId: string) => {
-    setStudents((prev) => prev.filter((s) => s.id !== studentId));
+    let updatedList: Student[] = [];
+    setStudents((prev) => {
+      updatedList = prev.filter((s) => s.id !== studentId);
+      return updatedList;
+    });
+
+    fetch('/api/school-data/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data: { students: updatedList } }),
+    }).catch((e) => console.warn('Sync notice:', e));
+
     showAlert('Record Deleted', 'Student record removed.', 'info');
   };
 
   const updateStudent = (studentId: string, updatedData: Partial<Student>) => {
-    setStudents((prev) =>
-      prev.map((s) => {
+    let updatedList: Student[] = [];
+    setStudents((prev) => {
+      updatedList = prev.map((s) => {
         if (s.id === studentId) {
           const updated = { ...s, ...updatedData };
           if (currentUser?.id === studentId) {
@@ -375,8 +639,16 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
           return updated;
         }
         return s;
-      })
-    );
+      });
+      return updatedList;
+    });
+
+    fetch('/api/school-data/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data: { students: updatedList } }),
+    }).catch((e) => console.warn('Sync notice:', e));
+
     showAlert('Student Record Updated', 'The student particulars have been successfully updated in official school records.', 'success');
   };
 
@@ -392,13 +664,27 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       isAvailableToday: true,
     };
     setTeachers((prev) => [newTeacher, ...prev]);
+
+    // Push teacher registration to server
+    fetch('/api/register-teacher', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ teacher: newTeacher }),
+    })
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success) setIsLiveConnected(true);
+      })
+      .catch((err) => console.warn('Teacher server sync notice:', err));
+
     showAlert('Teacher Registered!', 'Application submitted for Admin review. Once approved, your profile will be featured on the Faculty page and you can sign in to the Teacher Dashboard.', 'success');
     return { success: true, teacherId: newId };
   };
 
   const approveTeacher = (teacherId: string) => {
-    setTeachers((prev) =>
-      prev.map((t) => {
+    let updatedList: Teacher[] = [];
+    setTeachers((prev) => {
+      updatedList = prev.map((t) => {
         if (t.id === teacherId) {
           const updated = { ...t, status: 'approved' as const };
           if (currentUser?.id === teacherId) {
@@ -407,26 +693,55 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
           return updated;
         }
         return t;
-      })
-    );
+      });
+      return updatedList;
+    });
+
+    fetch('/api/school-data/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data: { teachers: updatedList } }),
+    }).catch((e) => console.warn('Sync notice:', e));
+
     showAlert('Teacher Approved!', 'Teacher is now approved, granted access to Teacher Dashboard, and listed publicly on the Faculty tab.', 'success');
   };
 
   const rejectTeacher = (teacherId: string) => {
-    setTeachers((prev) =>
-      prev.map((t) => (t.id === teacherId ? { ...t, status: 'rejected' as const } : t))
-    );
+    let updatedList: Teacher[] = [];
+    setTeachers((prev) => {
+      updatedList = prev.map((t) => (t.id === teacherId ? { ...t, status: 'rejected' as const } : t));
+      return updatedList;
+    });
+
+    fetch('/api/school-data/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data: { teachers: updatedList } }),
+    }).catch((e) => console.warn('Sync notice:', e));
+
     showAlert('Teacher Rejected', 'The teacher application was marked rejected.', 'info');
   };
 
   const deleteTeacher = (teacherId: string) => {
-    setTeachers((prev) => prev.filter((t) => t.id !== teacherId));
+    let updatedList: Teacher[] = [];
+    setTeachers((prev) => {
+      updatedList = prev.filter((t) => t.id !== teacherId);
+      return updatedList;
+    });
+
+    fetch('/api/school-data/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data: { teachers: updatedList } }),
+    }).catch((e) => console.warn('Sync notice:', e));
+
     showAlert('Teacher Removed', 'Teacher record removed.', 'info');
   };
 
   const updateTeacher = (teacherId: string, updatedData: Partial<Teacher>) => {
-    setTeachers((prev) =>
-      prev.map((t) => {
+    let updatedList: Teacher[] = [];
+    setTeachers((prev) => {
+      updatedList = prev.map((t) => {
         if (t.id === teacherId) {
           const updated = { ...t, ...updatedData };
           if (currentUser?.id === teacherId) {
@@ -435,8 +750,16 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
           return updated;
         }
         return t;
-      })
-    );
+      });
+      return updatedList;
+    });
+
+    fetch('/api/school-data/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data: { teachers: updatedList } }),
+    }).catch((e) => console.warn('Sync notice:', e));
+
     showAlert('Teacher Record Updated', 'The faculty member record has been successfully updated.', 'success');
   };
 
@@ -529,17 +852,91 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     showAlert('Leaving Certificate Issued', `School Leaving Certificate issued for ${cert.studentName} (GR: ${cert.grNumber}).`, 'success');
   };
 
-  // CMS
-  const updateSettings = (newSettings: Partial<SchoolSettings>) => {
-    setSettings((prev) => ({ ...prev, ...newSettings }));
-    showAlert('Settings Saved', 'School information and content updated successfully.', 'success');
+  // CMS & Settings
+  const updateSettings = async (newSettings: Partial<SchoolSettings>): Promise<boolean> => {
+    const updated = { ...settings, ...newSettings };
+    setSettings(updated);
+    setStored('settings', updated);
+
+    let updatedLeaderMessages = leaderMessages;
+    if (newSettings.headmasterName) {
+      updatedLeaderMessages = leaderMessages.map((m) =>
+        m.id === 'headmaster' ? { ...m, name: newSettings.headmasterName! } : m
+      );
+      setLeaderMessages(updatedLeaderMessages);
+      setStored('leaderMessages', updatedLeaderMessages);
+    }
+
+    try {
+      setIsSyncing(true);
+      setSyncStatus('syncing');
+      const res = await fetch('/api/school-data/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          data: {
+            settings: updated,
+            ...(newSettings.headmasterName ? { leaderMessages: updatedLeaderMessages } : {}),
+          },
+        }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        const syncTime = json.lastSyncedAt || new Date().toISOString();
+        setLastSyncedAt(syncTime);
+        setStored('lastSyncedAt', syncTime);
+        setSyncStatus('synced');
+        setIsLiveConnected(true);
+        showAlert('Settings Saved & Synced', 'School settings and Headmaster credentials updated and published live to the website.', 'success');
+        return true;
+      }
+      return false;
+    } catch (e) {
+      console.warn('Background sync to website server warning:', e);
+      setSyncStatus('error');
+      return false;
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
-  const updateLeaderMessage = (id: string, updated: Partial<LeaderMessage>) => {
-    setLeaderMessages((prev) =>
-      prev.map((msg) => (msg.id === id ? { ...msg, ...updated } : msg))
-    );
-    showAlert('Message Updated', 'Leader message and photo successfully saved.', 'success');
+  const updateLeaderMessage = async (id: string, updated: Partial<LeaderMessage>): Promise<boolean> => {
+    const updatedMessages = leaderMessages.map((msg) => (msg.id === id ? { ...msg, ...updated } : msg));
+    setLeaderMessages(updatedMessages);
+    setStored('leaderMessages', updatedMessages);
+
+    let updatedSettings = settings;
+    if (id === 'headmaster' && updated.name) {
+      updatedSettings = { ...settings, headmasterName: updated.name };
+      setSettings(updatedSettings);
+      setStored('settings', updatedSettings);
+    }
+
+    try {
+      setIsSyncing(true);
+      const res = await fetch('/api/school-data/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          data: {
+            leaderMessages: updatedMessages,
+            ...(id === 'headmaster' && updated.name ? { settings: updatedSettings } : {}),
+          },
+        }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setLastSyncedAt(json.lastSyncedAt || new Date().toISOString());
+        showAlert('Message Updated & Synced', 'Leader message successfully saved and published.', 'success');
+        return true;
+      }
+      return false;
+    } catch (e) {
+      console.warn('Leader messages sync warning:', e);
+      return false;
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   const submitInquiry = (inquiryData: Omit<ContactInquiry, 'id' | 'createdAt' | 'status'>) => {
@@ -549,12 +946,28 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       createdAt: new Date().toISOString().split('T')[0],
       status: 'unread',
     };
-    setInquiries((prev) => [newInquiry, ...prev]);
+    const updatedInquiries = [newInquiry, ...inquiries];
+    setInquiries(updatedInquiries);
+    setStored('inquiries', updatedInquiries);
+
+    fetch('/api/school-data/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data: { inquiries: updatedInquiries } }),
+    }).catch((e) => console.warn('Inquiry sync warning:', e));
+
     showAlert('Message Sent', 'Thank you! Your inquiry has reached the Headmaster & Admin office. We will get back to you shortly.', 'success');
   };
 
   const markInquiryRead = (id: string) => {
-    setInquiries((prev) => prev.map((inq) => (inq.id === id ? { ...inq, status: 'read' as const } : inq)));
+    const updated = inquiries.map((inq) => (inq.id === id ? { ...inq, status: 'read' as const } : inq));
+    setInquiries(updated);
+    setStored('inquiries', updated);
+    fetch('/api/school-data/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data: { inquiries: updated } }),
+    }).catch(() => {});
   };
 
   return (
@@ -579,6 +992,12 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         alertMessage,
         clearAlert,
         showAlert,
+        isSyncing,
+        lastSyncedAt,
+        syncStatus,
+        isLiveConnected,
+        syncWithWebsite,
+        refreshFromWebsite,
         loginAsAdmin,
         loginDirectAsAdmin,
         loginAsTeacher,

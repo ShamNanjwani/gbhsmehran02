@@ -79,11 +79,61 @@ export const FileUploadZone: React.FC<FileUploadZoneProps> = ({
     const reader = new FileReader();
     reader.onload = () => {
       const result = reader.result as string;
-      onChange(result, {
-        name: file.name,
-        size: file.size,
-        type: isPdfType ? 'application/pdf' : file.type,
-      });
+
+      // Automatically compress and resize image if it's not a PDF or SVG
+      if (isImageType && file.type !== 'image/svg+xml') {
+        const img = new Image();
+        img.onload = () => {
+          const maxDimension = 1200;
+          let { width, height } = img;
+          if (width > maxDimension || height > maxDimension) {
+            if (width > height) {
+              height = Math.round((height * maxDimension) / width);
+              width = maxDimension;
+            } else {
+              width = Math.round((width * maxDimension) / height);
+              height = maxDimension;
+            }
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            const isPng = file.type === 'image/png';
+            const outputMime = isPng ? 'image/png' : 'image/jpeg';
+            const compressed = canvas.toDataURL(outputMime, 0.82);
+            onChange(compressed, {
+              name: file.name,
+              size: Math.round((compressed.length * 3) / 4),
+              type: outputMime,
+            });
+            return;
+          }
+
+          onChange(result, {
+            name: file.name,
+            size: file.size,
+            type: file.type,
+          });
+        };
+        img.onerror = () => {
+          onChange(result, {
+            name: file.name,
+            size: file.size,
+            type: file.type,
+          });
+        };
+        img.src = result;
+      } else {
+        onChange(result, {
+          name: file.name,
+          size: file.size,
+          type: isPdfType ? 'application/pdf' : file.type,
+        });
+      }
     };
     reader.onerror = () => {
       setError('Failed to read file. Please try again.');
@@ -238,18 +288,18 @@ export const FileUploadZone: React.FC<FileUploadZoneProps> = ({
               <button
                 type="button"
                 onClick={triggerSelect}
-                className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[11px] flex items-center gap-1 transition"
-                title="Select another file from device"
+                className="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold text-[11px] flex items-center gap-1 border border-emerald-200 transition"
+                title="Upload a new picture or file from device"
               >
-                <RefreshCw className="w-3 h-3 text-slate-500" />
-                Replace File
+                <Upload className="w-3 h-3 text-emerald-700" />
+                Upload New File
               </button>
 
               <button
                 type="button"
                 onClick={handleRemove}
                 className="p-1 rounded-lg hover:bg-rose-50 text-rose-500 hover:text-rose-700 transition"
-                title="Remove file"
+                title="Remove uploaded file and select another"
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>

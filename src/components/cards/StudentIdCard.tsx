@@ -137,6 +137,7 @@ export const StudentIdCard: React.FC<StudentIdCardProps> = ({ student, settings 
             </div>
             <HeadmasterSignatureDisplay
               signatureUrl={settings.headmasterSignatureUrl}
+              headmasterName={settings.headmasterName}
               label="Headmaster Seal"
               subLabel="Authority Sign"
               size="sm"
