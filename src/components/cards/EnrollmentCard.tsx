@@ -1,7 +1,8 @@
 import React from 'react';
 import { Student, SchoolSettings } from '../../types';
-import { Download, Printer, FileText, CheckCircle2, ShieldCheck, QrCode } from 'lucide-react';
+import { Download, Printer, FileText, CheckCircle2, ShieldCheck, QrCode, User } from 'lucide-react';
 import { downloadEnrollmentCardPDF } from '../../utils/pdfGenerator';
+import { printIsolatedElement } from '../../utils/printUtils';
 import { SchoolLogo } from '../common/SchoolLogo';
 import { SafeMediaImage } from '../common/SafeMediaImage';
 import { HeadmasterSignatureDisplay } from '../common/HeadmasterSignatureDisplay';
@@ -12,8 +13,10 @@ interface EnrollmentCardProps {
 }
 
 export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({ student, settings }) => {
+  const cardId = `enrollment-card-${student.id}`;
+
   const handlePrint = () => {
-    window.print();
+    printIsolatedElement(cardId, `Enrollment_Card_${student.name.replace(/\s+/g, '_')}`);
   };
 
   const handleDownload = () => {
@@ -22,22 +25,26 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({ student, setting
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between no-print">
         <h4 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
           <FileText className="w-4 h-4 text-emerald-700" />
           Official Enrollment & Exam Admission Slip
         </h4>
         <div className="flex gap-2">
           <button
+            type="button"
             onClick={handlePrint}
             className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center gap-1.5 transition"
+            title="Print only this Enrollment Card"
           >
             <Printer className="w-3.5 h-3.5" />
             Print
           </button>
           <button
+            type="button"
             onClick={handleDownload}
             className="px-3 py-1.5 rounded-lg bg-emerald-800 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition"
+            title="Download official Enrollment Card as PDF"
           >
             <Download className="w-3.5 h-3.5 text-amber-300" />
             Download PDF
@@ -46,7 +53,10 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({ student, setting
       </div>
 
       {/* Enrollment Card Format: Landscape Official Slip */}
-      <div className="bg-white rounded-2xl border-2 border-emerald-900 p-6 shadow-xl relative overflow-hidden text-slate-900 font-sans max-w-2xl mx-auto printable-card">
+      <div
+        id={cardId}
+        className="bg-white rounded-2xl border-2 border-emerald-900 p-6 shadow-xl relative overflow-hidden text-slate-900 font-sans max-w-2xl mx-auto printable-card"
+      >
         {/* Top Header */}
         <div className="border-b-2 border-emerald-800 pb-4 text-center space-y-1">
           <div className="flex items-center justify-center gap-2 text-xs font-bold text-emerald-800 uppercase tracking-wider">
@@ -68,11 +78,18 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({ student, setting
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-6 py-6 items-start">
           {/* Photo & Validity Column */}
           <div className="sm:col-span-1 flex flex-col items-center text-center space-y-2">
-            <div className="w-28 h-32 rounded-xl overflow-hidden border-2 border-emerald-700 shadow-md bg-slate-100">
-              <SafeMediaImage
-                src={student.studentPictureUrl}
-                alt={student.name}
-              />
+            <div className="w-28 h-32 rounded-xl overflow-hidden border-2 border-emerald-700 shadow-md bg-slate-100 flex items-center justify-center">
+              {student.studentPictureUrl && student.studentPictureUrl.trim() !== '' ? (
+                <SafeMediaImage
+                  src={student.studentPictureUrl}
+                  alt={student.name}
+                />
+              ) : (
+                <div className="text-center p-2 text-[9px] text-slate-400 font-bold leading-tight flex flex-col items-center justify-center h-full">
+                  <User className="w-8 h-8 text-slate-300 mb-1" />
+                  <span>AFFIX PASSPORT PHOTO</span>
+                </div>
+              )}
             </div>
             <div className="w-full bg-emerald-50 border border-emerald-200 rounded-lg p-2 text-[10px] space-y-0.5">
               <span className="text-emerald-800 font-bold block">Status</span>

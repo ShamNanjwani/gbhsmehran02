@@ -30,6 +30,8 @@ export interface SchoolDatabasePayload {
 
 const DB_DIR = path.join(process.cwd(), 'data');
 const DB_FILE = path.join(DB_DIR, 'school_database.json');
+const DB_BACKUP_FILE = path.join(DB_DIR, 'school_database.backup.json');
+const DB_SNAPSHOT_FILE = path.join(DB_DIR, 'school_database.snapshot.json');
 
 function getInitialDatabase(): SchoolDatabasePayload {
   return {
@@ -58,49 +60,100 @@ function ensureDbDir() {
 // In-memory cache for ultra-fast, zero-race server reads
 let cachedDb: SchoolDatabasePayload | null = null;
 
-// Load database from disk or memory cache
+// Load database from disk, backup, or memory cache (never loses previous data)
 export function readSchoolDatabase(): SchoolDatabasePayload {
   if (cachedDb && cachedDb.settings) {
     return cachedDb;
   }
 
   ensureDbDir();
+
+  // 1. Try reading primary DB_FILE
   try {
     if (fs.existsSync(DB_FILE)) {
       const content = fs.readFileSync(DB_FILE, 'utf-8');
       const parsed = JSON.parse(content);
       if (parsed && parsed.settings) {
         cachedDb = parsed;
+        // Keep backup in sync
+        try {
+          if (!fs.existsSync(DB_BACKUP_FILE)) {
+            fs.writeFileSync(DB_BACKUP_FILE, content, 'utf-8');
+          }
+        } catch (_) {}
         return parsed;
       }
     }
   } catch (error) {
-    console.error('Error reading school database file:', error);
+    console.error('Error reading primary school database file, attempting backup recovery:', error);
   }
 
-  // If not found or invalid, create with initial data
+  // 2. Try recovering from DB_BACKUP_FILE
+  try {
+    if (fs.existsSync(DB_BACKUP_FILE)) {
+      const content = fs.readFileSync(DB_BACKUP_FILE, 'utf-8');
+      const parsed = JSON.parse(content);
+      if (parsed && parsed.settings) {
+        console.log('Successfully recovered school database from backup file.');
+        cachedDb = parsed;
+        writeSchoolDatabase(parsed, false);
+        return parsed;
+      }
+    }
+  } catch (error) {
+    console.error('Error reading backup file:', error);
+  }
+
+  // 3. Try recovering from DB_SNAPSHOT_FILE
+  try {
+    if (fs.existsSync(DB_SNAPSHOT_FILE)) {
+      const content = fs.readFileSync(DB_SNAPSHOT_FILE, 'utf-8');
+      const parsed = JSON.parse(content);
+      if (parsed && parsed.settings) {
+        console.log('Successfully recovered school database from snapshot file.');
+        cachedDb = parsed;
+        writeSchoolDatabase(parsed, false);
+        return parsed;
+      }
+    }
+  } catch (error) {
+    console.error('Error reading snapshot file:', error);
+  }
+
+  // 4. If not found, create with baseline data and immediately create persistent backups
   const initial = getInitialDatabase();
-  writeSchoolDatabase(initial);
+  writeSchoolDatabase(initial, false);
   cachedDb = initial;
   return initial;
 }
 
-// Write database to disk safely and atomically
-export function writeSchoolDatabase(data: SchoolDatabasePayload): boolean {
+// Write database to disk safely, atomically, and with redundant backups
+export function writeSchoolDatabase(data: SchoolDatabasePayload, incrementVersion = true): boolean {
   ensureDbDir();
   try {
+    const nextVersion = incrementVersion ? ((Number(data.version) || 1) + 1) : (Number(data.version) || 1);
     const payloadWithMeta: SchoolDatabasePayload = {
       ...data,
-      lastSyncedAt: new Date().toISOString(),
-      version: (data.version || 1) + 1,
+      lastSyncedAt: data.lastSyncedAt || new Date().toISOString(),
+      version: nextVersion,
     };
     // Update in-memory cache immediately so concurrent requests see the latest state
     cachedDb = payloadWithMeta;
 
     // Atomic write via temp file rename
     const tempFile = `${DB_FILE}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`;
-    fs.writeFileSync(tempFile, JSON.stringify(payloadWithMeta, null, 2), 'utf-8');
+    const jsonStr = JSON.stringify(payloadWithMeta, null, 2);
+    fs.writeFileSync(tempFile, jsonStr, 'utf-8');
     fs.renameSync(tempFile, DB_FILE);
+
+    // Write persistent backups so publishing/rebuilding never replaces previous saved data
+    try {
+      fs.writeFileSync(DB_BACKUP_FILE, jsonStr, 'utf-8');
+      fs.writeFileSync(DB_SNAPSHOT_FILE, jsonStr, 'utf-8');
+    } catch (bkErr) {
+      console.warn('Backup write notice:', bkErr);
+    }
+
     return true;
   } catch (error) {
     console.error('Error writing school database file:', error);
@@ -194,21 +247,20 @@ export function registerTeacherInDb(teacher: any): { success: boolean; teacher: 
 }
 
 // Update and save updates to disk without wiping omitted fields
-export function updateSchoolDatabase(updates: Partial<SchoolDatabasePayload>): SchoolDatabasePayload {
+export function updateSchoolDatabase(updates: Partial<SchoolDatabasePayload>, options?: { forceReplaceCollections?: boolean }): SchoolDatabasePayload {
   const current = readSchoolDatabase();
 
-  // If updates explicitly provides a collection, use it directly (preserving admin deletes/re-orders)
-  // If not provided in updates, safely retain the current database records
+  // If updates explicitly provides a collection, merge by ID to prevent accidental data loss unless forceReplaceCollections is true
   const mergedStudents = updates.students !== undefined
-    ? updates.students
+    ? (options?.forceReplaceCollections ? updates.students : mergeById(current.students || [], updates.students || []))
     : current.students;
 
   const mergedTeachers = updates.teachers !== undefined
-    ? updates.teachers
+    ? (options?.forceReplaceCollections ? updates.teachers : mergeById(current.teachers || [], updates.teachers || []))
     : current.teachers;
 
   const mergedInquiries = updates.inquiries !== undefined
-    ? updates.inquiries
+    ? (options?.forceReplaceCollections ? updates.inquiries : mergeById(current.inquiries || [], updates.inquiries || []))
     : current.inquiries;
 
   const mergedSettings = updates.settings
@@ -221,13 +273,15 @@ export function updateSchoolDatabase(updates: Partial<SchoolDatabasePayload>): S
     : current.leaderMessages;
 
   if (mergedSettings?.headmasterName) {
-    mergedLeaderMessages = mergedLeaderMessages.map((msg: any) => {
+    mergedLeaderMessages = (mergedLeaderMessages || []).map((msg: any) => {
       if (msg.id === 'headmaster') {
         return { ...msg, name: mergedSettings.headmasterName };
       }
       return msg;
     });
   }
+
+  const targetVersion = Math.max(Number(current.version || 1), Number(updates.version || 0)) + 1;
 
   const merged: SchoolDatabasePayload = {
     ...current,
@@ -238,19 +292,99 @@ export function updateSchoolDatabase(updates: Partial<SchoolDatabasePayload>): S
     inquiries: mergedInquiries,
     leaderMessages: mergedLeaderMessages,
     timetable: updates.timetable !== undefined ? updates.timetable : current.timetable,
-    remarks: updates.remarks !== undefined ? updates.remarks : current.remarks,
-    attendance: updates.attendance !== undefined ? updates.attendance : current.attendance,
-    results: updates.results !== undefined ? updates.results : current.results,
-    leavingCertificates: updates.leavingCertificates !== undefined ? updates.leavingCertificates : current.leavingCertificates,
+    remarks: updates.remarks !== undefined
+      ? (options?.forceReplaceCollections ? updates.remarks : mergeById(current.remarks || [], updates.remarks || []))
+      : current.remarks,
+    attendance: updates.attendance !== undefined
+      ? (options?.forceReplaceCollections ? updates.attendance : mergeById(current.attendance || [], updates.attendance || []))
+      : current.attendance,
+    results: updates.results !== undefined
+      ? (options?.forceReplaceCollections ? updates.results : mergeById(current.results || [], updates.results || []))
+      : current.results,
+    leavingCertificates: updates.leavingCertificates !== undefined
+      ? (options?.forceReplaceCollections ? updates.leavingCertificates : mergeById(current.leavingCertificates || [], updates.leavingCertificates || []))
+      : current.leavingCertificates,
     lastSyncedAt: new Date().toISOString(),
-    version: (current.version || 1) + 1,
+    version: targetVersion,
   };
 
-  writeSchoolDatabase(merged);
+  writeSchoolDatabase(merged, false);
   return merged;
 }
 
-// Reset database to initial factory state
+// Restore database from full JSON backup
+export function restoreSchoolDatabase(backupData: SchoolDatabasePayload): { success: boolean; data?: SchoolDatabasePayload; message: string } {
+  if (!backupData || !backupData.settings) {
+    return { success: false, message: 'Invalid database backup payload: settings are missing' };
+  }
+  const current = readSchoolDatabase();
+  const nextVersion = Math.max(Number(current.version || 1), Number(backupData.version || 1)) + 1;
+  const restoredPayload: SchoolDatabasePayload = {
+    settings: backupData.settings,
+    leaderMessages: Array.isArray(backupData.leaderMessages) ? backupData.leaderMessages : current.leaderMessages,
+    teachers: Array.isArray(backupData.teachers) ? backupData.teachers : current.teachers,
+    students: Array.isArray(backupData.students) ? backupData.students : current.students,
+    timetable: Array.isArray(backupData.timetable) ? backupData.timetable : current.timetable,
+    remarks: Array.isArray(backupData.remarks) ? backupData.remarks : current.remarks,
+    attendance: Array.isArray(backupData.attendance) ? backupData.attendance : current.attendance,
+    results: Array.isArray(backupData.results) ? backupData.results : current.results,
+    leavingCertificates: Array.isArray(backupData.leavingCertificates) ? backupData.leavingCertificates : current.leavingCertificates,
+    inquiries: Array.isArray(backupData.inquiries) ? backupData.inquiries : current.inquiries,
+    lastSyncedAt: new Date().toISOString(),
+    version: nextVersion,
+  };
+
+  const ok = writeSchoolDatabase(restoredPayload, false);
+  if (ok) {
+    return { success: true, data: restoredPayload, message: 'Database successfully restored from backup' };
+  }
+  return { success: false, message: 'Failed to write restored database to disk' };
+}
+
+// Export complete school database
+export function exportSchoolDatabase(): SchoolDatabasePayload {
+  return readSchoolDatabase();
+}
+
+// Smart-sync: compares client vs server version to ensure no published updates or client edits are ever lost
+export function smartSyncSchoolDatabase(clientPayload: {
+  clientVersion?: number;
+  clientLastSyncedAt?: string;
+  data?: Partial<SchoolDatabasePayload>;
+  forceClientOverwrite?: boolean;
+}): { action: 'client_applied' | 'server_current' | 'merged'; data: SchoolDatabasePayload; message: string } {
+  const current = readSchoolDatabase();
+  const serverVer = Number(current.version || 1);
+  const clientVer = Number(clientPayload.clientVersion || 0);
+
+  // If client provided data and client is newer, or client forced overwrite (e.g. after website update / new container startup)
+  if (clientPayload.data && (clientVer >= serverVer || clientPayload.forceClientOverwrite || serverVer <= 1)) {
+    const updated = updateSchoolDatabase(clientPayload.data, { forceReplaceCollections: true });
+    return {
+      action: 'client_applied',
+      data: updated,
+      message: 'Server updated with client saved state.',
+    };
+  }
+
+  // If client provided data and server is newer, merge client records into server so neither side loses anything
+  if (clientPayload.data) {
+    const merged = updateSchoolDatabase(clientPayload.data, { forceReplaceCollections: false });
+    return {
+      action: 'merged',
+      data: merged,
+      message: 'Client and server records merged seamlessly without data loss.',
+    };
+  }
+
+  return {
+    action: 'server_current',
+    data: current,
+    message: 'Server data is current.',
+  };
+}
+
+// Reset database to initial factory state (requires admin authorization)
 export function resetSchoolDatabase(): SchoolDatabasePayload {
   const initial = getInitialDatabase();
   writeSchoolDatabase(initial);

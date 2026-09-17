@@ -1,7 +1,8 @@
 import React from 'react';
 import { Teacher, SchoolSettings } from '../../types';
-import { Download, Printer, Shield, QrCode, Award } from 'lucide-react';
+import { Download, Printer, Shield, QrCode, Award, User } from 'lucide-react';
 import { downloadTeacherIdCardPDF } from '../../utils/pdfGenerator';
+import { printIsolatedElement } from '../../utils/printUtils';
 import { SchoolLogo } from '../common/SchoolLogo';
 import { SafeMediaImage } from '../common/SafeMediaImage';
 import { HeadmasterSignatureDisplay } from '../common/HeadmasterSignatureDisplay';
@@ -12,8 +13,10 @@ interface TeacherIdCardProps {
 }
 
 export const TeacherIdCard: React.FC<TeacherIdCardProps> = ({ teacher, settings }) => {
+  const cardId = `teacher-id-card-${teacher.id}`;
+
   const handlePrint = () => {
-    window.print();
+    printIsolatedElement(cardId, `Teacher_ID_Card_${teacher.name.replace(/\s+/g, '_')}`);
   };
 
   const handleDownload = () => {
@@ -22,22 +25,26 @@ export const TeacherIdCard: React.FC<TeacherIdCardProps> = ({ teacher, settings 
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between no-print">
         <h4 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
           <Shield className="w-4 h-4 text-teal-700" />
           Official Teacher & Staff Identity Card
         </h4>
         <div className="flex gap-2">
           <button
+            type="button"
             onClick={handlePrint}
             className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center gap-1.5 transition"
+            title="Print only this ID Card"
           >
             <Printer className="w-3.5 h-3.5" />
             Print ID Card
           </button>
           <button
+            type="button"
             onClick={handleDownload}
             className="px-3 py-1.5 rounded-lg bg-teal-800 hover:bg-teal-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition"
+            title="Download official ID Card as PDF"
           >
             <Download className="w-3.5 h-3.5 text-amber-300" />
             Download PDF
@@ -46,7 +53,10 @@ export const TeacherIdCard: React.FC<TeacherIdCardProps> = ({ teacher, settings 
       </div>
 
       {/* ID Card Box: Formatted to official standard staff badge */}
-      <div className="max-w-xs mx-auto bg-white rounded-2xl border-2 border-teal-900 shadow-xl overflow-hidden font-sans text-slate-900 printable-card">
+      <div
+        id={cardId}
+        className="max-w-xs mx-auto bg-white rounded-2xl border-2 border-teal-900 shadow-xl overflow-hidden font-sans text-slate-900 printable-card"
+      >
         {/* Card Header */}
         <div className="bg-gradient-to-r from-teal-950 via-teal-900 to-emerald-900 text-white p-3 text-center border-b-2 border-amber-400 relative">
           <div className="flex items-center justify-center gap-2 mb-1.5">
@@ -70,11 +80,18 @@ export const TeacherIdCard: React.FC<TeacherIdCardProps> = ({ teacher, settings 
         <div className="p-4 space-y-3">
           {/* Photo & Designation Badge */}
           <div className="flex items-center gap-3">
-            <div className="w-20 h-24 rounded-lg overflow-hidden border-2 border-teal-700 shadow-sm shrink-0 bg-slate-100">
-              <SafeMediaImage
-                src={teacher.pictureUrl}
-                alt={teacher.name}
-              />
+            <div className="w-20 h-24 rounded-lg overflow-hidden border-2 border-teal-700 shadow-sm shrink-0 bg-slate-100 flex items-center justify-center">
+              {teacher.pictureUrl && teacher.pictureUrl.trim() !== '' ? (
+                <SafeMediaImage
+                  src={teacher.pictureUrl}
+                  alt={teacher.name}
+                />
+              ) : (
+                <div className="text-center p-1 text-[8px] text-slate-400 font-bold leading-tight flex flex-col items-center justify-center h-full">
+                  <User className="w-6 h-6 text-slate-300 mb-0.5" />
+                  <span>STAFF PHOTO</span>
+                </div>
+              )}
             </div>
             <div className="space-y-1.5 flex-1">
               <div className="bg-teal-50 border border-teal-200 text-teal-900 px-2 py-1 rounded text-center">

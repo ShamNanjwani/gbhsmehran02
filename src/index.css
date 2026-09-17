@@ -1,1 +1,52 @@
 @import "tailwindcss";
+
+/* ==========================================================================
+   ISOLATED DOCUMENT PRINTING SYSTEM
+   Ensures that only the target document (ID Card, Enrollment Card, Leaving
+   Certificate, Result Sheet, Confirmation Letter) prints cleanly, completely
+   omitting the website header, navbar, background, controls, and footer.
+   ========================================================================== */
+@media print {
+  /* Isolated Mode: hides everything except the selected document container */
+  body.printing-isolated-mode {
+    background: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  body.printing-isolated-mode > *:not(#print-isolated-container) {
+    display: none !important;
+  }
+
+  body.printing-isolated-mode #print-isolated-container {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 auto !important;
+    padding: 4mm !important;
+    background: #ffffff !important;
+  }
+
+  body.printing-isolated-mode #print-isolated-container * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Global print rules: hide all web chrome even if standard print is invoked */
+  header,
+  nav,
+  footer,
+  aside,
+  button,
+  .no-print,
+  [data-no-print="true"] {
+    display: none !important;
+  }
+
+  @page {
+    margin: 8mm;
+    size: auto;
+  }
+}

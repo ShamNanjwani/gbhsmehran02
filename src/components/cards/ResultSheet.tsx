@@ -2,6 +2,7 @@ import React from 'react';
 import { StudentResult, SchoolSettings } from '../../types';
 import { Download, Printer, Award, CheckCircle2, TrendingUp } from 'lucide-react';
 import { downloadResultSheetPDF } from '../../utils/pdfGenerator';
+import { printIsolatedElement } from '../../utils/printUtils';
 import { HeadmasterSignatureDisplay } from '../common/HeadmasterSignatureDisplay';
 
 interface ResultSheetProps {
@@ -10,8 +11,10 @@ interface ResultSheetProps {
 }
 
 export const ResultSheet: React.FC<ResultSheetProps> = ({ result, settings }) => {
+  const cardId = `result-sheet-${result.id || result.grNumber}`;
+
   const handlePrint = () => {
-    window.print();
+    printIsolatedElement(cardId, `Result_Sheet_${result.studentName.replace(/\s+/g, '_')}`);
   };
 
   const handleDownload = () => {
@@ -20,22 +23,26 @@ export const ResultSheet: React.FC<ResultSheetProps> = ({ result, settings }) =>
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between no-print">
         <h4 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
           <Award className="w-4 h-4 text-emerald-700" />
           Official Academic Result Sheet / Marksheet
         </h4>
         <div className="flex gap-2">
           <button
+            type="button"
             onClick={handlePrint}
             className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center gap-1.5 transition"
+            title="Print only this Result Sheet"
           >
             <Printer className="w-3.5 h-3.5" />
             Print
           </button>
           <button
+            type="button"
             onClick={handleDownload}
             className="px-3 py-1.5 rounded-lg bg-emerald-800 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition"
+            title="Download official Result Sheet as PDF"
           >
             <Download className="w-3.5 h-3.5 text-amber-300" />
             Download PDF
@@ -44,7 +51,10 @@ export const ResultSheet: React.FC<ResultSheetProps> = ({ result, settings }) =>
       </div>
 
       {/* Result Marksheet Container */}
-      <div className="bg-white rounded-2xl border-2 border-emerald-900 p-6 sm:p-8 shadow-xl max-w-3xl mx-auto printable-card text-slate-900 font-sans">
+      <div
+        id={cardId}
+        className="bg-white rounded-2xl border-2 border-emerald-900 p-6 sm:p-8 shadow-xl max-w-3xl mx-auto printable-card text-slate-900 font-sans"
+      >
         {/* Header */}
         <div className="text-center border-b-2 border-emerald-800 pb-4 space-y-1">
           <div className="text-xs font-bold text-emerald-800 tracking-wider uppercase">

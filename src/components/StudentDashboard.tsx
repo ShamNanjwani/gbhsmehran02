@@ -28,6 +28,7 @@ import { EnrollmentCard } from './cards/EnrollmentCard';
 import { ResultSheet } from './cards/ResultSheet';
 import { LeavingCertificate } from './cards/LeavingCertificate';
 import { StudentReportCard } from './cards/StudentReportCard';
+import { ConfirmationLetter } from './cards/ConfirmationLetter';
 import { DocumentViewerModal } from './common/DocumentViewerModal';
 import { SafeMediaImage } from './common/SafeMediaImage';
 import { SchoolLogo } from './common/SchoolLogo';
@@ -56,7 +57,7 @@ export const StudentDashboard: React.FC = () => {
   const [loginError, setLoginError] = useState('');
 
   const [activeSubTab, setActiveSubTab] = useState<
-    'overview' | 'idcard' | 'enrollment' | 'result' | 'slc' | 'remarks' | 'attendance' | 'timetable'
+    'overview' | 'letter' | 'idcard' | 'enrollment' | 'report' | 'result' | 'slc' | 'remarks' | 'attendance' | 'timetable'
   >('overview');
 
   const [previewDoc, setPreviewDoc] = useState<{ url: string; title: string } | null>(null);
@@ -320,6 +321,7 @@ export const StudentDashboard: React.FC = () => {
       <div className="flex items-center gap-1.5 overflow-x-auto border-b border-slate-200 pb-2 text-xs">
         {[
           { id: 'overview', label: 'Dashboard & Admission Letter', icon: FileCheck },
+          { id: 'letter', label: 'Confirmation Letter', icon: FileText },
           { id: 'idcard', label: 'Official ID Card', icon: IdCard },
           { id: 'enrollment', label: 'Enrollment Card', icon: FileText },
           { id: 'report', label: 'Export Report Card', icon: Printer },
@@ -378,64 +380,8 @@ export const StudentDashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* Official Admission Confirmation Letter */}
-          {/* Required by user prompt:
-              "after approved by admin and confirmation letter issue with GR Allotted to student
-               and displayed on Students Dashboard" */}
-          <div className="bg-white rounded-2xl border-2 border-emerald-900 p-6 sm:p-8 shadow-md space-y-4 printable-card">
-            <div className="text-center border-b border-slate-200 pb-4">
-              <div className="text-[10px] font-bold text-emerald-800 uppercase tracking-widest">
-                OFFICIAL ADMISSION CONFIRMATION LETTER
-              </div>
-              <h3 className="text-xl font-black text-slate-900 uppercase">
-                {settings.schoolName}
-              </h3>
-              <p className="text-xs text-slate-500">
-                Taluka Kaloi, District Tharparkar @ Mithi • SEMIS: {settings.semisCode}
-              </p>
-            </div>
-
-            <div className="flex justify-between items-center text-xs font-mono py-1 border-b border-dashed border-slate-200">
-              <span>Letter Ref: GBHS/ADM/2026-{currentStudent.id.substring(2)}</span>
-              <span className="font-bold text-red-700">GR NO: {currentStudent.grNumber || 'PROVISIONAL'}</span>
-              <span>Date: {currentStudent.admissionDate}</span>
-            </div>
-
-            <div className="text-xs text-slate-700 leading-relaxed space-y-2">
-              <p>
-                To: <strong>{currentStudent.name}</strong> S/O <strong>{currentStudent.fatherName}</strong>,
-                <br />
-                Resident of: {currentStudent.address.houseNo}, {currentStudent.address.mohVillage}, {currentStudent.address.townCity}, {currentStudent.address.district}.
-              </p>
-              <p>
-                Subject: <strong>OFFICIAL CONFIRMATION OF ADMISSION IN {currentStudent.appliedClass.toUpperCase()}</strong>
-              </p>
-              <p>
-                Dear Student & Parent,
-              </p>
-              <p>
-                We are pleased to inform you that upon careful review of your application, verification of NADRA B-Form records, and compliance with School Education & Literacy Department guidelines, admission has been formally approved in <strong>{settings.schoolName}</strong> for the Academic Session 2026-2027.
-              </p>
-              <p>
-                You have been allotted official General Register Number: <strong className="text-red-700 font-mono text-sm">{currentStudent.grNumber || 'GR-406020752-0142'}</strong>.
-                You are assigned to <strong>Section {currentStudent.section || 'A'}</strong> with <strong>Roll No. {currentStudent.rollNo || '01'}</strong>.
-              </p>
-              <p>
-                You may now access and download your official <strong>Student Identity Card</strong>, <strong>Annual Enrollment Card</strong>, and view daily classwork remarks and attendance records.
-              </p>
-            </div>
-
-            <div className="pt-6 border-t border-slate-200 flex items-center justify-between text-xs text-slate-600">
-              <div>
-                <p className="font-bold text-slate-800">Admission Committee</p>
-                <p className="text-[11px] text-slate-500">GBHS Mehrand</p>
-              </div>
-              <div className="text-right">
-                <p className="font-extrabold text-emerald-900">Headmaster</p>
-                <p className="text-[11px] text-slate-500">Seal & Signature</p>
-              </div>
-            </div>
-          </div>
+          {/* Official Admission Confirmation Letter Component */}
+          <ConfirmationLetter student={currentStudent} settings={settings} />
 
           {/* Uploaded Documents Verification Box */}
           <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
@@ -591,6 +537,13 @@ export const StudentDashboard: React.FC = () => {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* SUB-TAB: Official Confirmation Letter */}
+      {activeSubTab === 'letter' && (
+        <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200">
+          <ConfirmationLetter student={currentStudent} settings={settings} />
         </div>
       )}
 

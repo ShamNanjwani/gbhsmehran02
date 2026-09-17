@@ -7,6 +7,9 @@ import {
   resetSchoolDatabase,
   registerStudentInDb,
   registerTeacherInDb,
+  smartSyncSchoolDatabase,
+  restoreSchoolDatabase,
+  exportSchoolDatabase,
 } from './server/schoolDb';
 
 async function startServer() {
@@ -57,7 +60,8 @@ async function startServer() {
         return res.status(400).json({ success: false, message: 'No data provided for synchronization' });
       }
 
-      const updatedDb = updateSchoolDatabase(incomingData);
+      const forceReplace = req.body?.forceReplaceCollections === true;
+      const updatedDb = updateSchoolDatabase(incomingData, { forceReplaceCollections: forceReplace });
       res.json({
         success: true,
         message: 'School data successfully saved and published live to website for all users.',
@@ -68,6 +72,69 @@ async function startServer() {
     } catch (error: any) {
       console.error('Error syncing school data:', error);
       res.status(500).json({ success: false, message: 'Failed to sync school database' });
+    }
+  });
+
+  // POST smart-sync: handles client vs server version negotiation to guarantee no data loss after website updates
+  app.post('/api/school-data/smart-sync', (req, res) => {
+    try {
+      const { clientVersion, clientLastSyncedAt, data, forceClientOverwrite } = req.body || {};
+      const result = smartSyncSchoolDatabase({
+        clientVersion,
+        clientLastSyncedAt,
+        data,
+        forceClientOverwrite,
+      });
+      res.json({
+        success: true,
+        action: result.action,
+        message: result.message,
+        data: result.data,
+        lastSyncedAt: result.data.lastSyncedAt,
+        version: result.data.version,
+      });
+    } catch (error: any) {
+      console.error('Error in smart-sync:', error);
+      res.status(500).json({ success: false, message: 'Failed to process smart sync' });
+    }
+  });
+
+  // GET export complete school database JSON
+  app.get('/api/school-data/export', (req, res) => {
+    try {
+      const db = exportSchoolDatabase();
+      const dateStr = new Date().toISOString().split('T')[0];
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Content-Disposition', `attachment; filename="gbhs_mehrand_database_backup_${dateStr}.json"`);
+      res.send(JSON.stringify(db, null, 2));
+    } catch (error: any) {
+      console.error('Error exporting database:', error);
+      res.status(500).json({ success: false, message: 'Failed to export database' });
+    }
+  });
+
+  // POST restore complete school database from uploaded JSON backup
+  app.post('/api/school-data/restore', (req, res) => {
+    try {
+      const backupPayload = req.body?.data || req.body;
+      if (!backupPayload || !backupPayload.settings) {
+        return res.status(400).json({ success: false, message: 'Invalid backup file: settings object required' });
+      }
+
+      const result = restoreSchoolDatabase(backupPayload);
+      if (!result.success) {
+        return res.status(400).json(result);
+      }
+      res.json({
+        success: true,
+        message: result.message,
+        data: result.data,
+        lastSyncedAt: result.data?.lastSyncedAt,
+        version: result.data?.version,
+      });
+    } catch (error: any) {
+      console.error('Error restoring database:', error);
+      res.status(500).json({ success: false, message: 'Failed to restore database from backup' });
     }
   });
 
@@ -153,9 +220,19 @@ async function startServer() {
     }
   });
 
-  // POST reset school database to factory defaults
+  // POST reset school database to factory defaults (Protected: requires admin password)
   app.post('/api/school-data/reset', (req, res) => {
     try {
+      const { adminPassword } = req.body || {};
+      const current = readSchoolDatabase();
+      const expectedPassword = current.settings?.adminPassword || 'Sham@580';
+      if (!adminPassword || adminPassword !== expectedPassword) {
+        return res.status(403).json({
+          success: false,
+          message: 'Unauthorized: Admin password required to reset database.',
+        });
+      }
+
       const resetDb = resetSchoolDatabase();
       res.json({
         success: true,

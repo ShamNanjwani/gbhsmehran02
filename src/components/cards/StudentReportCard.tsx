@@ -2,6 +2,7 @@ import React from 'react';
 import { Student, SchoolSettings, AttendanceRecord, StudentResult, DailyRemark } from '../../types';
 import { Download, Printer, FileText, CheckCircle2, Award, Calendar, Clock, UserCheck } from 'lucide-react';
 import { downloadStudentReportPDF } from '../../utils/pdfGenerator';
+import { printIsolatedElement } from '../../utils/printUtils';
 import { SchoolLogo } from '../common/SchoolLogo';
 import { SafeMediaImage } from '../common/SafeMediaImage';
 import { HeadmasterSignatureDisplay } from '../common/HeadmasterSignatureDisplay';
@@ -23,6 +24,8 @@ export const StudentReportCard: React.FC<StudentReportCardProps> = ({
   remarks,
   onClose,
 }) => {
+  const cardId = `student-report-card-${student.id}`;
+
   // Compute student-specific attendance
   const studentAttendance = attendance.filter((a) => a.studentId === student.id);
   const totalDays = studentAttendance.length || 1;
@@ -38,7 +41,7 @@ export const StudentReportCard: React.FC<StudentReportCardProps> = ({
   const studentRemarks = remarks.filter((r) => r.studentId === student.id);
 
   const handlePrint = () => {
-    window.print();
+    printIsolatedElement(cardId, `Student_Record_Report_${student.grNumber || student.id}`);
   };
 
   const handleDownload = () => {
@@ -48,7 +51,7 @@ export const StudentReportCard: React.FC<StudentReportCardProps> = ({
   return (
     <div className="space-y-4">
       {/* Controls Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-100 p-3 rounded-xl border border-slate-200">
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-100 p-3 rounded-xl border border-slate-200 no-print">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-emerald-800 text-amber-300 flex items-center justify-center font-bold">
             <FileText className="w-4 h-4" />
@@ -65,21 +68,26 @@ export const StudentReportCard: React.FC<StudentReportCardProps> = ({
 
         <div className="flex items-center gap-2">
           <button
+            type="button"
             onClick={handlePrint}
             className="px-3 py-1.5 rounded-lg bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold text-xs flex items-center gap-1.5 shadow-2xs transition"
+            title="Print only this report"
           >
             <Printer className="w-3.5 h-3.5" />
             Print Report
           </button>
           <button
+            type="button"
             onClick={handleDownload}
             className="px-3.5 py-1.5 rounded-lg bg-emerald-800 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition"
+            title="Download PDF report"
           >
             <Download className="w-3.5 h-3.5 text-amber-300" />
             Download PDF Report
           </button>
           {onClose && (
             <button
+              type="button"
               onClick={onClose}
               className="px-2.5 py-1.5 rounded-lg text-slate-500 hover:text-slate-800 text-xs font-bold"
             >
@@ -90,7 +98,10 @@ export const StudentReportCard: React.FC<StudentReportCardProps> = ({
       </div>
 
       {/* Printable Sheet */}
-      <div className="max-w-3xl mx-auto bg-white border-2 border-emerald-900 rounded-2xl shadow-xl p-6 sm:p-8 space-y-6 printable-card text-slate-900 font-sans">
+      <div
+        id={cardId}
+        className="max-w-3xl mx-auto bg-white border-2 border-emerald-900 rounded-2xl shadow-xl p-6 sm:p-8 space-y-6 printable-card text-slate-900 font-sans"
+      >
         {/* Header */}
         <div className="border-b-2 border-emerald-800 pb-4 text-center relative">
           <div className="flex items-center justify-center gap-3 mb-2">
@@ -115,8 +126,16 @@ export const StudentReportCard: React.FC<StudentReportCardProps> = ({
         {/* Student Profile Overview */}
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 items-center bg-slate-50 p-4 rounded-xl border border-slate-200">
           <div className="flex justify-center sm:justify-start">
-            <div className="w-24 h-28 rounded-lg overflow-hidden border-2 border-emerald-800 bg-white shadow-xs">
-              <SafeMediaImage src={student.studentPictureUrl} alt={student.name} />
+            <div className="w-24 h-28 rounded-lg overflow-hidden border-2 border-emerald-800 bg-white shadow-xs flex items-center justify-center">
+              {student.studentPictureUrl && student.studentPictureUrl.trim() !== '' ? (
+                <SafeMediaImage src={student.studentPictureUrl} alt={student.name} />
+              ) : (
+                <div className="text-center p-1 text-[8px] text-slate-400 font-bold leading-tight flex flex-col items-center justify-center h-full border border-dashed border-slate-300 w-full">
+                  <span>AFFIX</span>
+                  <span>PASSPORT</span>
+                  <span>PHOTO</span>
+                </div>
+              )}
             </div>
           </div>
           <div className="sm:col-span-3 grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-4 text-xs">

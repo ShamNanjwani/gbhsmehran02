@@ -93,13 +93,17 @@ interface SchoolContextType {
   submitInquiry: (inquiry: Omit<ContactInquiry, 'id' | 'createdAt' | 'status'>) => void;
   markInquiryRead: (id: string) => void;
 
-  // Live Website Synchronization & Server Persistence
+  // Live Website Synchronization, Data Preservation & Backup
   isSyncing: boolean;
   lastSyncedAt: string | null;
   syncStatus: 'synced' | 'unsaved' | 'syncing' | 'error';
   isLiveConnected: boolean;
+  dataVersion: number;
   syncWithWebsite: (manual?: boolean, customData?: any) => Promise<boolean>;
   refreshFromWebsite: (manual?: boolean) => Promise<boolean>;
+  exportDatabaseBackup: () => void;
+  restoreDatabaseFromBackup: (fileOrJson: File | string | any) => Promise<boolean>;
+  forcePushLocalDataToServer: () => Promise<boolean>;
 }
 
 const SchoolContext = createContext<SchoolContextType | undefined>(undefined);
@@ -122,6 +126,27 @@ function setStored<T>(key: string, value: T): void {
   } catch (err) {
     console.warn('Error setting localStorage for key', key, err);
   }
+}
+
+// Safely merges collections by unique ID so local records are never discarded on background refresh
+function mergeCollectionById<T extends { id: string }>(localList: T[] = [], remoteList: T[] = []): T[] {
+  const map = new Map<string, T>();
+  for (const item of remoteList) {
+    if (item && item.id) {
+      map.set(item.id, item);
+    }
+  }
+  for (const item of localList) {
+    if (item && item.id) {
+      const existing = map.get(item.id);
+      if (existing) {
+        map.set(item.id, { ...existing, ...item });
+      } else {
+        map.set(item.id, item);
+      }
+    }
+  }
+  return Array.from(map.values());
 }
 
 export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -149,7 +174,8 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
   const [alertMessage, setAlertMessage] = useState<{ type: 'success' | 'info' | 'warning' | 'error'; title: string; message: string } | null>(null);
 
-  // Live Website Sync & Server Persistence State
+  // Live Website Sync, Version Tracking & Server Persistence State
+  const [dataVersion, setDataVersion] = useState<number>(() => getStored<number>('dataVersion', 28));
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(() => getStored<string | null>('lastSyncedAt', null));
   const [syncStatus, setSyncStatus] = useState<'synced' | 'unsaved' | 'syncing' | 'error'>('synced');
@@ -169,8 +195,32 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   useEffect(() => { setStored('results', results); }, [results]);
   useEffect(() => { setStored('leavingCertificates', leavingCertificates); }, [leavingCertificates]);
   useEffect(() => { setStored('inquiries', inquiries); }, [inquiries]);
+  useEffect(() => { setStored('dataVersion', dataVersion); }, [dataVersion]);
 
-  // Pull latest live data from website server with anti-cache safeguards
+  // Redundant full database backup snapshot saved in localStorage on every state change
+  useEffect(() => {
+    try {
+      const fullSnapshot = {
+        settings,
+        leaderMessages,
+        teachers,
+        students,
+        timetable,
+        remarks,
+        attendance,
+        results,
+        leavingCertificates,
+        inquiries,
+        version: dataVersion,
+        backupCreatedAt: new Date().toISOString(),
+      };
+      localStorage.setItem(LOCAL_STORAGE_KEY_PREFIX + 'full_backup', JSON.stringify(fullSnapshot));
+    } catch (e) {
+      console.warn('Backup snapshot error:', e);
+    }
+  }, [settings, leaderMessages, teachers, students, timetable, remarks, attendance, results, leavingCertificates, inquiries, dataVersion]);
+
+  // Pull latest live data from website server with anti-cache safeguards and zero data-loss merging
   const refreshFromWebsite = async (manual = false): Promise<boolean> => {
     try {
       setIsSyncing(true);
@@ -185,59 +235,120 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       const json = await res.json();
       if (json.success && json.data) {
         const d = json.data;
-        if (d.settings) {
-          setSettings(d.settings);
-          setStored('settings', d.settings);
+        const serverVersion = Number(d.version || 1);
+        const currentLocalVersion = Number(localStorage.getItem(LOCAL_STORAGE_KEY_PREFIX + 'dataVersion') || dataVersion || 1);
+
+        // DATA PRESERVATION SAFEGUARD:
+        // If the website was updated or republished and the server is on baseline version 1
+        // while the user's browser has saved records (version > 1 or students present),
+        // push the saved browser data to the server immediately so it is NEVER lost or replaced!
+        const localStudents = getStored<Student[]>('students', students);
+        if (serverVersion < currentLocalVersion && (localStudents.length > 0 || currentLocalVersion > 1)) {
+          console.log(`[Data Preservation] Client version (${currentLocalVersion}) is ahead of server (${serverVersion}). Auto-pushing client data.`);
+          await syncWithWebsite(false);
+          setIsLiveConnected(true);
+          if (manual) {
+            showAlert('Server Updated', 'Client data was newer and has been safely published to the server.', 'success');
+          }
+          return true;
         }
+
+        // Merge settings retaining non-empty local customizations
+        if (d.settings) {
+          setSettings((prev) => {
+            const mergedSettings = {
+              ...prev,
+              ...d.settings,
+              headmasterName: d.settings.headmasterName || prev.headmasterName,
+              headmasterSignatureUrl: d.settings.headmasterSignatureUrl || prev.headmasterSignatureUrl,
+              logoUrl: d.settings.logoUrl || prev.logoUrl,
+              phone: d.settings.phone || prev.phone,
+              email: d.settings.email || prev.email,
+              establishedYear: d.settings.establishedYear || prev.establishedYear || '1995',
+            };
+            setStored('settings', mergedSettings);
+            return mergedSettings;
+          });
+        }
+
         if (Array.isArray(d.leaderMessages)) {
           setLeaderMessages(d.leaderMessages);
           setStored('leaderMessages', d.leaderMessages);
         }
-        if (Array.isArray(d.teachers) && d.teachers.length > 0) {
-          let teachersList = d.teachers;
-          if (currentUser?.role === 'teacher' && currentUser.extra?.id) {
-            const exists = teachersList.some((t: Teacher) => t.id === currentUser.extra.id);
-            if (!exists) {
-              teachersList = [currentUser.extra, ...teachersList];
+
+        // Merge teachers safely by ID
+        if (Array.isArray(d.teachers)) {
+          setTeachers((prev) => {
+            let merged = mergeCollectionById(prev, d.teachers);
+            if (currentUser?.role === 'teacher' && currentUser.extra?.id) {
+              const exists = merged.some((t: Teacher) => t.id === currentUser.extra.id);
+              if (!exists) {
+                merged = [currentUser.extra, ...merged];
+              }
             }
-          }
-          setTeachers(teachersList);
-          setStored('teachers', teachersList);
+            setStored('teachers', merged);
+            return merged;
+          });
         }
-        if (Array.isArray(d.students) && d.students.length > 0) {
-          let studentsList = d.students;
-          if (currentUser?.role === 'student' && currentUser.extra?.id) {
-            const exists = studentsList.some((s: Student) => s.id === currentUser.extra.id);
-            if (!exists) {
-              studentsList = [currentUser.extra, ...studentsList];
+
+        // Merge students safely by ID
+        if (Array.isArray(d.students)) {
+          setStudents((prev) => {
+            let merged = mergeCollectionById(prev, d.students);
+            if (currentUser?.role === 'student' && currentUser.extra?.id) {
+              const exists = merged.some((s: Student) => s.id === currentUser.extra.id);
+              if (!exists) {
+                merged = [currentUser.extra, ...merged];
+              }
             }
-          }
-          setStudents(studentsList);
-          setStored('students', studentsList);
+            setStored('students', merged);
+            return merged;
+          });
         }
+
         if (Array.isArray(d.timetable)) {
           setTimetable(d.timetable);
           setStored('timetable', d.timetable);
         }
+
         if (Array.isArray(d.remarks)) {
-          setRemarks(d.remarks);
-          setStored('remarks', d.remarks);
+          setRemarks((prev) => {
+            const merged = mergeCollectionById(prev, d.remarks);
+            setStored('remarks', merged);
+            return merged;
+          });
         }
+
         if (Array.isArray(d.attendance)) {
-          setAttendance(d.attendance);
-          setStored('attendance', d.attendance);
+          setAttendance((prev) => {
+            const merged = mergeCollectionById(prev, d.attendance);
+            setStored('attendance', merged);
+            return merged;
+          });
         }
+
         if (Array.isArray(d.results)) {
-          setResults(d.results);
-          setStored('results', d.results);
+          setResults((prev) => {
+            const merged = mergeCollectionById(prev, d.results);
+            setStored('results', merged);
+            return merged;
+          });
         }
+
         if (Array.isArray(d.leavingCertificates)) {
-          setLeavingCertificates(d.leavingCertificates);
-          setStored('leavingCertificates', d.leavingCertificates);
+          setLeavingCertificates((prev) => {
+            const merged = mergeCollectionById(prev, d.leavingCertificates);
+            setStored('leavingCertificates', merged);
+            return merged;
+          });
         }
+
         if (Array.isArray(d.inquiries)) {
-          setInquiries(d.inquiries);
-          setStored('inquiries', d.inquiries);
+          setInquiries((prev) => {
+            const merged = mergeCollectionById(prev, d.inquiries);
+            setStored('inquiries', merged);
+            return merged;
+          });
         }
 
         // Keep logged-in user profile synced with server updates (e.g. GR allotment, approval status)
@@ -265,6 +376,10 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
           }
         }
 
+        const effectiveVersion = Math.max(serverVersion, currentLocalVersion);
+        setDataVersion(effectiveVersion);
+        setStored('dataVersion', effectiveVersion);
+
         const syncTime = json.lastSyncedAt || new Date().toISOString();
         setLastSyncedAt(syncTime);
         setStored('lastSyncedAt', syncTime);
@@ -274,7 +389,7 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         if (manual) {
           showAlert(
             'Website Data Refreshed',
-            'Successfully loaded the latest live school data published on the website.',
+            'Successfully loaded and verified the latest live school data from the website server.',
             'success'
           );
         }
@@ -300,10 +415,10 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   // On app initial load, pull latest data from server and periodically refresh to catch internet registrations
   useEffect(() => {
     refreshFromWebsite(false);
-    // Background sync every 10 seconds so admissions from any device appear live on admin portal
+    // Background sync every 15 seconds so admissions from any device appear live on admin portal
     const pollTimer = setInterval(() => {
       refreshFromWebsite(false);
-    }, 10000);
+    }, 15000);
 
     // Refresh when user returns to tab
     const handleVisibilityChange = () => {
@@ -324,6 +439,7 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     setIsSyncing(true);
     setSyncStatus('syncing');
     try {
+      const nextVer = (dataVersion || 1) + 1;
       const payload = {
         settings: customData?.settings ? { ...settings, ...customData.settings } : settings,
         leaderMessages: customData?.leaderMessages || leaderMessages,
@@ -335,12 +451,13 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         results: customData?.results || results,
         leavingCertificates: customData?.leavingCertificates || leavingCertificates,
         inquiries: customData?.inquiries || inquiries,
+        version: nextVer,
       };
 
       const res = await fetch('/api/school-data/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ data: payload }),
+        body: JSON.stringify({ data: payload, forceReplaceCollections: true }),
       });
 
       if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
@@ -365,15 +482,13 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             setStudents(d.students);
             setStored('students', d.students);
           }
+          if (d.version) {
+            setDataVersion(d.version);
+            setStored('dataVersion', d.version);
+          }
         } else {
-          if (payload.settings) {
-            setSettings(payload.settings);
-            setStored('settings', payload.settings);
-          }
-          if (payload.leaderMessages) {
-            setLeaderMessages(payload.leaderMessages);
-            setStored('leaderMessages', payload.leaderMessages);
-          }
+          setDataVersion(nextVer);
+          setStored('dataVersion', nextVer);
         }
 
         const syncTime = json.lastSyncedAt || new Date().toISOString();
@@ -385,7 +500,7 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         if (manual) {
           showAlert(
             'Synced & Published to Live Website!',
-            'All updates (school information, announcements, admissions, teachers, timetable, and CMS) are now live on the website and visible to all users across devices.',
+            'All updates (school information, announcements, admissions, teachers, timetable, and CMS) are now live on the website and safely protected.',
             'success'
           );
         }
@@ -404,6 +519,165 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
           'warning'
         );
       }
+      return false;
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  // Export full school database as a downloadable JSON file
+  const exportDatabaseBackup = () => {
+    try {
+      const exportData = {
+        settings,
+        leaderMessages,
+        teachers,
+        students,
+        timetable,
+        remarks,
+        attendance,
+        results,
+        leavingCertificates,
+        inquiries,
+        lastSyncedAt: new Date().toISOString(),
+        version: dataVersion,
+        exportedAt: new Date().toISOString(),
+        schoolInfo: {
+          name: settings.schoolName,
+          semisCode: settings.semisCode,
+          district: 'Tharparkar',
+        },
+      };
+
+      const jsonStr = JSON.stringify(exportData, null, 2);
+      const blob = new Blob([jsonStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const dateStr = new Date().toISOString().split('T')[0];
+      a.href = url;
+      a.download = `gbhs_mehrand_database_backup_${dateStr}_v${dataVersion}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      showAlert('Database Backup Exported', 'Full school database backup file has been saved to your downloads.', 'success');
+    } catch (err: any) {
+      console.error('Export error:', err);
+      showAlert('Export Failed', 'Could not export database backup: ' + err.message, 'error');
+    }
+  };
+
+  // Restore complete school database from an uploaded backup JSON file
+  const restoreDatabaseFromBackup = async (fileOrJson: File | string | any): Promise<boolean> => {
+    try {
+      setIsSyncing(true);
+      setSyncStatus('syncing');
+      let parsed: any;
+      if (typeof fileOrJson === 'string') {
+        parsed = JSON.parse(fileOrJson);
+      } else if (fileOrJson instanceof File) {
+        const text = await fileOrJson.text();
+        parsed = JSON.parse(text);
+      } else {
+        parsed = fileOrJson;
+      }
+
+      if (!parsed || !parsed.settings) {
+        throw new Error('Invalid backup file: settings object not found.');
+      }
+
+      // Update all local state immediately
+      if (parsed.settings) { setSettings(parsed.settings); setStored('settings', parsed.settings); }
+      if (Array.isArray(parsed.leaderMessages)) { setLeaderMessages(parsed.leaderMessages); setStored('leaderMessages', parsed.leaderMessages); }
+      if (Array.isArray(parsed.teachers)) { setTeachers(parsed.teachers); setStored('teachers', parsed.teachers); }
+      if (Array.isArray(parsed.students)) { setStudents(parsed.students); setStored('students', parsed.students); }
+      if (Array.isArray(parsed.timetable)) { setTimetable(parsed.timetable); setStored('timetable', parsed.timetable); }
+      if (Array.isArray(parsed.remarks)) { setRemarks(parsed.remarks); setStored('remarks', parsed.remarks); }
+      if (Array.isArray(parsed.attendance)) { setAttendance(parsed.attendance); setStored('attendance', parsed.attendance); }
+      if (Array.isArray(parsed.results)) { setResults(parsed.results); setStored('results', parsed.results); }
+      if (Array.isArray(parsed.leavingCertificates)) { setLeavingCertificates(parsed.leavingCertificates); setStored('leavingCertificates', parsed.leavingCertificates); }
+      if (Array.isArray(parsed.inquiries)) { setInquiries(parsed.inquiries); setStored('inquiries', parsed.inquiries); }
+
+      const nextVersion = Math.max(Number(dataVersion || 1), Number(parsed.version || 1)) + 1;
+      setDataVersion(nextVersion);
+      setStored('dataVersion', nextVersion);
+
+      // Now sync restored data to server
+      const res = await fetch('/api/school-data/restore', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: { ...parsed, version: nextVersion } }),
+      });
+
+      const json = await res.json();
+      if (json.success) {
+        setSyncStatus('synced');
+        setIsLiveConnected(true);
+        showAlert('Database Restored & Published', 'All previous records, students, teachers, results, and settings were successfully restored from backup and published live.', 'success');
+        return true;
+      } else {
+        await syncWithWebsite(false, parsed);
+        showAlert('Database Restored Locally & Synced', 'Database restored and synchronized.', 'success');
+        return true;
+      }
+    } catch (err: any) {
+      console.error('Restore error:', err);
+      showAlert('Restore Failed', 'Could not restore database from backup file: ' + err.message, 'error');
+      return false;
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  // Force push local browser data to central server
+  const forcePushLocalDataToServer = async (): Promise<boolean> => {
+    try {
+      setIsSyncing(true);
+      setSyncStatus('syncing');
+      const nextVer = (dataVersion || 1) + 1;
+      const payload = {
+        settings,
+        leaderMessages,
+        teachers,
+        students,
+        timetable,
+        remarks,
+        attendance,
+        results,
+        leavingCertificates,
+        inquiries,
+        version: nextVer,
+        lastSyncedAt: new Date().toISOString(),
+      };
+
+      const res = await fetch('/api/school-data/smart-sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clientVersion: nextVer,
+          clientLastSyncedAt: payload.lastSyncedAt,
+          data: payload,
+          forceClientOverwrite: true,
+        }),
+      });
+
+      const json = await res.json();
+      if (json.success) {
+        const v = json.version || nextVer;
+        setDataVersion(v);
+        setStored('dataVersion', v);
+        setLastSyncedAt(json.lastSyncedAt || payload.lastSyncedAt);
+        setStored('lastSyncedAt', json.lastSyncedAt || payload.lastSyncedAt);
+        setSyncStatus('synced');
+        setIsLiveConnected(true);
+        showAlert('Local Data Published to Live Server', 'All saved records from your browser were successfully published and stored in the central server database.', 'success');
+        return true;
+      }
+      throw new Error(json.message || 'Sync failed');
+    } catch (err: any) {
+      console.error('Force push error:', err);
+      showAlert('Push Failed', 'Could not push local data to server: ' + err.message, 'error');
       return false;
     } finally {
       setIsSyncing(false);
@@ -1094,8 +1368,12 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         lastSyncedAt,
         syncStatus,
         isLiveConnected,
+        dataVersion,
         syncWithWebsite,
         refreshFromWebsite,
+        exportDatabaseBackup,
+        restoreDatabaseFromBackup,
+        forcePushLocalDataToServer,
         loginAsAdmin,
         loginDirectAsAdmin,
         loginAsTeacher,

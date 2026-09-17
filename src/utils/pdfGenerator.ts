@@ -1260,3 +1260,232 @@ export function downloadTeacherReportPDF(
   doc.save(`GBHS_Mehrand_TeacherServiceReport_${teacher.name.replace(/\s+/g, '_')}.pdf`);
 }
 
+export function downloadConfirmationLetterPDF(student: Student, settings: SchoolSettings) {
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4',
+  });
+
+  const pageWidth = 210;
+  const pageHeight = 297;
+
+  // Outer Ornate Border
+  doc.setDrawColor(6, 78, 59);
+  doc.setLineWidth(1.2);
+  doc.rect(12, 12, pageWidth - 24, pageHeight - 24);
+
+  doc.setDrawColor(217, 119, 6);
+  doc.setLineWidth(0.4);
+  doc.rect(14, 14, pageWidth - 28, pageHeight - 28);
+
+  // Top Header Banner
+  doc.setFillColor(6, 78, 59);
+  doc.rect(14, 14, pageWidth - 28, 28, 'F');
+
+  // School Logo / Seal Placeholder
+  if (settings.logoUrl) {
+    safeAddImage(doc, settings.logoUrl, 18, 17, 22, 22);
+  }
+
+  // Header Typography
+  doc.setTextColor(236, 253, 245);
+  doc.setFontSize(8.5);
+  doc.setFont('helvetica', 'bold');
+  doc.text('GOVERNMENT OF SINDH • SCHOOL EDUCATION & LITERACY DEPARTMENT', 112, 21, { align: 'center' });
+
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.text((settings.schoolName || 'GOVERNMENT BOYS HIGH SCHOOL MEHRAND').toUpperCase(), 112, 28, { align: 'center' });
+
+  doc.setTextColor(251, 191, 36);
+  doc.setFontSize(8.5);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`TALUKA KALOI, DISTRICT THARPARKAR @ MITHI • SEMIS CODE: ${settings.semisCode || '406020752'}`, 112, 35, { align: 'center' });
+
+  // Title Pill
+  doc.setFillColor(254, 243, 199);
+  doc.setDrawColor(217, 119, 6);
+  doc.setLineWidth(0.5);
+  doc.roundedRect(45, 46, 120, 9, 2, 2, 'FD');
+
+  doc.setTextColor(146, 64, 14);
+  doc.setFontSize(10.5);
+  doc.setFont('helvetica', 'bold');
+  doc.text('OFFICIAL ADMISSION CONFIRMATION LETTER', 105, 52, { align: 'center' });
+
+  // Reference & Date Grid
+  const metaY = 62;
+  doc.setDrawColor(203, 213, 225);
+  doc.setLineWidth(0.3);
+  doc.line(16, metaY, pageWidth - 16, metaY);
+
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(71, 85, 105);
+  doc.text(`Letter Ref: GBHS/ADM/2026-${student.id.substring(0, 8)}`, 18, metaY + 6);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(185, 28, 28);
+  doc.text(`ALLOTTED G.R. NO: ${student.grNumber || 'GR-406020752-PROVISIONAL'}`, 105, metaY + 6, { align: 'center' });
+
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(71, 85, 105);
+  doc.text(`Issue Date: ${student.admissionDate || new Date().toLocaleDateString('en-GB')}`, pageWidth - 18, metaY + 6, { align: 'right' });
+
+  doc.line(16, metaY + 9, pageWidth - 16, metaY + 9);
+
+  // Student Particulars Box
+  const boxY = metaY + 14;
+  doc.setFillColor(248, 250, 252);
+  doc.setDrawColor(226, 232, 240);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(18, boxY, pageWidth - 36, 46, 2, 2, 'FD');
+
+  // Photo Box (if photo exists, render; otherwise blank affix photo box)
+  const photoW = 28;
+  const photoH = 34;
+  const photoX = pageWidth - 18 - photoW - 4;
+  const photoY = boxY + 6;
+
+  doc.setDrawColor(6, 78, 59);
+  doc.setLineWidth(0.3);
+  doc.rect(photoX, photoY, photoW, photoH);
+
+  let hasPhoto = false;
+  if (student.studentPictureUrl && student.studentPictureUrl.trim() !== '') {
+    hasPhoto = safeAddImage(doc, student.studentPictureUrl, photoX + 0.5, photoY + 0.5, photoW - 1, photoH - 1);
+  }
+
+  if (!hasPhoto) {
+    doc.setFillColor(241, 245, 249);
+    doc.rect(photoX + 0.5, photoY + 0.5, photoW - 1, photoH - 1, 'F');
+    doc.setFontSize(6.5);
+    doc.setTextColor(148, 163, 184);
+    doc.text('Affix Passport', photoX + photoW / 2, photoY + 15, { align: 'center' });
+    doc.text('Photo Here', photoX + photoW / 2, photoY + 19, { align: 'center' });
+  }
+
+  // Particulars Table Text
+  doc.setTextColor(15, 23, 42);
+  doc.setFontSize(9);
+
+  const leftMargin = 22;
+  let textY = boxY + 8;
+  const lineSpacing = 7.5;
+
+  const renderField = (label: string, value: string) => {
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(71, 85, 105);
+    doc.text(label, leftMargin, textY);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(15, 23, 42);
+    doc.text(value, leftMargin + 42, textY);
+    textY += lineSpacing;
+  };
+
+  renderField('Student Name:', student.name.toUpperCase());
+  renderField('Father Name:', student.fatherName.toUpperCase());
+  renderField('NADRA B-Form / CNIC:', student.cnicBForm || 'N/A');
+  renderField('Confirmed Class:', `${student.appliedClass}  (Section: ${student.section || 'A'}, Roll No: ${student.rollNo || '01'})`);
+  renderField('Address / Village:', `${student.address?.mohVillage || student.address?.townCity || 'Village Mehrand'}, Taluka Kaloi, District Tharparkar`);
+
+  // Subject Line
+  const subY = boxY + 54;
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(6, 78, 59);
+  doc.text(`SUBJECT: OFFICIAL CONFIRMATION OF REGISTRATION & ADMISSION IN ${student.appliedClass.toUpperCase()}`, 18, subY);
+
+  doc.setDrawColor(6, 78, 59);
+  doc.setLineWidth(0.4);
+  doc.line(18, subY + 2, pageWidth - 18, subY + 2);
+
+  // Body Text
+  const bodyY = subY + 10;
+  doc.setFontSize(9.5);
+  doc.setTextColor(30, 41, 59);
+  doc.setFont('helvetica', 'normal');
+
+  const p1 = `Respected Parent & Dear Student,`;
+  doc.text(p1, 18, bodyY);
+
+  const p2 = `We are pleased to inform you that following rigorous verification of NADRA B-Form documentation, previous educational credentials, and compliance with the admission policy of the School Education & Literacy Department, Government of Sindh, admission has been formally APPROVED in ${settings.schoolName || 'Government Boys High School Mehrand'} for Academic Session 2026-2027.`;
+  const splitP2 = doc.splitTextToSize(p2, pageWidth - 36);
+  doc.text(splitP2, 18, bodyY + 7);
+
+  const p3Y = bodyY + 7 + splitP2.length * 5.2;
+  const p3 = `The candidate has been officially entered into the permanent General Register (G.R.) of the institution under Registration Number ${student.grNumber || 'GR-406020752-0142'} and allotted Section ${student.section || 'A'} with Roll Number ${student.rollNo || '01'}.`;
+  const splitP3 = doc.splitTextToSize(p3, pageWidth - 36);
+  doc.text(splitP3, 18, p3Y);
+
+  const p4Y = p3Y + splitP3.length * 5.2;
+  const p4 = `By virtue of this admission, the student is entitled to all institutional rights including free textbook distribution under Sindh Government policy, science & computer laboratory access, library resources, and participation in annual board examinations.`;
+  const splitP4 = doc.splitTextToSize(p4, pageWidth - 36);
+  doc.text(splitP4, 18, p4Y);
+
+  // Institutional Rules Box
+  const rulesY = p4Y + splitP4.length * 5.2 + 4;
+  doc.setFillColor(240, 253, 250);
+  doc.setDrawColor(153, 246, 228);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(18, rulesY, pageWidth - 36, 28, 2, 2, 'FD');
+
+  doc.setFontSize(8.5);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(15, 118, 110);
+  doc.text('MANDATORY INSTRUCTIONS & STUDENT OBLIGATIONS:', 22, rulesY + 6);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(51, 65, 85);
+  doc.setFontSize(8);
+  doc.text('1. Adherence to the prescribed school uniform and daily punctuality is strictly enforced.', 22, rulesY + 12);
+  doc.text('2. A minimum of 75% attendance is required to appear in final and board examinations.', 22, rulesY + 17);
+  doc.text('3. Retain this confirmation letter and G.R. number safely for Student ID, Enrollment, and Leaving Certificate.', 22, rulesY + 22);
+
+  // Official Stamp and Signatures
+  const signY = 248;
+  doc.setDrawColor(203, 213, 225);
+  doc.setLineWidth(0.3);
+  doc.line(22, signY, 75, signY);
+  doc.line(pageWidth - 75, signY, pageWidth - 22, signY);
+
+  // Admission Committee Seal
+  doc.setFontSize(8.5);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(71, 85, 105);
+  doc.text('Admission Scrutiny Committee', 48, signY + 5, { align: 'center' });
+  doc.setFontSize(7.5);
+  doc.setFont('helvetica', 'normal');
+  doc.text('GBHS Mehrand, Taluka Kaloi', 48, signY + 9, { align: 'center' });
+
+  // QR Code Verification Box
+  drawQrVerificationBox(doc, 95, signY - 14, 20);
+  doc.setFontSize(6.5);
+  doc.setTextColor(100, 116, 139);
+  doc.text('Official Digital Seal', 105, signY + 9, { align: 'center' });
+
+  // Headmaster Signature
+  if (settings.headmasterSignatureUrl) {
+    safeAddImage(doc, settings.headmasterSignatureUrl, pageWidth - 65, signY - 16, 40, 14);
+  }
+
+  doc.setFontSize(8.5);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(6, 78, 59);
+  doc.text(settings.headmasterName || 'Headmaster', pageWidth - 48, signY + 5, { align: 'center' });
+  doc.setFontSize(7.5);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(71, 85, 105);
+  doc.text('Headmaster / Principal Authority', pageWidth - 48, signY + 9, { align: 'center' });
+
+  // Bottom Notice
+  doc.setFontSize(7.5);
+  doc.setTextColor(148, 163, 184);
+  doc.text(`Official Document Generated by GBHS Mehrand Institutional Portal • Date: ${new Date().toLocaleDateString('en-GB')}`, 105, pageHeight - 16, { align: 'center' });
+
+  const safeName = student.name.replace(/[^a-zA-Z0-9]/g, '_');
+  doc.save(`GBHS_Mehrand_Admission_Confirmation_Letter_${safeName}.pdf`);
+}
+

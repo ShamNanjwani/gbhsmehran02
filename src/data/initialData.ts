@@ -1,4 +1,5 @@
 import { Student, Teacher, TimetableSlot, DailyRemark, AttendanceRecord, StudentResult, LeavingCertificateData, LeaderMessage, SchoolSettings, ContactInquiry } from '../types';
+import { officialSchoolLogo } from './schoolLogo';
 
 export const initialSchoolSettings: SchoolSettings = {
   schoolName: 'GOVERNMENT BOYS HIGH SCHOOL MEHRAND',
@@ -10,7 +11,7 @@ export const initialSchoolSettings: SchoolSettings = {
   officialHelpline: '+92-232-920045',
   officialMobile: '+92-346-3847836',
   schoolTiming: '08:00 AM - 01:30 PM (Mon - Sat, Friday: 08:00 AM - 12:00 PM)',
-  logoUrl: 'https://images.unsplash.com/photo-1594608661623-aa0bd3a69d98?auto=format&fit=crop&w=400&q=80',
+  logoUrl: officialSchoolLogo,
   heroBannerUrl: 'https://images.unsplash.com/photo-1580582932707-520aed937b7b?auto=format&fit=crop&w=1600&q=80',
   mission: 'To impart high-quality, inclusive, and modern secondary education to the youth of rural Tharparkar; fostering scientific curiosity, high ethical character, civic responsibility, and 21st-century technological literacy in an encouraging desert environment.',
   vision: 'To establish Government Boys High School Mehrand as a beacon of academic excellence, digital empowerment, and intellectual leadership across Kaloi and Tharparkar district, turning desert potential into national pride.',

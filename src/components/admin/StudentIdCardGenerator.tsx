@@ -26,6 +26,7 @@ import {
   downloadStudentIdCardPDF,
   downloadBatchStudentIdCardsPDF,
 } from '../../utils/pdfGenerator';
+import { printIsolatedElement } from '../../utils/printUtils';
 import { SchoolLogo } from '../common/SchoolLogo';
 import { SafeMediaImage } from '../common/SafeMediaImage';
 import { HeadmasterSignatureDisplay } from '../common/HeadmasterSignatureDisplay';
@@ -184,9 +185,9 @@ export const StudentIdCardGenerator: React.FC<StudentIdCardGeneratorProps> = ({
     downloadStudentIdCardPDF(student, settings, options);
   };
 
-  // Direct print via browser
+  // Direct print via browser (isolated document mode)
   const handleDirectPrint = () => {
-    window.print();
+    printIsolatedElement('a4-batch-id-cards-sheet', 'GBHS_Student_ID_Cards_Batch');
   };
 
   // Theme styling helpers
@@ -743,13 +744,25 @@ export const StudentIdCardGenerator: React.FC<StudentIdCardGeneratorProps> = ({
               </div>
 
               {previewStudent && (
-                <button
-                  onClick={() => handleGenerateSinglePDF(previewStudent)}
-                  className="px-2.5 py-1 bg-emerald-800 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs flex items-center gap-1 shadow-xs transition"
-                >
-                  <Download className="w-3 h-3 text-amber-300" />
-                  <span>Download This Card PDF</span>
-                </button>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => printIsolatedElement('preview-single-id-card', `Student_ID_${previewStudent.grNumber || previewStudent.id}`)}
+                    className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-lg text-xs flex items-center gap-1 transition"
+                    title="Print single ID Card"
+                  >
+                    <Printer className="w-3 h-3 text-slate-600" />
+                    <span>Print Card</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleGenerateSinglePDF(previewStudent)}
+                    className="px-2.5 py-1 bg-emerald-800 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs flex items-center gap-1 shadow-xs transition"
+                  >
+                    <Download className="w-3 h-3 text-amber-300" />
+                    <span>Download PDF</span>
+                  </button>
+                </div>
               )}
             </div>
 
@@ -757,6 +770,7 @@ export const StudentIdCardGenerator: React.FC<StudentIdCardGeneratorProps> = ({
             {previewStudent ? (
               <div className="w-full flex justify-center py-2">
                 <div
+                  id="preview-single-id-card"
                   className={`w-[320px] bg-white rounded-2xl border-2 ${themeClasses.borderColor} shadow-xl overflow-hidden font-sans text-slate-900 printable-card`}
                 >
                   {/* Card Header */}
@@ -787,11 +801,19 @@ export const StudentIdCardGenerator: React.FC<StudentIdCardGeneratorProps> = ({
                     {/* Photo & Badges */}
                     <div className="flex items-center gap-3">
                       <div className="w-20 h-24 rounded-lg overflow-hidden border-2 border-emerald-800 shadow-sm shrink-0 bg-slate-100 flex items-center justify-center">
-                        <SafeMediaImage
-                          src={previewStudent.studentPictureUrl}
-                          alt={previewStudent.name}
-                          className="w-full h-full object-cover"
-                        />
+                        {previewStudent.studentPictureUrl && previewStudent.studentPictureUrl.trim() !== '' ? (
+                          <SafeMediaImage
+                            src={previewStudent.studentPictureUrl}
+                            alt={previewStudent.name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="text-center p-1 text-[8px] text-slate-400 font-bold leading-tight flex flex-col items-center justify-center h-full border border-dashed border-slate-300 w-full">
+                            <span>AFFIX</span>
+                            <span>PASSPORT</span>
+                            <span>PHOTO</span>
+                          </div>
+                        )}
                       </div>
                       <div className="space-y-1 flex-1 min-w-0">
                         <div className="bg-red-50 border border-red-200 text-red-700 px-2 py-1 rounded text-center">
@@ -945,66 +967,74 @@ export const StudentIdCardGenerator: React.FC<StudentIdCardGeneratorProps> = ({
               No students are currently selected for ID card generation.
             </div>
           ) : (
-            Array.from({ length: Math.ceil(selectedStudents.length / 4) }).map((_, pageIdx) => {
-              const pageStudents = selectedStudents.slice(pageIdx * 4, (pageIdx + 1) * 4);
+            <div id="a4-batch-id-cards-sheet" className="space-y-6">
+              {Array.from({ length: Math.ceil(selectedStudents.length / 4) }).map((_, pageIdx) => {
+                const pageStudents = selectedStudents.slice(pageIdx * 4, (pageIdx + 1) * 4);
 
-              return (
-                <div
-                  key={pageIdx}
-                  className="max-w-[780px] mx-auto bg-white p-6 rounded-2xl border border-slate-300 shadow-lg space-y-4 printable-page"
-                >
-                  {/* Sheet Header */}
-                  <div className="border-b-2 border-emerald-800 pb-2 flex items-center justify-between text-[11px] text-slate-600 font-mono">
-                    <span className="font-extrabold text-emerald-950">
-                      GOVERNMENT BOYS HIGH SCHOOL MEHRAND • OFFICIAL STUDENT ID CARDS SHEET
-                    </span>
-                    <span className="text-slate-400 font-bold">
-                      Page {pageIdx + 1} of {Math.ceil(selectedStudents.length / 4)}
-                    </span>
-                  </div>
+                return (
+                  <div
+                    key={pageIdx}
+                    className="max-w-[780px] mx-auto bg-white p-6 rounded-2xl border border-slate-300 shadow-lg space-y-4 printable-page"
+                  >
+                    {/* Sheet Header */}
+                    <div className="border-b-2 border-emerald-800 pb-2 flex items-center justify-between text-[11px] text-slate-600 font-mono">
+                      <span className="font-extrabold text-emerald-950">
+                        GOVERNMENT BOYS HIGH SCHOOL MEHRAND • OFFICIAL STUDENT ID CARDS SHEET
+                      </span>
+                      <span className="text-slate-400 font-bold">
+                        Page {pageIdx + 1} of {Math.ceil(selectedStudents.length / 4)}
+                      </span>
+                    </div>
 
-                  {/* 2x2 Grid of ID Cards on this A4 Page */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 p-2">
-                    {pageStudents.map((st) => (
-                      <div
-                        key={st.id}
-                        className="relative p-2 border-2 border-dashed border-slate-300 rounded-xl bg-slate-50/50"
-                      >
-                        <span className="absolute -top-2 left-4 bg-white px-1 text-[9px] text-slate-400 font-mono">
-                          ✂ Cut line
-                        </span>
-
-                        {/* ID Card Instance */}
+                    {/* 2x2 Grid of ID Cards on this A4 Page */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 p-2">
+                      {pageStudents.map((st) => (
                         <div
-                          className={`w-full bg-white rounded-xl border ${themeClasses.borderColor} shadow-xs overflow-hidden`}
+                          key={st.id}
+                          className="relative p-2 border-2 border-dashed border-slate-300 rounded-xl bg-slate-50/50"
                         >
-                          {/* Card Header */}
-                          <div
-                            className={`bg-gradient-to-r ${themeClasses.headerBg} text-white p-2 text-center border-b ${themeClasses.accentBorder}`}
-                          >
-                            <h6 className="font-black text-[10px] tracking-tight uppercase">
-                              {settings.schoolName}
-                            </h6>
-                            <p className={`text-[8px] ${themeClasses.accentText} font-mono font-bold`}>
-                              SEMIS: {settings.semisCode} • TALUKA KALOI
-                            </p>
-                            <div
-                              className={`mt-0.5 ${themeClasses.accentPill} text-[7.5px] font-extrabold uppercase py-0.2 px-2 rounded-full inline-block`}
-                            >
-                              STUDENT IDENTITY CARD
-                            </div>
-                          </div>
+                          <span className="absolute -top-2 left-4 bg-white px-1 text-[9px] text-slate-400 font-mono">
+                            ✂ Cut line
+                          </span>
 
-                          {/* Card Body */}
-                          <div className="p-2.5 space-y-2 text-[9.5px]">
-                            <div className="flex items-center gap-2">
-                              <div className="w-14 h-16 rounded bg-slate-100 border border-slate-300 overflow-hidden shrink-0">
-                                <SafeMediaImage
-                                  src={st.studentPictureUrl}
-                                  alt={st.name}
-                                  className="w-full h-full object-cover"
-                                />
+                          {/* ID Card Instance */}
+                          <div
+                            className={`w-full bg-white rounded-xl border ${themeClasses.borderColor} shadow-xs overflow-hidden`}
+                          >
+                            {/* Card Header */}
+                            <div
+                              className={`bg-gradient-to-r ${themeClasses.headerBg} text-white p-2 text-center border-b ${themeClasses.accentBorder}`}
+                            >
+                              <h6 className="font-black text-[10px] tracking-tight uppercase">
+                                {settings.schoolName}
+                              </h6>
+                              <p className={`text-[8px] ${themeClasses.accentText} font-mono font-bold`}>
+                                SEMIS: {settings.semisCode} • TALUKA KALOI
+                              </p>
+                              <div
+                                className={`mt-0.5 ${themeClasses.accentPill} text-[7.5px] font-extrabold uppercase py-0.2 px-2 rounded-full inline-block`}
+                              >
+                                STUDENT IDENTITY CARD
                               </div>
+                            </div>
+
+                            {/* Card Body */}
+                            <div className="p-2.5 space-y-2 text-[9.5px]">
+                              <div className="flex items-center gap-2">
+                                <div className="w-14 h-16 rounded bg-slate-100 border border-slate-300 overflow-hidden shrink-0 flex items-center justify-center">
+                                  {st.studentPictureUrl && st.studentPictureUrl.trim() !== '' ? (
+                                    <SafeMediaImage
+                                      src={st.studentPictureUrl}
+                                      alt={st.name}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  ) : (
+                                    <div className="text-center p-0.5 text-[6.5px] text-slate-400 font-bold leading-tight flex flex-col items-center justify-center h-full border border-dashed border-slate-300 w-full">
+                                      <span>AFFIX</span>
+                                      <span>PHOTO</span>
+                                    </div>
+                                  )}
+                                </div>
                               <div className="space-y-0.5 flex-1 min-w-0">
                                 <div className="bg-red-50 border border-red-200 text-red-700 px-1 py-0.5 rounded text-center">
                                   <span className="text-[7.5px] uppercase font-bold block">G.R. Number</span>
@@ -1067,10 +1097,11 @@ export const StudentIdCardGenerator: React.FC<StudentIdCardGeneratorProps> = ({
                   </div>
                 </div>
               );
-            })
-          )}
-        </div>
-      )}
-    </div>
-  );
+            })}
+          </div>
+        )}
+      </div>
+    )}
+  </div>
+);
 };

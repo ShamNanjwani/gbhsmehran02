@@ -2,6 +2,7 @@ import React from 'react';
 import { LeavingCertificateData, SchoolSettings } from '../../types';
 import { Download, Printer, Shield, FileCheck, CheckCircle2 } from 'lucide-react';
 import { downloadLeavingCertificatePDF } from '../../utils/pdfGenerator';
+import { printIsolatedElement } from '../../utils/printUtils';
 import { HeadmasterSignatureDisplay } from '../common/HeadmasterSignatureDisplay';
 
 interface LeavingCertificateProps {
@@ -10,8 +11,10 @@ interface LeavingCertificateProps {
 }
 
 export const LeavingCertificate: React.FC<LeavingCertificateProps> = ({ certificate, settings }) => {
+  const cardId = `leaving-certificate-${certificate.id || certificate.grNumber}`;
+
   const handlePrint = () => {
-    window.print();
+    printIsolatedElement(cardId, `School_Leaving_Certificate_${certificate.studentName.replace(/\s+/g, '_')}`);
   };
 
   const handleDownload = () => {
@@ -20,22 +23,26 @@ export const LeavingCertificate: React.FC<LeavingCertificateProps> = ({ certific
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between no-print">
         <h4 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
           <FileCheck className="w-4 h-4 text-emerald-700" />
           Official School Leaving Certificate (S.L.C)
         </h4>
         <div className="flex gap-2">
           <button
+            type="button"
             onClick={handlePrint}
             className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center gap-1.5 transition"
+            title="Print only this Certificate"
           >
             <Printer className="w-3.5 h-3.5" />
             Print
           </button>
           <button
+            type="button"
             onClick={handleDownload}
             className="px-3 py-1.5 rounded-lg bg-emerald-800 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition"
+            title="Download official Certificate as PDF"
           >
             <Download className="w-3.5 h-3.5 text-amber-300" />
             Download PDF
@@ -44,7 +51,10 @@ export const LeavingCertificate: React.FC<LeavingCertificateProps> = ({ certific
       </div>
 
       {/* Official S.L.C Format: Sindh Government Ornate Form */}
-      <div className="bg-amber-50/30 rounded-2xl border-4 border-double border-emerald-900 p-8 shadow-xl max-w-3xl mx-auto printable-card text-slate-900 font-serif">
+      <div
+        id={cardId}
+        className="bg-amber-50/30 rounded-2xl border-4 border-double border-emerald-900 p-8 shadow-xl max-w-3xl mx-auto printable-card text-slate-900 font-serif"
+      >
         {/* Crest & Header */}
         <div className="text-center border-b-2 border-emerald-800/60 pb-5 space-y-1 font-sans">
           <div className="text-xs font-black text-emerald-900 tracking-wider uppercase">
