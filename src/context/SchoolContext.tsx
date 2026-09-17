@@ -105,6 +105,21 @@ interface SchoolContextType {
 const SchoolContext = createContext<SchoolContextType | undefined>(undefined);
 
 const LOCAL_STORAGE_KEY_PREFIX = 'gbhs_mehrand_';
+const SCHEMA_VERSION_KEY = 'gbhs_mehrand_cache_v4_live';
+
+// Invalidate stale localStorage items that might contain outdated defaults
+if (typeof window !== 'undefined') {
+  try {
+    const cachedVersion = localStorage.getItem(SCHEMA_VERSION_KEY);
+    if (!cachedVersion) {
+      localStorage.removeItem(LOCAL_STORAGE_KEY_PREFIX + 'settings');
+      localStorage.removeItem(LOCAL_STORAGE_KEY_PREFIX + 'leaderMessages');
+      localStorage.setItem(SCHEMA_VERSION_KEY, 'v4_live');
+    }
+  } catch (e) {
+    // ignore
+  }
+}
 
 function getStored<T>(key: string, defaultVal: T): T {
   try {
@@ -120,7 +135,7 @@ function setStored<T>(key: string, value: T): void {
   try {
     localStorage.setItem(LOCAL_STORAGE_KEY_PREFIX + key, JSON.stringify(value));
   } catch (err) {
-    console.error('Error setting localStorage for key', key, err);
+    console.warn('Error setting localStorage for key', key, err);
   }
 }
 
@@ -582,15 +597,14 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         }
         return s;
       });
+      // Synchronously sync to server with newly computed updatedList
+      fetch('/api/school-data/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: { students: updatedList } }),
+      }).catch((e) => console.warn('Sync notice:', e));
       return updatedList;
     });
-
-    // Sync approval to server
-    fetch('/api/school-data/sync', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ data: { students: updatedList } }),
-    }).catch((e) => console.warn('Sync notice:', e));
 
     showAlert('Student Approved!', `Admission approved and GR Number [${grNumber}] allotted. Student can now access Enrollment Card, ID Card, and Result Sheet.`, 'success');
   };
@@ -599,14 +613,13 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     let updatedList: Student[] = [];
     setStudents((prev) => {
       updatedList = prev.map((s) => (s.id === studentId ? { ...s, status: 'rejected' as const } : s));
+      fetch('/api/school-data/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: { students: updatedList } }),
+      }).catch((e) => console.warn('Sync notice:', e));
       return updatedList;
     });
-
-    fetch('/api/school-data/sync', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ data: { students: updatedList } }),
-    }).catch((e) => console.warn('Sync notice:', e));
 
     showAlert('Application Rejected', 'The student application has been marked rejected.', 'info');
   };
@@ -615,14 +628,13 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     let updatedList: Student[] = [];
     setStudents((prev) => {
       updatedList = prev.filter((s) => s.id !== studentId);
+      fetch('/api/school-data/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: { students: updatedList } }),
+      }).catch((e) => console.warn('Sync notice:', e));
       return updatedList;
     });
-
-    fetch('/api/school-data/sync', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ data: { students: updatedList } }),
-    }).catch((e) => console.warn('Sync notice:', e));
 
     showAlert('Record Deleted', 'Student record removed.', 'info');
   };
@@ -640,14 +652,13 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         }
         return s;
       });
+      fetch('/api/school-data/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: { students: updatedList } }),
+      }).catch((e) => console.warn('Sync notice:', e));
       return updatedList;
     });
-
-    fetch('/api/school-data/sync', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ data: { students: updatedList } }),
-    }).catch((e) => console.warn('Sync notice:', e));
 
     showAlert('Student Record Updated', 'The student particulars have been successfully updated in official school records.', 'success');
   };
@@ -694,14 +705,13 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         }
         return t;
       });
+      fetch('/api/school-data/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: { teachers: updatedList } }),
+      }).catch((e) => console.warn('Sync notice:', e));
       return updatedList;
     });
-
-    fetch('/api/school-data/sync', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ data: { teachers: updatedList } }),
-    }).catch((e) => console.warn('Sync notice:', e));
 
     showAlert('Teacher Approved!', 'Teacher is now approved, granted access to Teacher Dashboard, and listed publicly on the Faculty tab.', 'success');
   };
@@ -710,14 +720,13 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     let updatedList: Teacher[] = [];
     setTeachers((prev) => {
       updatedList = prev.map((t) => (t.id === teacherId ? { ...t, status: 'rejected' as const } : t));
+      fetch('/api/school-data/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: { teachers: updatedList } }),
+      }).catch((e) => console.warn('Sync notice:', e));
       return updatedList;
     });
-
-    fetch('/api/school-data/sync', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ data: { teachers: updatedList } }),
-    }).catch((e) => console.warn('Sync notice:', e));
 
     showAlert('Teacher Rejected', 'The teacher application was marked rejected.', 'info');
   };
@@ -726,14 +735,13 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     let updatedList: Teacher[] = [];
     setTeachers((prev) => {
       updatedList = prev.filter((t) => t.id !== teacherId);
+      fetch('/api/school-data/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: { teachers: updatedList } }),
+      }).catch((e) => console.warn('Sync notice:', e));
       return updatedList;
     });
-
-    fetch('/api/school-data/sync', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ data: { teachers: updatedList } }),
-    }).catch((e) => console.warn('Sync notice:', e));
 
     showAlert('Teacher Removed', 'Teacher record removed.', 'info');
   };
@@ -751,26 +759,33 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         }
         return t;
       });
+      fetch('/api/school-data/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: { teachers: updatedList } }),
+      }).catch((e) => console.warn('Sync notice:', e));
       return updatedList;
     });
-
-    fetch('/api/school-data/sync', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ data: { teachers: updatedList } }),
-    }).catch((e) => console.warn('Sync notice:', e));
 
     showAlert('Teacher Record Updated', 'The faculty member record has been successfully updated.', 'success');
   };
 
   // Timetable slot update
   const updateTimetableSlot = (slot: TimetableSlot) => {
+    let updatedList: TimetableSlot[] = [];
     setTimetable((prev) => {
       const exists = prev.some((s) => s.id === slot.id);
       if (exists) {
-        return prev.map((s) => (s.id === slot.id ? slot : s));
+        updatedList = prev.map((s) => (s.id === slot.id ? slot : s));
+      } else {
+        updatedList = [...prev, slot];
       }
-      return [...prev, slot];
+      fetch('/api/school-data/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: { timetable: updatedList } }),
+      }).catch((e) => console.warn('Sync notice:', e));
+      return updatedList;
     });
     showAlert('Timetable Updated', `Schedule updated for ${slot.className} - Period ${slot.period}.`, 'success');
   };
@@ -778,8 +793,9 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const assignProxyTeacher = (slotId: string, proxyTeacherId: string, reason: string) => {
     const proxyTeacher = teachers.find((t) => t.id === proxyTeacherId);
     if (!proxyTeacher) return;
-    setTimetable((prev) =>
-      prev.map((s) => {
+    let updatedList: TimetableSlot[] = [];
+    setTimetable((prev) => {
+      updatedList = prev.map((s) => {
         if (s.id === slotId) {
           return {
             ...s,
@@ -790,33 +806,54 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
           };
         }
         return s;
-      })
-    );
+      });
+      fetch('/api/school-data/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: { timetable: updatedList } }),
+      }).catch((e) => console.warn('Sync notice:', e));
+      return updatedList;
+    });
     showAlert('Substitution Assigned', `${proxyTeacher.name} assigned to engage class for Period ${slotId} (${reason}).`, 'success');
   };
 
   const clearProxySubstitution = (slotId: string) => {
-    setTimetable((prev) =>
-      prev.map((s) => {
+    let updatedList: TimetableSlot[] = [];
+    setTimetable((prev) => {
+      updatedList = prev.map((s) => {
         if (s.id === slotId) {
           const { isSubstituted, substitutedTeacherId, substitutedTeacherName, substitutionReason, ...rest } = s;
           return rest;
         }
         return s;
-      })
-    );
+      });
+      fetch('/api/school-data/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: { timetable: updatedList } }),
+      }).catch((e) => console.warn('Sync notice:', e));
+      return updatedList;
+    });
     showAlert('Substitution Cleared', 'Slot restored to regular teacher.', 'info');
   };
 
-  // Attendance
+  // Attendance - syncs immediately to database
   const markDailyAttendance = (records: AttendanceRecord[]) => {
+    let newAttendance: AttendanceRecord[] = [];
     setAttendance((prev) => {
       const filtered = prev.filter(
-        (p) => !records.some((r) => r.date === p.date && r.personId === p.personId && r.period === p.period)
+        (p) => !records.some((r) => r.date === p.date && r.personId === p.personId && (r.period === p.period || (!r.period && !p.period)))
       );
-      return [...records, ...filtered];
+      newAttendance = [...records, ...filtered];
+      // Sync immediately to central server database
+      fetch('/api/school-data/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: { attendance: newAttendance } }),
+      }).catch((e) => console.warn('Attendance sync error:', e));
+      return newAttendance;
     });
-    showAlert('Attendance Saved', `Successfully recorded attendance for ${records.length} individual(s).`, 'success');
+    showAlert('Attendance Saved & Published', `Successfully recorded and published attendance for ${records.length} individual(s).`, 'success');
   };
 
   // Remarks
@@ -825,29 +862,54 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       ...remarkData,
       id: 'rem-' + Date.now(),
     };
-    setRemarks((prev) => [newRemark, ...prev]);
+    let updatedRemarks: DailyRemark[] = [];
+    setRemarks((prev) => {
+      updatedRemarks = [newRemark, ...prev];
+      fetch('/api/school-data/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: { remarks: updatedRemarks } }),
+      }).catch((e) => console.warn('Remarks sync error:', e));
+      return updatedRemarks;
+    });
     showAlert('Remarks Recorded', 'Classwork, homework, and performance remarks published to Student & Parent view.', 'success');
   };
 
   // Certificates & Results
   const issueOrUpdateResult = (result: StudentResult) => {
+    let updatedResults: StudentResult[] = [];
     setResults((prev) => {
       const exists = prev.some((r) => r.id === result.id || (r.studentId === result.studentId && r.examTerm === result.examTerm));
       if (exists) {
-        return prev.map((r) => (r.id === result.id ? result : r));
+        updatedResults = prev.map((r) => (r.id === result.id ? result : r));
+      } else {
+        updatedResults = [result, ...prev];
       }
-      return [result, ...prev];
+      fetch('/api/school-data/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: { results: updatedResults } }),
+      }).catch((e) => console.warn('Results sync error:', e));
+      return updatedResults;
     });
     showAlert('Result Sheet Issued', `Result Sheet generated for ${result.studentName} (${result.finalGrade}).`, 'success');
   };
 
   const issueLeavingCertificate = (cert: LeavingCertificateData) => {
+    let updatedCerts: LeavingCertificateData[] = [];
     setLeavingCertificates((prev) => {
       const exists = prev.some((c) => c.id === cert.id || c.studentId === cert.studentId);
       if (exists) {
-        return prev.map((c) => (c.id === cert.id ? cert : c));
+        updatedCerts = prev.map((c) => (c.id === cert.id ? cert : c));
+      } else {
+        updatedCerts = [cert, ...prev];
       }
-      return [cert, ...prev];
+      fetch('/api/school-data/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: { leavingCertificates: updatedCerts } }),
+      }).catch((e) => console.warn('Certificates sync error:', e));
+      return updatedCerts;
     });
     showAlert('Leaving Certificate Issued', `School Leaving Certificate issued for ${cert.studentName} (GR: ${cert.grNumber}).`, 'success');
   };
@@ -882,6 +944,14 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       });
       const json = await res.json();
       if (json.success) {
+        if (json.data?.settings) {
+          setSettings(json.data.settings);
+          setStored('settings', json.data.settings);
+        }
+        if (Array.isArray(json.data?.leaderMessages)) {
+          setLeaderMessages(json.data.leaderMessages);
+          setStored('leaderMessages', json.data.leaderMessages);
+        }
         const syncTime = json.lastSyncedAt || new Date().toISOString();
         setLastSyncedAt(syncTime);
         setStored('lastSyncedAt', syncTime);
@@ -926,6 +996,14 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       });
       const json = await res.json();
       if (json.success) {
+        if (json.data?.settings) {
+          setSettings(json.data.settings);
+          setStored('settings', json.data.settings);
+        }
+        if (Array.isArray(json.data?.leaderMessages)) {
+          setLeaderMessages(json.data.leaderMessages);
+          setStored('leaderMessages', json.data.leaderMessages);
+        }
         setLastSyncedAt(json.lastSyncedAt || new Date().toISOString());
         showAlert('Message Updated & Synced', 'Leader message successfully saved and published.', 'success');
         return true;

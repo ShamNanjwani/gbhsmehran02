@@ -118,7 +118,7 @@ export const AdmissionTab: React.FC = () => {
         district: district || 'Tharparkar @ Mithi',
       },
       appliedClass,
-      studentPictureUrl: studentPictureUrl || 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=400&q=80',
+      studentPictureUrl: studentPictureUrl || '',
       bFormPictureUrl: isBFormAvailable ? (bFormPictureUrl || undefined) : undefined,
       leavingCertificateUrl: isFreshEntry ? undefined : leavingCertificateUrl,
       bloodGroup: 'B+',

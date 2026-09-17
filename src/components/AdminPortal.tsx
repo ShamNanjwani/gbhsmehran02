@@ -36,8 +36,14 @@ import {
   RefreshCw,
   ExternalLink,
   Check,
+  BarChart3,
+  TrendingUp,
+  UserX,
+  CheckSquare,
+  Search,
+  Filter,
 } from 'lucide-react';
-import { Student, Teacher, TimetableSlot, StudentResult, LeavingCertificateData, SchoolSettings } from '../types';
+import { Student, Teacher, TimetableSlot, StudentResult, LeavingCertificateData, SchoolSettings, AttendanceRecord } from '../types';
 import { FileUploadZone } from './common/FileUploadZone';
 import { DocumentViewerModal } from './common/DocumentViewerModal';
 import { EditStudentModal } from './admin/EditStudentModal';
@@ -48,6 +54,8 @@ import { EnrollmentCard } from './cards/EnrollmentCard';
 import { StudentReportCard } from './cards/StudentReportCard';
 import { TeacherReportCard } from './cards/TeacherReportCard';
 import { HeadmasterSignatureDisplay } from './common/HeadmasterSignatureDisplay';
+import { AttendanceTrendChart } from './charts/AttendanceTrendChart';
+import { StudentIdCardGenerator } from './admin/StudentIdCardGenerator';
 
 export const AdminPortal: React.FC = () => {
   const {
@@ -98,7 +106,7 @@ export const AdminPortal: React.FC = () => {
 
   // Admin Active Tab
   const [activeAdminTab, setActiveAdminTab] = useState<
-    'overview' | 'admissions' | 'teachers' | 'timetable' | 'attendance' | 'certificates' | 'cms' | 'messages'
+    'overview' | 'admissions' | 'teachers' | 'timetable' | 'attendance' | 'id_cards' | 'certificates' | 'cms' | 'messages'
   >('overview');
 
   // State for allotting GR No modal
@@ -164,6 +172,20 @@ export const AdminPortal: React.FC = () => {
   // Document Viewer modal state
   const [previewDoc, setPreviewDoc] = useState<{ url: string; title: string } | null>(null);
 
+  // CMS form dirty tracking to avoid background poll clobbering input
+  const [isCmsDirty, setIsCmsDirty] = useState(false);
+
+  // Admin Attendance Command Center State
+  const [adminAttendanceTarget, setAdminAttendanceTarget] = useState<'students' | 'teachers' | 'analytics' | 'log'>('students');
+  const [adminAttendanceDate, setAdminAttendanceDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
+  const [adminAttendanceClass, setAdminAttendanceClass] = useState<string>('All Classes');
+  const [adminAttendancePeriod, setAdminAttendancePeriod] = useState<number>(1);
+  const [adminStudentStatusMap, setAdminStudentStatusMap] = useState<Record<string, 'Present' | 'Absent' | 'Leave' | 'Late'>>({});
+  const [adminTeacherStatusMap, setAdminTeacherStatusMap] = useState<Record<string, 'Present' | 'Absent' | 'Leave' | 'Late'>>({});
+  const [adminAttendanceSearch, setAdminAttendanceSearch] = useState<string>('');
+  const [adminAttendanceFilterType, setAdminAttendanceFilterType] = useState<'all' | 'student' | 'teacher'>('all');
+  const [adminAttendanceFilterStatus, setAdminAttendanceFilterStatus] = useState<string>('all');
+
   // Picture direct save feedback states
   const [pictureSaveFeedback, setPictureSaveFeedback] = useState<Record<string, string>>({});
   const [adminToast, setAdminToast] = useState<{ title: string; message: string; type: 'success' | 'info' | 'error' } | null>(null);
@@ -175,7 +197,7 @@ export const AdminPortal: React.FC = () => {
 
   // Keep local CMS state synced with latest context and server database settings
   useEffect(() => {
-    if (settings) {
+    if (settings && !isCmsDirty) {
       if (settings.schoolName) setCmsSchoolName(settings.schoolName);
       if (settings.headmasterName) setCmsHeadmasterName(settings.headmasterName);
       if (settings.logoUrl !== undefined) setCmsLogoUrl(settings.logoUrl);
@@ -197,7 +219,7 @@ export const AdminPortal: React.FC = () => {
       if (settings.adminUsername) setCmsAdminUsername(settings.adminUsername);
       if (settings.adminPassword) setCmsAdminPassword(settings.adminPassword);
     }
-  }, [settings]);
+  }, [settings, isCmsDirty]);
 
   // If not logged in as admin, show login box
   if (currentRole !== 'admin') {
@@ -313,6 +335,7 @@ export const AdminPortal: React.FC = () => {
     };
     const ok = await updateSettings(updatedSettings);
     if (ok) {
+      setIsCmsDirty(false);
       await refreshFromWebsite(true);
       showAlert('CMS Settings Saved & Published', 'All school settings and Headmaster credentials have been permanently saved to the server and synchronized live.', 'success');
     }
@@ -503,7 +526,8 @@ export const AdminPortal: React.FC = () => {
           },
           { id: 'timetable', label: 'Timetable & Proxy Substitution', icon: Clock },
           { id: 'attendance', label: 'Attendance Hub', icon: Calendar },
-          { id: 'certificates', label: 'ID Cards & Certificate Formats', icon: FileCheck },
+          { id: 'id_cards', label: 'Student ID Cards (PDF)', icon: IdCard, badge: 'Auto' },
+          { id: 'certificates', label: 'Certificates & Formats', icon: FileCheck },
           { id: 'cms', label: 'School CMS & Messages (Minister/Sec/HM)', icon: SettingsIcon },
           { id: 'messages', label: `Inquiries (${inquiries.filter((i) => i.status === 'unread').length})`, icon: Inbox },
         ].map((tab) => {
@@ -570,7 +594,23 @@ export const AdminPortal: React.FC = () => {
           </div>
 
           {/* Quick Action Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold">
+                <IdCard className="w-5 h-5" />
+              </div>
+              <h4 className="font-extrabold text-slate-900 text-sm">Auto-Generate ID Cards (PDF)</h4>
+              <p className="text-xs text-slate-500">
+                Generate printable PDF ID cards for all students or by class. Supports 2x2 A4 batch sheets or individual badges.
+              </p>
+              <button
+                onClick={() => setActiveAdminTab('id_cards')}
+                className="px-3 py-1.5 rounded-lg bg-emerald-800 text-white font-bold text-xs hover:bg-emerald-700"
+              >
+                Auto-Generate Cards →
+              </button>
+            </div>
+
             <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-3">
               <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold">
                 <GraduationCap className="w-5 h-5" />
@@ -1123,58 +1163,803 @@ export const AdminPortal: React.FC = () => {
         </div>
       )}
 
-      {/* ADMIN TAB 5: Attendance Hub */}
-      {activeAdminTab === 'attendance' && (
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-6">
-          <div className="border-b border-slate-100 pb-3">
-            <h3 className="text-base font-extrabold text-slate-900">
-              School-Wide Daily Attendance Hub
-            </h3>
-            <p className="text-xs text-slate-500">
-              Comprehensive log of student and faculty attendance records.
-            </p>
-          </div>
+      {/* ADMIN TAB 5: Attendance Hub & Marking Command Center */}
+      {/* Required by user prompt:
+          "Admin can mark attendance for Teacher and student also"
+          "Integrate a d3-based line chart to visualize student attendance trends over the last 30 days"
+          "website where admin control everything save edit and after saved data will be live" */}
+      {activeAdminTab === 'attendance' && (() => {
+        const approvedStudentsList = students.filter((s) => s.status === 'approved');
+        const approvedTeachersList = teachers.filter((t) => t.status === 'approved');
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs text-left border border-slate-200 rounded-xl overflow-hidden">
-              <thead className="bg-slate-100 text-slate-700 uppercase font-bold text-[10px]">
-                <tr>
-                  <th className="py-2.5 px-3">Date</th>
-                  <th className="py-2.5 px-3">Person Name</th>
-                  <th className="py-2.5 px-3">Type</th>
-                  <th className="py-2.5 px-3">Class & Period</th>
-                  <th className="py-2.5 px-3">Status</th>
-                  <th className="py-2.5 px-3">Marked By</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200">
-                {attendance.map((att) => (
-                  <tr key={att.id} className="hover:bg-slate-50">
-                    <td className="py-2.5 px-3 font-mono font-bold text-slate-700">{att.date}</td>
-                    <td className="py-2.5 px-3 font-extrabold text-slate-900">{att.personName}</td>
-                    <td className="py-2.5 px-3">
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                        att.type === 'teacher' ? 'bg-teal-100 text-teal-800' : 'bg-blue-100 text-blue-800'
-                      }`}>
-                        {att.type.toUpperCase()}
-                      </span>
-                    </td>
-                    <td className="py-2.5 px-3 text-slate-600">{att.className || 'General'} {att.period ? `(P${att.period})` : ''}</td>
-                    <td className="py-2.5 px-3">
-                      <span className={`px-2 py-0.5 rounded-full font-black text-[10px] ${
-                        att.status === 'Present' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'
-                      }`}>
-                        {att.status}
-                      </span>
-                    </td>
-                    <td className="py-2.5 px-3 text-slate-500">{att.markedBy}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        const studentsForMarking = approvedStudentsList.filter((st) => {
+          const matchesClass = adminAttendanceClass === 'All Classes' || st.appliedClass === adminAttendanceClass;
+          const matchesSearch =
+            !adminAttendanceSearch ||
+            st.name.toLowerCase().includes(adminAttendanceSearch.toLowerCase()) ||
+            st.grNumber.toLowerCase().includes(adminAttendanceSearch.toLowerCase()) ||
+            st.fatherName.toLowerCase().includes(adminAttendanceSearch.toLowerCase());
+          return matchesClass && matchesSearch;
+        });
+
+        const teachersForMarking = approvedTeachersList.filter((tc) => {
+          const matchesSearch =
+            !adminAttendanceSearch ||
+            tc.name.toLowerCase().includes(adminAttendanceSearch.toLowerCase()) ||
+            tc.pid.toLowerCase().includes(adminAttendanceSearch.toLowerCase()) ||
+            tc.designation.toLowerCase().includes(adminAttendanceSearch.toLowerCase()) ||
+            tc.subjectSpecialist.toLowerCase().includes(adminAttendanceSearch.toLowerCase());
+          return matchesSearch;
+        });
+
+        const setAllStudentsStatus = (status: 'Present' | 'Absent' | 'Leave' | 'Late') => {
+          const newMap = { ...adminStudentStatusMap };
+          studentsForMarking.forEach((st) => {
+            newMap[st.id] = status;
+          });
+          setAdminStudentStatusMap(newMap);
+        };
+
+        const setAllTeachersStatus = (status: 'Present' | 'Absent' | 'Leave' | 'Late') => {
+          const newMap = { ...adminTeacherStatusMap };
+          teachersForMarking.forEach((tc) => {
+            newMap[tc.id] = status;
+          });
+          setAdminTeacherStatusMap(newMap);
+        };
+
+        const handleAdminSaveStudentAttendance = () => {
+          if (studentsForMarking.length === 0) {
+            showAlert('No Students Found', 'No approved students found for the selected class criteria.', 'error');
+            return;
+          }
+          const records: AttendanceRecord[] = studentsForMarking.map((st) => {
+            const status = adminStudentStatusMap[st.id] || 'Present';
+            return {
+              id: `att-st-${st.id}-${adminAttendanceDate}-p${adminAttendancePeriod}`,
+              date: adminAttendanceDate,
+              personId: st.id,
+              personName: st.name,
+              type: 'student',
+              className: st.appliedClass,
+              period: adminAttendancePeriod,
+              status,
+              markedBy: `Headmaster / Admin (${settings.headmasterName || 'Admin Authority'})`,
+            };
+          });
+          markDailyAttendance(records);
+          showAlert(
+            'Student Attendance Published Live',
+            `Official attendance for ${records.length} students recorded for ${adminAttendanceDate} (Period ${adminAttendancePeriod}) and synced live to the database.`,
+            'success'
+          );
+        };
+
+        const handleAdminSaveTeacherAttendance = () => {
+          if (teachersForMarking.length === 0) {
+            showAlert('No Faculty Found', 'No approved teachers found matching the criteria.', 'error');
+            return;
+          }
+          const records: AttendanceRecord[] = teachersForMarking.map((tc) => {
+            const status = adminTeacherStatusMap[tc.id] || 'Present';
+            return {
+              id: `att-tc-${tc.id}-${adminAttendanceDate}`,
+              date: adminAttendanceDate,
+              personId: tc.id,
+              personName: tc.name,
+              type: 'teacher',
+              className: tc.designation,
+              status,
+              markedBy: `Headmaster / Admin (${settings.headmasterName || 'Admin Authority'})`,
+            };
+          });
+          markDailyAttendance(records);
+          showAlert(
+            'Faculty Attendance Published Live',
+            `Official attendance for ${records.length} teachers recorded for ${adminAttendanceDate} and synced live to the database.`,
+            'success'
+          );
+        };
+
+        // Summary stats for today
+        const todayRecords = attendance.filter((a) => a.date === adminAttendanceDate);
+        const todayStudentsPresent = todayRecords.filter((a) => a.type === 'student' && a.status === 'Present').length;
+        const todayStudentsTotal = todayRecords.filter((a) => a.type === 'student').length;
+        const todayTeachersPresent = todayRecords.filter((a) => a.type === 'teacher' && a.status === 'Present').length;
+        const todayTeachersTotal = todayRecords.filter((a) => a.type === 'teacher').length;
+
+        // Filtered attendance log
+        const filteredLog = attendance.filter((a) => {
+          const matchesType = adminAttendanceFilterType === 'all' || a.type === adminAttendanceFilterType;
+          const matchesStatus = adminAttendanceFilterStatus === 'all' || a.status === adminAttendanceFilterStatus;
+          const matchesSearch =
+            !adminAttendanceSearch ||
+            a.personName.toLowerCase().includes(adminAttendanceSearch.toLowerCase()) ||
+            (a.className && a.className.toLowerCase().includes(adminAttendanceSearch.toLowerCase())) ||
+            a.markedBy.toLowerCase().includes(adminAttendanceSearch.toLowerCase());
+          return matchesType && matchesStatus && matchesSearch;
+        });
+
+        return (
+          <div className="space-y-6">
+            {/* Header & Mode Switcher */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-5">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="p-2 rounded-xl bg-teal-800 text-amber-300 shadow-sm">
+                      <UserCheck className="w-5 h-5" />
+                    </span>
+                    <h3 className="text-lg font-black text-slate-900">
+                      Attendance Command Center
+                    </h3>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Official Administrative Authority: mark, verify, and publish real-time attendance for both Students and Faculty.
+                  </p>
+                </div>
+
+                {/* Quick Status Pill */}
+                <div className="flex items-center gap-3 bg-slate-50 px-4 py-2.5 rounded-xl border border-slate-200 text-xs">
+                  <div className="text-right">
+                    <div className="font-extrabold text-slate-800">
+                      {todayStudentsPresent} / {todayStudentsTotal || approvedStudentsList.length} Students Present
+                    </div>
+                    <div className="text-[11px] text-teal-700 font-bold">
+                      {todayTeachersPresent} / {todayTeachersTotal || approvedTeachersList.length} Faculty on Duty
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Navigation Modes */}
+              <div className="flex flex-wrap gap-2 text-xs font-extrabold">
+                <button
+                  type="button"
+                  onClick={() => setAdminAttendanceTarget('students')}
+                  className={`px-4 py-2.5 rounded-xl transition flex items-center gap-2 ${
+                    adminAttendanceTarget === 'students'
+                      ? 'bg-teal-800 text-white shadow-md'
+                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  }`}
+                >
+                  <GraduationCap className="w-4 h-4" />
+                  Mark Student Attendance
+                  <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] bg-white/20 text-white font-mono">
+                    {approvedStudentsList.length}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setAdminAttendanceTarget('teachers')}
+                  className={`px-4 py-2.5 rounded-xl transition flex items-center gap-2 ${
+                    adminAttendanceTarget === 'teachers'
+                      ? 'bg-teal-800 text-white shadow-md'
+                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  }`}
+                >
+                  <Users className="w-4 h-4" />
+                  Mark Faculty / Teacher Attendance
+                  <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] bg-white/20 text-white font-mono">
+                    {approvedTeachersList.length}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setAdminAttendanceTarget('analytics')}
+                  className={`px-4 py-2.5 rounded-xl transition flex items-center gap-2 ${
+                    adminAttendanceTarget === 'analytics'
+                      ? 'bg-amber-600 text-white shadow-md'
+                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  }`}
+                >
+                  <BarChart3 className="w-4 h-4" />
+                  30-Day D3 Attendance Visualizer
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setAdminAttendanceTarget('log')}
+                  className={`px-4 py-2.5 rounded-xl transition flex items-center gap-2 ${
+                    adminAttendanceTarget === 'log'
+                      ? 'bg-slate-800 text-white shadow-md'
+                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  }`}
+                >
+                  <FileText className="w-4 h-4" />
+                  Live Attendance Records Log
+                  <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] bg-white/20 text-white font-mono">
+                    {attendance.length}
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            {/* SUB-VIEW 1: MARK STUDENT ATTENDANCE */}
+            {adminAttendanceTarget === 'students' && (
+              <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+                  <div>
+                    <h4 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                      <GraduationCap className="w-5 h-5 text-teal-700" />
+                      Mark Students Attendance (Admin Override)
+                    </h4>
+                    <p className="text-xs text-slate-500">
+                      As School Administrator, mark or adjust student attendance for any class or period. Changes persist immediately live to the database.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleAdminSaveStudentAttendance}
+                    className="px-6 py-2.5 rounded-xl bg-teal-800 hover:bg-teal-700 text-white font-black text-xs shadow-md transition flex items-center gap-2"
+                  >
+                    <CheckCircle2 className="w-4 h-4 text-amber-300" />
+                    Save & Sync Student Attendance ({studentsForMarking.length})
+                  </button>
+                </div>
+
+                {/* Filters & Selector Controls */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Attendance Date</label>
+                    <input
+                      type="date"
+                      value={adminAttendanceDate}
+                      onChange={(e) => setAdminAttendanceDate(e.target.value)}
+                      className="w-full p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-teal-700 bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Select Class</label>
+                    <select
+                      value={adminAttendanceClass}
+                      onChange={(e) => setAdminAttendanceClass(e.target.value)}
+                      className="w-full p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-teal-700 bg-white"
+                    >
+                      <option value="All Classes">All Classes ({approvedStudentsList.length} Students)</option>
+                      <option value="Class ECCE">Class ECCE</option>
+                      <option value="Class 1">Class 1</option>
+                      <option value="Class 2">Class 2</option>
+                      <option value="Class 3">Class 3</option>
+                      <option value="Class 4">Class 4</option>
+                      <option value="Class 5">Class 5</option>
+                      <option value="Class 6th">Class 6th</option>
+                      <option value="Class 7th">Class 7th</option>
+                      <option value="Class 8th">Class 8th</option>
+                      <option value="Class 9th">Class 9th</option>
+                      <option value="Class 10th">Class 10th</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Period</label>
+                    <select
+                      value={adminAttendancePeriod}
+                      onChange={(e) => setAdminAttendancePeriod(Number(e.target.value))}
+                      className="w-full p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-teal-700 bg-white"
+                    >
+                      <option value={1}>Period 1 (Morning Roll Call)</option>
+                      <option value={2}>Period 2</option>
+                      <option value={3}>Period 3</option>
+                      <option value={4}>Period 4</option>
+                      <option value={5}>Period 5</option>
+                      <option value={6}>Period 6</option>
+                      <option value={7}>Period 7</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Search Student</label>
+                    <div className="relative">
+                      <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                      <input
+                        type="text"
+                        value={adminAttendanceSearch}
+                        onChange={(e) => setAdminAttendanceSearch(e.target.value)}
+                        placeholder="Search name, GR #..."
+                        className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-teal-700 bg-white"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bulk Action Pills */}
+                <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="font-extrabold text-slate-700">Quick Bulk Action:</span>
+                    <button
+                      type="button"
+                      onClick={() => setAllStudentsStatus('Present')}
+                      className="px-3 py-1 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold transition"
+                    >
+                      Mark All Present
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAllStudentsStatus('Absent')}
+                      className="px-3 py-1 rounded-lg bg-red-100 hover:bg-red-200 text-red-800 font-bold transition"
+                    >
+                      Mark All Absent
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAllStudentsStatus('Leave')}
+                      className="px-3 py-1 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold transition"
+                    >
+                      Mark All Leave
+                    </button>
+                  </div>
+
+                  <span className="text-slate-500 font-bold">
+                    Showing {studentsForMarking.length} student(s)
+                  </span>
+                </div>
+
+                {/* Students Attendance Table */}
+                <div className="overflow-x-auto rounded-xl border border-slate-200">
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-slate-100 text-slate-700 font-bold text-[10px] uppercase">
+                      <tr>
+                        <th className="py-3 px-4">Roll</th>
+                        <th className="py-3 px-4">GR Number</th>
+                        <th className="py-3 px-4">Student Name</th>
+                        <th className="py-3 px-4">Father Name</th>
+                        <th className="py-3 px-4">Class</th>
+                        <th className="py-3 px-4 text-center">Attendance Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200">
+                      {studentsForMarking.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="py-8 text-center text-slate-500">
+                            No approved students found matching the selected class and filter.
+                          </td>
+                        </tr>
+                      ) : (
+                        studentsForMarking.map((st) => {
+                          const status = adminStudentStatusMap[st.id] || 'Present';
+                          return (
+                            <tr key={st.id} className="hover:bg-slate-50 transition">
+                              <td className="py-3 px-4 font-bold text-slate-700">{st.rollNo || '01'}</td>
+                              <td className="py-3 px-4 font-mono font-extrabold text-teal-800">{st.grNumber}</td>
+                              <td className="py-3 px-4">
+                                <div className="font-extrabold text-slate-900">{st.name}</div>
+                              </td>
+                              <td className="py-3 px-4 text-slate-600">{st.fatherName}</td>
+                              <td className="py-3 px-4">
+                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700">
+                                  {st.appliedClass}
+                                </span>
+                              </td>
+                              <td className="py-3 px-4 text-center">
+                                <div className="inline-flex rounded-lg border border-slate-200 overflow-hidden text-[11px] font-bold shadow-sm">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setAdminStudentStatusMap({ ...adminStudentStatusMap, [st.id]: 'Present' })
+                                    }
+                                    className={`px-3 py-1.5 transition ${
+                                      status === 'Present'
+                                        ? 'bg-emerald-700 text-white'
+                                        : 'bg-white text-slate-600 hover:bg-slate-100'
+                                    }`}
+                                  >
+                                    Present
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setAdminStudentStatusMap({ ...adminStudentStatusMap, [st.id]: 'Absent' })
+                                    }
+                                    className={`px-3 py-1.5 transition border-l border-r border-slate-200 ${
+                                      status === 'Absent'
+                                        ? 'bg-red-600 text-white'
+                                        : 'bg-white text-slate-600 hover:bg-slate-100'
+                                    }`}
+                                  >
+                                    Absent
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setAdminStudentStatusMap({ ...adminStudentStatusMap, [st.id]: 'Leave' })
+                                    }
+                                    className={`px-3 py-1.5 transition border-r border-slate-200 ${
+                                      status === 'Leave'
+                                        ? 'bg-amber-500 text-white'
+                                        : 'bg-white text-slate-600 hover:bg-slate-100'
+                                    }`}
+                                  >
+                                    Leave
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setAdminStudentStatusMap({ ...adminStudentStatusMap, [st.id]: 'Late' })
+                                    }
+                                    className={`px-3 py-1.5 transition ${
+                                      status === 'Late'
+                                        ? 'bg-blue-600 text-white'
+                                        : 'bg-white text-slate-600 hover:bg-slate-100'
+                                    }`}
+                                  >
+                                    Late
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="flex justify-end pt-2">
+                  <button
+                    type="button"
+                    onClick={handleAdminSaveStudentAttendance}
+                    className="px-6 py-2.5 rounded-xl bg-teal-800 hover:bg-teal-700 text-white font-black text-xs shadow-md transition flex items-center gap-2"
+                  >
+                    <CheckCircle2 className="w-4 h-4 text-amber-300" />
+                    Save & Sync Student Attendance ({studentsForMarking.length})
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* SUB-VIEW 2: MARK TEACHER / FACULTY ATTENDANCE */}
+            {adminAttendanceTarget === 'teachers' && (
+              <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+                  <div>
+                    <h4 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                      <Users className="w-5 h-5 text-teal-700" />
+                      Mark Faculty & Staff Attendance (Official HM Register)
+                    </h4>
+                    <p className="text-xs text-slate-500">
+                      Record official government attendance for teaching and administrative faculty. Data immediately saves to server and reflects across service reports.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleAdminSaveTeacherAttendance}
+                    className="px-6 py-2.5 rounded-xl bg-teal-800 hover:bg-teal-700 text-white font-black text-xs shadow-md transition flex items-center gap-2"
+                  >
+                    <CheckCircle2 className="w-4 h-4 text-amber-300" />
+                    Save & Sync Faculty Attendance ({teachersForMarking.length})
+                  </button>
+                </div>
+
+                {/* Filters & Selector Controls */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-xs">
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Attendance Date</label>
+                    <input
+                      type="date"
+                      value={adminAttendanceDate}
+                      onChange={(e) => setAdminAttendanceDate(e.target.value)}
+                      className="w-full p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-teal-700 bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Duty Session</label>
+                    <div className="p-2.5 rounded-xl border border-slate-200 bg-slate-50 font-bold text-slate-700 flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-teal-700" />
+                      Morning Shift (08:00 AM - 01:30 PM)
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Search Faculty Member</label>
+                    <div className="relative">
+                      <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                      <input
+                        type="text"
+                        value={adminAttendanceSearch}
+                        onChange={(e) => setAdminAttendanceSearch(e.target.value)}
+                        placeholder="Search name, PID, subject..."
+                        className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-teal-700 bg-white"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bulk Action Pills */}
+                <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="font-extrabold text-slate-700">Quick Bulk Action:</span>
+                    <button
+                      type="button"
+                      onClick={() => setAllTeachersStatus('Present')}
+                      className="px-3 py-1 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold transition"
+                    >
+                      Mark All Faculty Present
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAllTeachersStatus('Absent')}
+                      className="px-3 py-1 rounded-lg bg-red-100 hover:bg-red-200 text-red-800 font-bold transition"
+                    >
+                      Mark All Faculty Absent
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAllTeachersStatus('Leave')}
+                      className="px-3 py-1 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold transition"
+                    >
+                      Mark All Official Leave
+                    </button>
+                  </div>
+
+                  <span className="text-slate-500 font-bold">
+                    Showing {teachersForMarking.length} faculty member(s)
+                  </span>
+                </div>
+
+                {/* Faculty Attendance Table */}
+                <div className="overflow-x-auto rounded-xl border border-slate-200">
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-slate-100 text-slate-700 font-bold text-[10px] uppercase">
+                      <tr>
+                        <th className="py-3 px-4">Faculty Member</th>
+                        <th className="py-3 px-4">Designation</th>
+                        <th className="py-3 px-4">Govt. PID</th>
+                        <th className="py-3 px-4">Subject Specialist</th>
+                        <th className="py-3 px-4">Contact</th>
+                        <th className="py-3 px-4 text-center">Attendance Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200">
+                      {teachersForMarking.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="py-8 text-center text-slate-500">
+                            No approved faculty members found matching your search.
+                          </td>
+                        </tr>
+                      ) : (
+                        teachersForMarking.map((tc) => {
+                          const status = adminTeacherStatusMap[tc.id] || 'Present';
+                          return (
+                            <tr key={tc.id} className="hover:bg-slate-50 transition">
+                              <td className="py-3 px-4">
+                                <div className="font-extrabold text-slate-900">{tc.name}</div>
+                                <div className="text-[11px] text-slate-500">{tc.fatherName ? `S/O ${tc.fatherName}` : ''}</div>
+                              </td>
+                              <td className="py-3 px-4">
+                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-teal-50 text-teal-800 border border-teal-200">
+                                  {tc.designation}
+                                </span>
+                              </td>
+                              <td className="py-3 px-4 font-mono font-bold text-slate-700">{tc.pid}</td>
+                              <td className="py-3 px-4 text-slate-600">{tc.subjectSpecialist}</td>
+                              <td className="py-3 px-4 font-mono text-slate-600">{tc.mobileNo || 'N/A'}</td>
+                              <td className="py-3 px-4 text-center">
+                                <div className="inline-flex rounded-lg border border-slate-200 overflow-hidden text-[11px] font-bold shadow-sm">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setAdminTeacherStatusMap({ ...adminTeacherStatusMap, [tc.id]: 'Present' })
+                                    }
+                                    className={`px-3 py-1.5 transition ${
+                                      status === 'Present'
+                                        ? 'bg-emerald-700 text-white'
+                                        : 'bg-white text-slate-600 hover:bg-slate-100'
+                                    }`}
+                                  >
+                                    Present
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setAdminTeacherStatusMap({ ...adminTeacherStatusMap, [tc.id]: 'Absent' })
+                                    }
+                                    className={`px-3 py-1.5 transition border-l border-r border-slate-200 ${
+                                      status === 'Absent'
+                                        ? 'bg-red-600 text-white'
+                                        : 'bg-white text-slate-600 hover:bg-slate-100'
+                                    }`}
+                                  >
+                                    Absent
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setAdminTeacherStatusMap({ ...adminTeacherStatusMap, [tc.id]: 'Leave' })
+                                    }
+                                    className={`px-3 py-1.5 transition border-r border-slate-200 ${
+                                      status === 'Leave'
+                                        ? 'bg-amber-500 text-white'
+                                        : 'bg-white text-slate-600 hover:bg-slate-100'
+                                    }`}
+                                  >
+                                    Leave
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setAdminTeacherStatusMap({ ...adminTeacherStatusMap, [tc.id]: 'Late' })
+                                    }
+                                    className={`px-3 py-1.5 transition ${
+                                      status === 'Late'
+                                        ? 'bg-blue-600 text-white'
+                                        : 'bg-white text-slate-600 hover:bg-slate-100'
+                                    }`}
+                                  >
+                                    Late
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="flex justify-end pt-2">
+                  <button
+                    type="button"
+                    onClick={handleAdminSaveTeacherAttendance}
+                    className="px-6 py-2.5 rounded-xl bg-teal-800 hover:bg-teal-700 text-white font-black text-xs shadow-md transition flex items-center gap-2"
+                  >
+                    <CheckCircle2 className="w-4 h-4 text-amber-300" />
+                    Save & Sync Faculty Attendance ({teachersForMarking.length})
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* SUB-VIEW 3: D3 ATTENDANCE ANALYTICS & TRENDS */}
+            {adminAttendanceTarget === 'analytics' && (
+              <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-6">
+                <div className="border-b border-slate-100 pb-4">
+                  <h4 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                    <BarChart3 className="w-5 h-5 text-amber-600" />
+                    D3-Powered 30-Day Attendance Trend Analysis
+                  </h4>
+                  <p className="text-xs text-slate-500">
+                    Interactive data visualization showing student and school-wide daily attendance percentages, peak trends, and participation rates.
+                  </p>
+                </div>
+
+                <AttendanceTrendChart
+                  attendance={attendance}
+                  selectedClass={adminAttendanceClass}
+                />
+              </div>
+            )}
+
+            {/* SUB-VIEW 4: COMPREHENSIVE ATTENDANCE LOG */}
+            {adminAttendanceTarget === 'log' && (
+              <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+                  <div>
+                    <h4 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                      <FileText className="w-5 h-5 text-slate-700" />
+                      Live Attendance Records Log ({filteredLog.length} Records)
+                    </h4>
+                    <p className="text-xs text-slate-500">
+                      Real-time register log of all student and teacher attendances recorded in the system.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Filter Toolbar */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Filter by Type</label>
+                    <select
+                      value={adminAttendanceFilterType}
+                      onChange={(e) => setAdminAttendanceFilterType(e.target.value as any)}
+                      className="w-full p-2.5 rounded-xl border border-slate-200 bg-white"
+                    >
+                      <option value="all">All Records (Students & Faculty)</option>
+                      <option value="student">Students Only</option>
+                      <option value="teacher">Faculty / Teachers Only</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Filter by Status</label>
+                    <select
+                      value={adminAttendanceFilterStatus}
+                      onChange={(e) => setAdminAttendanceFilterStatus(e.target.value)}
+                      className="w-full p-2.5 rounded-xl border border-slate-200 bg-white"
+                    >
+                      <option value="all">All Statuses</option>
+                      <option value="Present">Present</option>
+                      <option value="Absent">Absent</option>
+                      <option value="Leave">Leave</option>
+                      <option value="Late">Late</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Search Records</label>
+                    <div className="relative">
+                      <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                      <input
+                        type="text"
+                        value={adminAttendanceSearch}
+                        onChange={(e) => setAdminAttendanceSearch(e.target.value)}
+                        placeholder="Search name, class, marked by..."
+                        className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 bg-white"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto rounded-xl border border-slate-200">
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-slate-100 text-slate-700 uppercase font-bold text-[10px]">
+                      <tr>
+                        <th className="py-2.5 px-3">Date</th>
+                        <th className="py-2.5 px-3">Person Name</th>
+                        <th className="py-2.5 px-3">Type</th>
+                        <th className="py-2.5 px-3">Class / Role</th>
+                        <th className="py-2.5 px-3">Status</th>
+                        <th className="py-2.5 px-3">Marked By</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200">
+                      {filteredLog.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="py-8 text-center text-slate-500">
+                            No attendance records match the selected filters.
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredLog.map((att) => (
+                          <tr key={att.id} className="hover:bg-slate-50 transition">
+                            <td className="py-2.5 px-3 font-mono font-bold text-slate-700">{att.date}</td>
+                            <td className="py-2.5 px-3 font-extrabold text-slate-900">{att.personName}</td>
+                            <td className="py-2.5 px-3">
+                              <span
+                                className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                  att.type === 'teacher' ? 'bg-teal-100 text-teal-800' : 'bg-blue-100 text-blue-800'
+                                }`}
+                              >
+                                {att.type.toUpperCase()}
+                              </span>
+                            </td>
+                            <td className="py-2.5 px-3 text-slate-600">
+                              {att.className || 'General'} {att.period ? `(Period ${att.period})` : ''}
+                            </td>
+                            <td className="py-2.5 px-3">
+                              <span
+                                className={`px-2.5 py-0.5 rounded-full font-black text-[10px] ${
+                                  att.status === 'Present'
+                                    ? 'bg-emerald-100 text-emerald-800'
+                                    : att.status === 'Absent'
+                                    ? 'bg-red-100 text-red-800'
+                                    : att.status === 'Leave'
+                                    ? 'bg-amber-100 text-amber-800'
+                                    : 'bg-blue-100 text-blue-800'
+                                }`}
+                              >
+                                {att.status}
+                              </span>
+                            </td>
+                            <td className="py-2.5 px-3 text-slate-500 font-medium">{att.markedBy}</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ADMIN TAB 6: Certificates & ID Card Settings */}
       {/* Required by user prompt:
@@ -1271,10 +2056,37 @@ export const AdminPortal: React.FC = () => {
 
           {/* Admin ID Card & Report Print Center */}
           <div className="p-5 rounded-xl border border-slate-200 bg-white shadow-xs space-y-4 text-xs">
+            {/* Auto-Generator Callout Banner */}
+            <div className="bg-gradient-to-r from-emerald-950 via-emerald-900 to-teal-900 text-white p-4 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm border border-emerald-700/60">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-emerald-800/90 rounded-lg text-amber-300 shrink-0 border border-emerald-600/60">
+                  <IdCard className="w-6 h-6" />
+                </div>
+                <div>
+                  <h5 className="font-black text-sm text-white flex items-center gap-2">
+                    Auto-Generate Printable Student ID Cards (PDF)
+                    <span className="bg-amber-400 text-slate-950 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                      Batch PDF Engine
+                    </span>
+                  </h5>
+                  <p className="text-xs text-emerald-200">
+                    Auto-generate multi-card A4 sheets (2x2 grid with cutting crop marks) or download individual badges for any class.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setActiveAdminTab('id_cards')}
+                className="px-4 py-2 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black rounded-xl text-xs flex items-center gap-1.5 shrink-0 shadow-md transition"
+              >
+                <span>Launch Auto-Generator</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
             <div className="border-b border-slate-100 pb-3">
               <h4 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
                 <Printer className="w-4 h-4 text-emerald-700" />
-                Admin Print Desk: Student & Teacher ID Cards & Official Reports
+                Individual Card & Report Print Desk
               </h4>
               <p className="text-slate-500 mt-0.5">
                 Generate and print instant PDF cards or comprehensive records for any registered student or teacher.
@@ -1466,6 +2278,14 @@ export const AdminPortal: React.FC = () => {
             )}
           </div>
         </div>
+      )}
+
+      {/* ADMIN TAB: Dedicated Auto-Generate Printable Student ID Cards (PDF) */}
+      {activeAdminTab === 'id_cards' && (
+        <StudentIdCardGenerator
+          students={students}
+          settings={settings}
+        />
       )}
 
       {/* ADMIN TAB 7: CMS & Dignitary Messages */}

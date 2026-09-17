@@ -31,6 +31,7 @@ import {
 import { Teacher, TimetableSlot, Student, AttendanceRecord } from '../types';
 import { TeacherIdCard } from './cards/TeacherIdCard';
 import { TeacherReportCard } from './cards/TeacherReportCard';
+import { AttendanceTrendChart } from './charts/AttendanceTrendChart';
 
 export const TeacherDashboard: React.FC = () => {
   const {
@@ -69,9 +70,7 @@ export const TeacherDashboard: React.FC = () => {
   const [regMobileNo, setRegMobileNo] = useState('');
   const [regQualification, setRegQualification] = useState('');
   const [regSubject, setRegSubject] = useState('');
-  const [regPictureUrl, setRegPictureUrl] = useState(
-    'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80'
-  );
+  const [regPictureUrl, setRegPictureUrl] = useState('');
 
   // Selected teacher
   const currentTeacher: Teacher | undefined =
@@ -858,6 +857,14 @@ export const TeacherDashboard: React.FC = () => {
             >
               Submit & Sync with Student Portal
             </button>
+          </div>
+
+          {/* D3.js 30-Day Attendance Trend Analysis Chart */}
+          <div className="pt-4 border-t border-slate-200">
+            <AttendanceTrendChart
+              attendance={attendance}
+              selectedClass={selectedClassForAttendance}
+            />
           </div>
         </div>
       )}

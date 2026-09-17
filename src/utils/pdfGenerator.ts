@@ -10,107 +10,464 @@ import {
   DailyRemark,
 } from '../types';
 
-export function downloadStudentIdCardPDF(student: Student, settings: SchoolSettings) {
+export interface IdCardOptions {
+  colorScheme?: 'emerald' | 'navy' | 'maroon' | 'slate';
+  showBloodGroup?: boolean;
+  showEmergencyContact?: boolean;
+  showAddress?: boolean;
+  showQrCode?: boolean;
+  showSignature?: boolean;
+  academicSession?: string;
+  validTill?: string;
+  cardSize?: 'standard' | 'wallet'; // standard = 85.6x120mm badge; wallet = 85.6x54mm CR80 pocket card
+}
+
+interface ColorPalette {
+  primary: [number, number, number];
+  primaryDark: [number, number, number];
+  accent: [number, number, number];
+  textLight: [number, number, number];
+}
+
+function getColorPalette(scheme?: string): ColorPalette {
+  switch (scheme) {
+    case 'navy':
+      return {
+        primary: [30, 58, 138],
+        primaryDark: [23, 37, 84],
+        accent: [245, 158, 11],
+        textLight: [239, 246, 255],
+      };
+    case 'maroon':
+      return {
+        primary: [136, 19, 55],
+        primaryDark: [76, 5, 25],
+        accent: [251, 191, 36],
+        textLight: [255, 241, 242],
+      };
+    case 'slate':
+      return {
+        primary: [30, 41, 59],
+        primaryDark: [15, 23, 42],
+        accent: [217, 119, 6],
+        textLight: [248, 250, 252],
+      };
+    case 'emerald':
+    default:
+      return {
+        primary: [6, 78, 59],
+        primaryDark: [2, 44, 34],
+        accent: [217, 119, 6],
+        textLight: [236, 253, 245],
+      };
+  }
+}
+
+function safeAddImage(
+  doc: jsPDF,
+  imageData: string | undefined,
+  x: number,
+  y: number,
+  w: number,
+  h: number
+): boolean {
+  if (!imageData) return false;
+  try {
+    if (imageData.startsWith('data:image/')) {
+      const isPng = imageData.includes('image/png');
+      doc.addImage(imageData, isPng ? 'PNG' : 'JPEG', x, y, w, h, undefined, 'FAST');
+      return true;
+    }
+    if (imageData.startsWith('http')) {
+      doc.addImage(imageData, 'JPEG', x, y, w, h, undefined, 'FAST');
+      return true;
+    }
+  } catch {
+    return false;
+  }
+  return false;
+}
+
+function drawQrVerificationBox(doc: jsPDF, x: number, y: number, size: number) {
+  doc.setFillColor(255, 255, 255);
+  doc.setDrawColor(203, 213, 225);
+  doc.setLineWidth(0.2);
+  doc.rect(x, y, size, size, 'FD');
+
+  const p = size / 7;
+  const drawMarker = (mx: number, my: number) => {
+    doc.setFillColor(15, 23, 42);
+    doc.rect(mx, my, p * 2.2, p * 2.2, 'F');
+    doc.setFillColor(255, 255, 255);
+    doc.rect(mx + p * 0.4, my + p * 0.4, p * 1.4, p * 1.4, 'F');
+    doc.setFillColor(15, 23, 42);
+    doc.rect(mx + p * 0.7, my + p * 0.7, p * 0.8, p * 0.8, 'F');
+  };
+
+  drawMarker(x + 0.5, y + 0.5);
+  drawMarker(x + size - p * 2.2 - 0.5, y + 0.5);
+  drawMarker(x + 0.5, y + size - p * 2.2 - 0.5);
+
+  doc.setFillColor(15, 23, 42);
+  doc.rect(x + size / 2 - 0.6, y + size / 2 - 0.6, 1.2, 1.2, 'F');
+  doc.rect(x + size / 2 + 1.2, y + size / 2 - 1.2, 0.9, 0.9, 'F');
+  doc.rect(x + size / 2 - 1.8, y + size / 2 + 1, 0.9, 0.9, 'F');
+  doc.rect(x + size - 2, y + size - 2, 1, 1, 'F');
+}
+
+export function renderStudentIdCardOnDoc(
+  doc: jsPDF,
+  student: Student,
+  settings: SchoolSettings,
+  x: number,
+  y: number,
+  options?: IdCardOptions
+) {
+  const palette = getColorPalette(options?.colorScheme);
+  const cardW = 85.6;
+  const cardH = 120;
+
+  // 1. Card Background & Outer Frame
+  doc.setFillColor(255, 255, 255);
+  doc.rect(x, y, cardW, cardH, 'F');
+  doc.setDrawColor(palette.primary[0], palette.primary[1], palette.primary[2]);
+  doc.setLineWidth(0.5);
+  doc.rect(x, y, cardW, cardH, 'S');
+
+  // 2. Header Banner
+  const headerH = 25;
+  doc.setFillColor(palette.primary[0], palette.primary[1], palette.primary[2]);
+  doc.rect(x, y, cardW, headerH, 'F');
+
+  // Golden accent stripe
+  doc.setFillColor(palette.accent[0], palette.accent[1], palette.accent[2]);
+  doc.rect(x, y + headerH, cardW, 1.4, 'F');
+
+  // School Logo in Header (or vector crest placeholder)
+  const logoX = x + 3.5;
+  const logoY = y + 2.5;
+  const logoSize = 9;
+  const hasLogo = safeAddImage(doc, settings.logoUrl, logoX, logoY, logoSize, logoSize);
+  if (!hasLogo) {
+    doc.setFillColor(255, 255, 255);
+    doc.circle(logoX + 4.5, logoY + 4.5, 4.2, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(5);
+    doc.setTextColor(palette.primary[0], palette.primary[1], palette.primary[2]);
+    doc.text('GBHS', logoX + 4.5, logoY + 5.5, { align: 'center' });
+  }
+
+  // Header Typography
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(5);
+  doc.text('GOVT. OF SINDH • SCHOOL EDUCATION & LITERACY DEPT', x + 44, y + 4.5, { align: 'center' });
+
+  doc.setFontSize(7);
+  doc.text((settings.schoolName || 'GOVT. BOYS HIGH SCHOOL MEHRAND').toUpperCase(), x + 44, y + 9.5, { align: 'center' });
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(5.5);
+  doc.text(`TALUKA KALOI, THARPARKAR • SEMIS: ${settings.semisCode || '406020752'}`, x + 44, y + 14.5, { align: 'center' });
+
+  // Gold badge: STUDENT IDENTITY CARD
+  doc.setFillColor(palette.accent[0], palette.accent[1], palette.accent[2]);
+  doc.rect(x + 19, y + 17.5, 48, 5, 'F');
+  doc.setTextColor(15, 23, 42);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(6.5);
+  doc.text('OFFICIAL STUDENT IDENTITY CARD', x + 43, y + 21, { align: 'center' });
+
+  // 3. Photo Box & Badges Row
+  const photoX = x + 5;
+  const photoY = y + 29;
+  const photoW = 24;
+  const photoH = 29;
+
+  doc.setDrawColor(palette.primary[0], palette.primary[1], palette.primary[2]);
+  doc.setLineWidth(0.4);
+  doc.rect(photoX, photoY, photoW, photoH, 'S');
+
+  const hasPhoto = safeAddImage(doc, student.studentPictureUrl, photoX + 0.3, photoY + 0.3, photoW - 0.6, photoH - 0.6);
+  if (!hasPhoto) {
+    doc.setFillColor(241, 245, 249);
+    doc.rect(photoX + 0.3, photoY + 0.3, photoW - 0.6, photoH - 0.6, 'F');
+    // Initials Avatar
+    doc.setFillColor(palette.primary[0], palette.primary[1], palette.primary[2]);
+    doc.circle(photoX + photoW / 2, photoY + 11, 7, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    const initials = student.name
+      .split(' ')
+      .map((n) => n[0])
+      .filter(Boolean)
+      .slice(0, 2)
+      .join('')
+      .toUpperCase() || 'ST';
+    doc.text(initials, photoX + photoW / 2, photoY + 13.5, { align: 'center' });
+
+    doc.setTextColor(100, 116, 139);
+    doc.setFontSize(5);
+    doc.text('OFFICIAL PHOTO', photoX + photoW / 2, photoY + 23, { align: 'center' });
+  }
+
+  // Badges Next to Photo (X = x + 31.5)
+  const badgeX = x + 31.5;
+  const badgeW = 49;
+
+  // GR Number Banner (Red / Crimson)
+  doc.setFillColor(254, 242, 242);
+  doc.rect(badgeX, photoY, badgeW, 7.5, 'F');
+  doc.setDrawColor(239, 68, 68);
+  doc.setLineWidth(0.3);
+  doc.rect(badgeX, photoY, badgeW, 7.5, 'S');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(5);
+  doc.setTextColor(185, 28, 28);
+  doc.text('GENERAL REGISTER (G.R.) NO', badgeX + 2, photoY + 3.2);
+  doc.setFontSize(7.5);
+  doc.text(student.grNumber || 'PENDING ALLOTMENT', badgeX + 2, photoY + 6.3);
+
+  // Class & Section Box
+  doc.setFillColor(palette.textLight[0], palette.textLight[1], palette.textLight[2]);
+  doc.rect(badgeX, photoY + 8.5, badgeW, 6.5, 'F');
+  doc.setDrawColor(palette.primary[0], palette.primary[1], palette.primary[2]);
+  doc.setLineWidth(0.25);
+  doc.rect(badgeX, photoY + 8.5, badgeW, 6.5, 'S');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(5.5);
+  doc.setTextColor(palette.primary[0], palette.primary[1], palette.primary[2]);
+  doc.text(`CLASS: ${student.appliedClass.toUpperCase()}`, badgeX + 2, photoY + 13);
+  doc.text(`SEC: ${student.section || 'A'}`, badgeX + 36, photoY + 13);
+
+  // Roll Number & Blood Group Box
+  doc.setFillColor(248, 250, 252);
+  doc.rect(badgeX, photoY + 16, badgeW, 6.5, 'F');
+  doc.setDrawColor(203, 213, 225);
+  doc.setLineWidth(0.25);
+  doc.rect(badgeX, photoY + 16, badgeW, 6.5, 'S');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(5.5);
+  doc.setTextColor(30, 41, 59);
+  doc.text(`ROLL NO: ${student.rollNo || '01'}`, badgeX + 2, photoY + 20.5);
+  if (options?.showBloodGroup !== false) {
+    doc.setTextColor(220, 38, 38);
+    doc.text(`BLOOD: ${student.bloodGroup || 'B+'}`, badgeX + 32, photoY + 20.5);
+  }
+
+  // Academic Session Tag
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(5);
+  doc.setTextColor(100, 116, 139);
+  doc.text(`SESSION: ${options?.academicSession || '2026-2027'} • ADM: ${student.admissionDate || '2026'}`, badgeX + 2, photoY + 26);
+
+  // 4. Student Full Name & Parentage Bar
+  const nameY = y + 61.5;
+  doc.setFillColor(248, 250, 252);
+  doc.rect(x + 5, nameY, cardW - 10, 8, 'F');
+  doc.setDrawColor(226, 232, 240);
+  doc.setLineWidth(0.25);
+  doc.rect(x + 5, nameY, cardW - 10, 8, 'S');
+
+  doc.setTextColor(15, 23, 42);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8.5);
+  doc.text(student.name.toUpperCase(), x + cardW / 2, nameY + 4, { align: 'center' });
+
+  doc.setTextColor(71, 85, 105);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6);
+  doc.text(`S/O ${student.fatherName.toUpperCase()}`, x + cardW / 2, nameY + 7, { align: 'center' });
+
+  // 5. Details Table (Two Columns)
+  const infoStartY = y + 72.5;
+  const lineGap = 4.2;
+
+  const infoRows: [string, string][] = [
+    ['B-Form / CNIC:', student.cnicBForm],
+    ['Date of Birth:', student.dob],
+  ];
+
+  if (options?.showEmergencyContact !== false) {
+    infoRows.push(['Emergency Cell:', student.fatherMobile]);
+  }
+
+  if (options?.showAddress !== false) {
+    const addr = `${student.address.mohVillage || ''}, ${student.address.townCity || ''}`.trim();
+    infoRows.push(['Address:', addr.length > 28 ? addr.substring(0, 26) + '...' : addr]);
+  }
+
+  const validText = options?.validTill || settings.enrollmentCardValidTill || '31st May 2027';
+  infoRows.push(['Valid Till:', validText.length > 28 ? validText.substring(0, 26) + '...' : validText]);
+
+  infoRows.forEach(([lbl, val], idx) => {
+    const rowY = infoStartY + idx * lineGap;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(5.5);
+    doc.setTextColor(100, 116, 139);
+    doc.text(lbl, x + 6, rowY);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(5.5);
+    doc.setTextColor(15, 23, 42);
+    doc.text(String(val), x + 30, rowY);
+
+    // Subtle dotted divider
+    doc.setDrawColor(241, 245, 249);
+    doc.setLineWidth(0.15);
+    doc.line(x + 6, rowY + 1, x + cardW - 6, rowY + 1);
+  });
+
+  // 6. Verification & Signatures Row
+  const sigY = y + 96;
+
+  // Student Sign
+  doc.setFont('helvetica', 'italic');
+  doc.setFontSize(5);
+  doc.setTextColor(100, 116, 139);
+  doc.text('Student Sign', x + 12, sigY + 9);
+  doc.setDrawColor(203, 213, 225);
+  doc.setLineWidth(0.2);
+  doc.line(x + 6, sigY + 7, x + 24, sigY + 7);
+
+  // QR Code Verification Box
+  if (options?.showQrCode !== false) {
+    drawQrVerificationBox(doc, x + 37, sigY, 11);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(3.8);
+    doc.setTextColor(100, 116, 139);
+    doc.text('VERIFY', x + 42.5, sigY + 13, { align: 'center' });
+  }
+
+  // Headmaster Signature & Seal
+  if (options?.showSignature !== false) {
+    const hmSignX = x + 58;
+    const hasHmSign = safeAddImage(doc, settings.headmasterSignatureUrl, hmSignX, sigY - 1, 20, 8);
+    if (!hasHmSign) {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(5);
+      doc.setTextColor(palette.primary[0], palette.primary[1], palette.primary[2]);
+      doc.text(settings.headmasterName || 'HEADMASTER', hmSignX + 11, sigY + 4, { align: 'center' });
+    }
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(4.8);
+    doc.setTextColor(palette.primary[0], palette.primary[1], palette.primary[2]);
+    doc.text('HM Official Seal', hmSignX + 11, sigY + 9, { align: 'center' });
+    doc.setDrawColor(203, 213, 225);
+    doc.setLineWidth(0.2);
+    doc.line(hmSignX, sigY + 7, hmSignX + 22, sigY + 7);
+  }
+
+  // 7. Bottom Sindh Education Dept Stripe
+  const footY = y + 116;
+  doc.setFillColor(palette.primary[0], palette.primary[1], palette.primary[2]);
+  doc.rect(x, footY, cardW, 4, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(4.5);
+  doc.text('GBHS MEHRAND • IF FOUND RETURN TO SCHOOL OFFICE (TALUKA KALOI)', x + cardW / 2, footY + 2.6, { align: 'center' });
+}
+
+export function downloadStudentIdCardPDF(student: Student, settings: SchoolSettings, options?: IdCardOptions) {
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
     format: [85.6, 125], // Standard ID card / badge dimension
   });
 
-  // Background header
-  doc.setFillColor(6, 78, 59); // Deep emerald green
-  doc.rect(0, 0, 85.6, 26, 'F');
+  renderStudentIdCardOnDoc(doc, student, settings, 0, 2.5, options);
 
-  // Golden accent line
-  doc.setFillColor(217, 119, 6);
-  doc.rect(0, 26, 85.6, 1.5, 'F');
+  const cleanName = student.name.replace(/\s+/g, '_');
+  doc.save(`GBHS_Mehrand_IDCard_${cleanName}.pdf`);
+}
 
-  // Title text
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(7.5);
-  doc.setFont('helvetica', 'bold');
-  doc.text('GOVT. BOYS HIGH SCHOOL MEHRAND', 42.8, 8, { align: 'center' });
+/**
+ * Auto-generates a high-quality multi-card printable A4 PDF sheet for batch printing.
+ * Prints 4 standard cards per A4 page (2x2 grid) with scissor cutting guides.
+ */
+export async function downloadBatchStudentIdCardsPDF(
+  students: Student[],
+  settings: SchoolSettings,
+  options?: IdCardOptions
+): Promise<void> {
+  if (!students || students.length === 0) return;
 
-  doc.setFontSize(6);
-  doc.setFont('helvetica', 'normal');
-  doc.text('TALUKA KALOI, DISTRICT THARPARKAR', 42.8, 13, { align: 'center' });
-  doc.text(`SEMIS CODE: ${settings.semisCode}`, 42.8, 18, { align: 'center' });
-
-  doc.setTextColor(234, 179, 8); // Gold badge
-  doc.setFontSize(6.5);
-  doc.setFont('helvetica', 'bold');
-  doc.text('STUDENT IDENTITY CARD', 42.8, 23, { align: 'center' });
-
-  // Photo placeholder box
-  doc.setDrawColor(6, 78, 59);
-  doc.setLineWidth(0.5);
-  doc.rect(27.8, 30, 30, 34);
-  doc.setFillColor(243, 244, 246);
-  doc.rect(28, 30.2, 29.6, 33.6, 'F');
-  doc.setTextColor(107, 114, 128);
-  doc.setFontSize(6);
-  doc.text('OFFICIAL PHOTO', 42.8, 48, { align: 'center' });
-
-  // Student Details
-  doc.setTextColor(17, 24, 39);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9);
-  doc.text(student.name.toUpperCase(), 42.8, 68, { align: 'center' });
-
-  doc.setTextColor(220, 38, 38);
-  doc.setFontSize(7.5);
-  doc.text(`GR NO: ${student.grNumber || 'PENDING ALLOTMENT'}`, 42.8, 73, { align: 'center' });
-
-  // Field details grid
-  doc.setTextColor(55, 65, 81);
-  doc.setFontSize(6.5);
-  doc.setFont('helvetica', 'bold');
-
-  const startY = 79;
-  const lineH = 4.5;
-  const leftX = 8;
-  const valX = 35;
-
-  const fields = [
-    ['Father Name:', student.fatherName],
-    ['Class & Section:', `${student.appliedClass} ${student.section ? `(${student.section})` : ''}`],
-    ['Roll Number:', student.rollNo || '01'],
-    ['B-Form / CNIC:', student.cnicBForm],
-    ['Date of Birth:', student.dob],
-    ['Blood Group:', student.bloodGroup || 'O+'],
-    ['Emergency Cell:', student.fatherMobile],
-    ['Address:', `${student.address.mohVillage}, ${student.address.townCity}`],
-  ];
-
-  fields.forEach(([label, value], idx) => {
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(75, 85, 99);
-    doc.text(label, leftX, startY + idx * lineH);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(17, 24, 39);
-    doc.text(String(value).substring(0, 32), valX, startY + idx * lineH);
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4', // 210mm x 297mm
   });
 
-  // Footer bar & signatures
-  const footY = 117;
-  doc.setFont('helvetica', 'italic');
-  doc.setFontSize(5.5);
-  doc.setTextColor(107, 114, 128);
-  doc.text('Student Sign', 15, footY);
-  doc.text('Headmaster Stamp & Sign', 68, footY, { align: 'right' });
+  const cardsPerPage = 4; // 2x2 grid
+  const colPositions = [14, 110.4]; // Left coordinates for Column 1 and Column 2 (cardW = 85.6mm)
+  const rowPositions = [18, 150]; // Top coordinates for Row 1 and Row 2 (cardH = 120mm)
 
-  doc.setDrawColor(209, 213, 219);
-  doc.line(8, footY - 2, 30, footY - 2);
-  doc.line(50, footY - 2, 78, footY - 2);
+  const totalPages = Math.ceil(students.length / cardsPerPage);
 
-  doc.setFillColor(6, 78, 59);
-  doc.rect(0, 121, 85.6, 4, 'F');
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(4.5);
-  doc.setFont('helvetica', 'normal');
-  doc.text('EDUCATION & LITERACY DEPARTMENT GOVT. OF SINDH', 42.8, 123.5, { align: 'center' });
+  students.forEach((student, index) => {
+    const pageIndex = Math.floor(index / cardsPerPage);
+    const slotOnPage = index % cardsPerPage;
 
-  doc.save(`GBHS_Mehrand_IDCard_${student.name.replace(/\s+/g, '_')}.pdf`);
+    if (slotOnPage === 0 && pageIndex > 0) {
+      doc.addPage('a4', 'portrait');
+    }
+
+    const col = slotOnPage % 2;
+    const row = Math.floor(slotOnPage / 2);
+    const cardX = colPositions[col];
+    const cardY = rowPositions[row];
+
+    // Draw light dashed cutting guide lines around card with scissor indicator
+    doc.setDrawColor(203, 213, 225);
+    doc.setLineWidth(0.2);
+    doc.setLineDashPattern([2, 2], 0);
+    doc.rect(cardX - 1.5, cardY - 1.5, 85.6 + 3, 120 + 3, 'S');
+    doc.setLineDashPattern([], 0); // reset line dash
+
+    // Scissor cut guide label
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(4);
+    doc.setTextColor(148, 163, 184);
+    doc.text('✂ Cut along border', cardX + 1, cardY - 2);
+
+    // Render the complete ID card
+    renderStudentIdCardOnDoc(doc, student, settings, cardX, cardY, options);
+
+    // On the first slot of each page, add the official page header & footer
+    if (slotOnPage === 0) {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(6.5);
+      doc.setTextColor(6, 78, 59);
+      doc.text(
+        `GOVERNMENT BOYS HIGH SCHOOL MEHRAND • OFFICIAL PRINTABLE STUDENT ID CARDS SHEET`,
+        105,
+        10,
+        { align: 'center' }
+      );
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(5);
+      doc.setTextColor(100, 116, 139);
+      doc.text(
+        `SEMIS CODE: ${settings.semisCode} • TALUKA KALOI • PAGE ${pageIndex + 1} OF ${totalPages} • TOTAL CARDS: ${students.length}`,
+        105,
+        13.5,
+        { align: 'center' }
+      );
+
+      // Bottom margin footer
+      doc.text(
+        `Certified System Output • Generated on ${new Date().toLocaleDateString('en-GB')} • Valid for Plastic Lamination & Badging`,
+        105,
+        290,
+        { align: 'center' }
+      );
+    }
+  });
+
+  const timeStamp = new Date().toISOString().slice(0, 10);
+  doc.save(`GBHS_Mehrand_StudentIDCards_Batch_${students.length}Cards_${timeStamp}.pdf`);
 }
 
 export function downloadEnrollmentCardPDF(student: Student, settings: SchoolSettings) {
