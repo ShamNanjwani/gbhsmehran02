@@ -43,7 +43,7 @@ import {
   Search,
   Filter,
 } from 'lucide-react';
-import { Student, Teacher, TimetableSlot, StudentResult, LeavingCertificateData, SchoolSettings, AttendanceRecord } from '../types';
+import { Student, Teacher, TimetableSlot, StudentResult, LeavingCertificateData, SchoolSettings, AttendanceRecord, LeaderMessage } from '../types';
 import { FileUploadZone } from './common/FileUploadZone';
 import { DocumentViewerModal } from './common/DocumentViewerModal';
 import { EditStudentModal } from './admin/EditStudentModal';
@@ -174,6 +174,7 @@ export const AdminPortal: React.FC = () => {
 
   // CMS form dirty tracking to avoid background poll clobbering input
   const [isCmsDirty, setIsCmsDirty] = useState(false);
+  const [dignitaryDrafts, setDignitaryDrafts] = useState<Record<string, Partial<LeaderMessage>>>({});
 
   // Admin Attendance Command Center State
   const [adminAttendanceTarget, setAdminAttendanceTarget] = useState<'students' | 'teachers' | 'analytics' | 'log'>('students');
@@ -308,12 +309,12 @@ export const AdminPortal: React.FC = () => {
     setSelectedStudentForApproval(null);
   };
 
-  const handleSaveCMS = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleHeaderSaveAndSync = async () => {
     const cleanHeadmasterName = cmsHeadmasterName.trim();
     const updatedSettings: Partial<SchoolSettings> = {
-      headmasterName: cleanHeadmasterName,
-      schoolName: cmsSchoolName.trim(),
+      ...settings,
+      headmasterName: cleanHeadmasterName || settings.headmasterName,
+      schoolName: cmsSchoolName.trim() || settings.schoolName,
       logoUrl: cmsLogoUrl,
       heroBannerUrl: cmsHeroBannerUrl,
       headmasterSignatureUrl: cmsHeadmasterSignature,
@@ -333,12 +334,34 @@ export const AdminPortal: React.FC = () => {
       adminUsername: cmsAdminUsername,
       adminPassword: cmsAdminPassword,
     };
-    const ok = await updateSettings(updatedSettings);
+
+    const updatedLeaderMessages = leaderMessages.map((m) => {
+      const draft = dignitaryDrafts[m.id];
+      const merged = draft ? { ...m, ...draft } : m;
+      if (merged.id === 'headmaster' && cleanHeadmasterName) {
+        return { ...merged, name: cleanHeadmasterName };
+      }
+      return merged;
+    });
+
+    setIsCmsDirty(false);
+    const ok = await syncWithWebsite(true, {
+      settings: updatedSettings,
+      leaderMessages: updatedLeaderMessages,
+    });
     if (ok) {
-      setIsCmsDirty(false);
       await refreshFromWebsite(true);
-      showAlert('CMS Settings Saved & Published', 'All school settings and Headmaster credentials have been permanently saved to the server and synchronized live.', 'success');
+      showAlert(
+        'Saved & Broadcast to Website',
+        'All CMS settings, Headmaster credentials, and school records have been saved to the server and are now live for all visitors across all devices.',
+        'success'
+      );
     }
+  };
+
+  const handleSaveCMS = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await handleHeaderSaveAndSync();
   };
 
   const handleQuickSaveHeadmaster = async () => {
@@ -349,37 +372,25 @@ export const AdminPortal: React.FC = () => {
     }
     setPictureSaveFeedback((prev) => ({ ...prev, hmSignature: 'Saving...' }));
 
-    // 1. Update settings through context (updates state, localStorage, and /api/school-data/sync)
-    await updateSettings({
+    const updatedLeaderMessages = leaderMessages.map((m) =>
+      m.id === 'headmaster' ? { ...m, name: cleanName } : m
+    );
+
+    const ok = await updateSettings({
       headmasterName: cleanName,
       headmasterSignatureUrl: cmsHeadmasterSignature,
     });
 
-    // 2. Call /api/update-headmaster directly for server-side persistence and leaderMessages update
-    try {
-      const res = await fetch('/api/update-headmaster', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          headmasterName: cleanName,
-          headmasterSignatureUrl: cmsHeadmasterSignature,
-          signatureUrl: cmsHeadmasterSignature,
-        }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        await refreshFromWebsite(true);
-        setPictureSaveFeedback((prev) => ({ ...prev, hmSignature: 'Saved & Synced!' }));
-        showAlert(
-          'Headmaster Name & Signature Saved!',
-          `Headmaster "${cleanName}" and official signature have been permanently saved to the server. The new name is now displayed on all ID cards, certificates, reports, and website pages.`,
-          'success'
-        );
-      } else {
-        setPictureSaveFeedback((prev) => ({ ...prev, hmSignature: 'Saved locally' }));
-      }
-    } catch (err) {
-      console.warn('Direct headmaster update warning:', err);
+    if (ok) {
+      setIsCmsDirty(false);
+      await refreshFromWebsite(true);
+      setPictureSaveFeedback((prev) => ({ ...prev, hmSignature: 'Saved & Synced!' }));
+      showAlert(
+        'Headmaster Name & Signature Saved!',
+        `Headmaster "${cleanName}" and official signature have been permanently saved to the server. The new name is now displayed on all ID cards, certificates, reports, and website pages.`,
+        'success'
+      );
+    } else {
       setPictureSaveFeedback((prev) => ({ ...prev, hmSignature: 'Saved locally' }));
     }
 
@@ -468,7 +479,7 @@ export const AdminPortal: React.FC = () => {
           <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto justify-end">
             <button
               type="button"
-              onClick={() => syncWithWebsite(true)}
+              onClick={handleHeaderSaveAndSync}
               disabled={isSyncing}
               className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-xs shadow-lg shadow-emerald-950/40 flex items-center gap-2 border border-emerald-400/40 transition-all transform hover:-translate-y-0.5 disabled:opacity-50"
               title="Save and synchronize complete school records and CMS changes to the website server so all visitors see updates"
@@ -2894,70 +2905,107 @@ export const AdminPortal: React.FC = () => {
             </h3>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {leaderMessages.map((msg) => (
-                <div key={msg.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-3 flex flex-col justify-between">
-                  <div className="space-y-2">
-                    <span className="font-extrabold text-emerald-900 uppercase block">{msg.title}</span>
-                    <input
-                      type="text"
-                      value={msg.name}
-                      onChange={(e) => updateLeaderMessage(msg.id, { name: e.target.value })}
-                      className="w-full p-2 bg-white rounded border border-slate-200 font-bold"
-                      placeholder="Name"
-                    />
-                    <input
-                      type="text"
-                      value={msg.designation}
-                      onChange={(e) => updateLeaderMessage(msg.id, { designation: e.target.value })}
-                      className="w-full p-2 bg-white rounded border border-slate-200 text-[11px]"
-                      placeholder="Designation"
-                    />
-                    <div className="bg-white p-2.5 rounded-lg border border-slate-200">
-                      <FileUploadZone
-                        id={`dignitary-photo-${msg.id}`}
-                        label="Dignitary Portrait"
-                        value={msg.pictureUrl}
-                        onChange={(val) => updateLeaderMessage(msg.id, { pictureUrl: val })}
-                        previewShape="avatar"
-                        helperText="Upload portrait in PDF or Image format (PNG, JPG)"
-                        badgeText={msg.title}
+              {leaderMessages.map((msg) => {
+                const draft = dignitaryDrafts[msg.id];
+                const currentName = draft?.name !== undefined ? draft.name : msg.name;
+                const currentDesignation = draft?.designation !== undefined ? draft.designation : msg.designation;
+                const currentPicture = draft?.pictureUrl !== undefined ? draft.pictureUrl : msg.pictureUrl;
+                const currentMessage = draft?.message !== undefined ? draft.message : msg.message;
+
+                return (
+                  <div key={msg.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-3 flex flex-col justify-between">
+                    <div className="space-y-2">
+                      <span className="font-extrabold text-emerald-900 uppercase block">{msg.title}</span>
+                      <input
+                        type="text"
+                        value={currentName}
+                        onChange={(e) => {
+                          setIsCmsDirty(true);
+                          setDignitaryDrafts((prev) => ({
+                            ...prev,
+                            [msg.id]: { ...prev[msg.id], name: e.target.value },
+                          }));
+                        }}
+                        className="w-full p-2 bg-white rounded border border-slate-200 font-bold"
+                        placeholder="Name"
+                      />
+                      <input
+                        type="text"
+                        value={currentDesignation}
+                        onChange={(e) => {
+                          setIsCmsDirty(true);
+                          setDignitaryDrafts((prev) => ({
+                            ...prev,
+                            [msg.id]: { ...prev[msg.id], designation: e.target.value },
+                          }));
+                        }}
+                        className="w-full p-2 bg-white rounded border border-slate-200 text-[11px]"
+                        placeholder="Designation"
+                      />
+                      <div className="bg-white p-2.5 rounded-lg border border-slate-200">
+                        <FileUploadZone
+                          id={`dignitary-photo-${msg.id}`}
+                          label="Dignitary Portrait"
+                          value={currentPicture}
+                          onChange={(val) => {
+                            setIsCmsDirty(true);
+                            setDignitaryDrafts((prev) => ({
+                              ...prev,
+                              [msg.id]: { ...prev[msg.id], pictureUrl: val },
+                            }));
+                          }}
+                          previewShape="avatar"
+                          helperText="Upload portrait in PDF or Image format (PNG, JPG)"
+                          badgeText={msg.title}
+                        />
+                      </div>
+                      <textarea
+                        rows={4}
+                        value={currentMessage}
+                        onChange={(e) => {
+                          setIsCmsDirty(true);
+                          setDignitaryDrafts((prev) => ({
+                            ...prev,
+                            [msg.id]: { ...prev[msg.id], message: e.target.value },
+                          }));
+                        }}
+                        className="w-full p-2 bg-white rounded border border-slate-200 text-[11px]"
+                        placeholder="Message content"
                       />
                     </div>
-                    <textarea
-                      rows={4}
-                      value={msg.message}
-                      onChange={(e) => updateLeaderMessage(msg.id, { message: e.target.value })}
-                      className="w-full p-2 bg-white rounded border border-slate-200 text-[11px]"
-                      placeholder="Message content"
-                    />
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const finalName = currentName.trim();
+                        const finalMsg = {
+                          ...msg,
+                          name: finalName,
+                          designation: currentDesignation.trim(),
+                          pictureUrl: currentPicture,
+                          message: currentMessage.trim(),
+                        };
+
+                        if (msg.id === 'headmaster' && finalName) {
+                          setCmsHeadmasterName(finalName);
+                          await updateSettings({ headmasterName: finalName });
+                        }
+                        await updateLeaderMessage(msg.id, finalMsg);
+                        await refreshFromWebsite(true);
+                        setIsCmsDirty(false);
+                        showAlert(
+                          `${msg.title} Saved & Live!`,
+                          `The portrait photo, name, and message for ${finalName || msg.title} have been saved to the server and will display for all visitors across all devices.`,
+                          'success'
+                        );
+                      }}
+                      className="w-full py-2.5 bg-emerald-800 hover:bg-emerald-700 text-amber-300 hover:text-white font-extrabold rounded-lg text-xs shadow-xs transition flex items-center justify-center gap-1.5"
+                    >
+                      <Save className="w-3.5 h-3.5" />
+                      <span>Save & Sync {msg.title}</span>
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      if (msg.id === 'headmaster' && msg.name) {
-                        setCmsHeadmasterName(msg.name);
-                        await updateSettings({ headmasterName: msg.name.trim() });
-                      }
-                      await updateLeaderMessage(msg.id, {
-                        name: msg.name,
-                        designation: msg.designation,
-                        pictureUrl: msg.pictureUrl,
-                        message: msg.message,
-                      });
-                      await refreshFromWebsite(true);
-                      showAlert(
-                        `${msg.title} Saved & Live!`,
-                        `The portrait photo, name, and message for ${msg.name || msg.title} have been saved to the server and will display for all visitors across all devices.`,
-                        'success'
-                      );
-                    }}
-                    className="w-full py-2.5 bg-emerald-800 hover:bg-emerald-700 text-amber-300 hover:text-white font-extrabold rounded-lg text-xs shadow-xs transition flex items-center justify-center gap-1.5"
-                  >
-                    <Save className="w-3.5 h-3.5" />
-                    <span>Save & Sync {msg.title}</span>
-                  </button>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>

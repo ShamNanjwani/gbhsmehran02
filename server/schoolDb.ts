@@ -55,14 +55,22 @@ function ensureDbDir() {
   }
 }
 
-// Load database from disk
+// In-memory cache for ultra-fast, zero-race server reads
+let cachedDb: SchoolDatabasePayload | null = null;
+
+// Load database from disk or memory cache
 export function readSchoolDatabase(): SchoolDatabasePayload {
+  if (cachedDb && cachedDb.settings) {
+    return cachedDb;
+  }
+
   ensureDbDir();
   try {
     if (fs.existsSync(DB_FILE)) {
       const content = fs.readFileSync(DB_FILE, 'utf-8');
       const parsed = JSON.parse(content);
       if (parsed && parsed.settings) {
+        cachedDb = parsed;
         return parsed;
       }
     }
@@ -73,10 +81,11 @@ export function readSchoolDatabase(): SchoolDatabasePayload {
   // If not found or invalid, create with initial data
   const initial = getInitialDatabase();
   writeSchoolDatabase(initial);
+  cachedDb = initial;
   return initial;
 }
 
-// Write database to disk safely
+// Write database to disk safely and atomically
 export function writeSchoolDatabase(data: SchoolDatabasePayload): boolean {
   ensureDbDir();
   try {
@@ -85,7 +94,13 @@ export function writeSchoolDatabase(data: SchoolDatabasePayload): boolean {
       lastSyncedAt: new Date().toISOString(),
       version: (data.version || 1) + 1,
     };
-    fs.writeFileSync(DB_FILE, JSON.stringify(payloadWithMeta, null, 2), 'utf-8');
+    // Update in-memory cache immediately so concurrent requests see the latest state
+    cachedDb = payloadWithMeta;
+
+    // Atomic write via temp file rename
+    const tempFile = `${DB_FILE}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`;
+    fs.writeFileSync(tempFile, JSON.stringify(payloadWithMeta, null, 2), 'utf-8');
+    fs.renameSync(tempFile, DB_FILE);
     return true;
   } catch (error) {
     console.error('Error writing school database file:', error);

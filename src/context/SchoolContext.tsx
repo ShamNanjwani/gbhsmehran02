@@ -105,21 +105,6 @@ interface SchoolContextType {
 const SchoolContext = createContext<SchoolContextType | undefined>(undefined);
 
 const LOCAL_STORAGE_KEY_PREFIX = 'gbhs_mehrand_';
-const SCHEMA_VERSION_KEY = 'gbhs_mehrand_cache_v4_live';
-
-// Invalidate stale localStorage items that might contain outdated defaults
-if (typeof window !== 'undefined') {
-  try {
-    const cachedVersion = localStorage.getItem(SCHEMA_VERSION_KEY);
-    if (!cachedVersion) {
-      localStorage.removeItem(LOCAL_STORAGE_KEY_PREFIX + 'settings');
-      localStorage.removeItem(LOCAL_STORAGE_KEY_PREFIX + 'leaderMessages');
-      localStorage.setItem(SCHEMA_VERSION_KEY, 'v4_live');
-    }
-  } catch (e) {
-    // ignore
-  }
-}
 
 function getStored<T>(key: string, defaultVal: T): T {
   try {
@@ -185,11 +170,17 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   useEffect(() => { setStored('leavingCertificates', leavingCertificates); }, [leavingCertificates]);
   useEffect(() => { setStored('inquiries', inquiries); }, [inquiries]);
 
-  // Pull latest live data from website server
+  // Pull latest live data from website server with anti-cache safeguards
   const refreshFromWebsite = async (manual = false): Promise<boolean> => {
     try {
       setIsSyncing(true);
-      const res = await fetch('/api/school-data');
+      const res = await fetch(`/api/school-data?_t=${Date.now()}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+        },
+      });
       if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
       const json = await res.json();
       if (json.success && json.data) {
@@ -356,6 +347,35 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       const json = await res.json();
 
       if (json.success) {
+        if (json.data) {
+          const d = json.data;
+          if (d.settings) {
+            setSettings(d.settings);
+            setStored('settings', d.settings);
+          }
+          if (Array.isArray(d.leaderMessages)) {
+            setLeaderMessages(d.leaderMessages);
+            setStored('leaderMessages', d.leaderMessages);
+          }
+          if (Array.isArray(d.teachers)) {
+            setTeachers(d.teachers);
+            setStored('teachers', d.teachers);
+          }
+          if (Array.isArray(d.students)) {
+            setStudents(d.students);
+            setStored('students', d.students);
+          }
+        } else {
+          if (payload.settings) {
+            setSettings(payload.settings);
+            setStored('settings', payload.settings);
+          }
+          if (payload.leaderMessages) {
+            setLeaderMessages(payload.leaderMessages);
+            setStored('leaderMessages', payload.leaderMessages);
+          }
+        }
+
         const syncTime = json.lastSyncedAt || new Date().toISOString();
         setLastSyncedAt(syncTime);
         setStored('lastSyncedAt', syncTime);
