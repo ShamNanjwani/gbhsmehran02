@@ -1489,3 +1489,412 @@ export function downloadConfirmationLetterPDF(student: Student, settings: School
   doc.save(`GBHS_Mehrand_Admission_Confirmation_Letter_${safeName}.pdf`);
 }
 
+export function downloadTeacherJoiningLetterPDF(teacher: Teacher, settings: SchoolSettings) {
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4',
+  });
+
+  const pageWidth = 210;
+  const pageHeight = 297;
+
+  // Outer Border
+  doc.setDrawColor(6, 78, 59);
+  doc.setLineWidth(1.2);
+  doc.rect(12, 12, pageWidth - 24, pageHeight - 24);
+
+  doc.setDrawColor(217, 119, 6);
+  doc.setLineWidth(0.4);
+  doc.rect(14, 14, pageWidth - 28, pageHeight - 28);
+
+  // Top Header Banner
+  doc.setFillColor(6, 78, 59);
+  doc.rect(14, 14, pageWidth - 28, 28, 'F');
+
+  // School Logo
+  if (settings.logoUrl) {
+    safeAddImage(doc, settings.logoUrl, 18, 17, 22, 22);
+  }
+
+  // Header Typography
+  doc.setTextColor(236, 253, 245);
+  doc.setFontSize(8.5);
+  doc.setFont('helvetica', 'bold');
+  doc.text('GOVERNMENT OF SINDH • SCHOOL EDUCATION & LITERACY DEPARTMENT', 112, 21, { align: 'center' });
+
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(13.5);
+  doc.setFont('helvetica', 'bold');
+  doc.text((settings.schoolName || 'GOVERNMENT BOYS HIGH SCHOOL MEHRAND').toUpperCase(), 112, 28, { align: 'center' });
+
+  doc.setTextColor(251, 191, 36);
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`OFFICE OF THE HEADMASTER • TALUKA KALOI, DISTRICT THARPARKAR • SEMIS: ${settings.semisCode || '406020752'}`, 112, 35, { align: 'center' });
+
+  // Title Pill
+  doc.setFillColor(254, 243, 199);
+  doc.setDrawColor(217, 119, 6);
+  doc.setLineWidth(0.5);
+  doc.roundedRect(40, 46, 130, 9, 2, 2, 'FD');
+
+  doc.setTextColor(146, 64, 14);
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'bold');
+  doc.text('OFFICIAL JOINING REPORT & DUTY ASSUMPTION LETTER', 105, 52, { align: 'center' });
+
+  // Metadata Row
+  const metaY = 62;
+  doc.setDrawColor(203, 213, 225);
+  doc.setLineWidth(0.3);
+  doc.line(16, metaY, pageWidth - 16, metaY);
+
+  const dispatchNo = teacher.joiningLetterDispatchNo || `GBHS-MHR/JON/2026/${teacher.pid?.replace(/\D/g, '').slice(-4) || '1042'}`;
+  const joiningDate = teacher.joiningLetterDate || teacher.joinDate || new Date().toLocaleDateString('en-GB');
+
+  doc.setFontSize(8.5);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(71, 85, 105);
+  doc.text(`Dispatch No: ${dispatchNo}`, 18, metaY + 6);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(6, 78, 59);
+  doc.text(`GOVT PERSONAL ID (PID): ${teacher.pid || 'N/A'}`, 105, metaY + 6, { align: 'center' });
+
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(71, 85, 105);
+  doc.text(`Issue Date: ${joiningDate}`, pageWidth - 18, metaY + 6, { align: 'right' });
+
+  doc.line(16, metaY + 9, pageWidth - 16, metaY + 9);
+
+  // Addressing block
+  let curY = metaY + 16;
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(30, 41, 59);
+  doc.text('To,', 20, curY);
+  curY += 5;
+  doc.setFont('helvetica', 'normal');
+  doc.text('1. The District Education Officer (Secondary & Higher Secondary), Tharparkar @ Mithi', 24, curY);
+  curY += 4.5;
+  doc.text('2. The Taluka Education Officer (Secondary), Taluka Kaloi', 24, curY);
+  curY += 4.5;
+  doc.text('3. The District Accounts Officer, Tharparkar @ Mithi', 24, curY);
+  curY += 7;
+
+  // Subject line
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(6, 78, 59);
+  doc.text(`SUBJECT: JOINING REPORT / PHYSICAL ASSUMPTION OF CHARGE AS ${(teacher.designation || 'TEACHER').toUpperCase()}`, 20, curY);
+  doc.setDrawColor(6, 78, 59);
+  doc.setLineWidth(0.3);
+  doc.line(20, curY + 1.5, pageWidth - 20, curY + 1.5);
+  curY += 8;
+
+  // Teacher Profile / Particulars Box
+  doc.setFillColor(248, 250, 252);
+  doc.setDrawColor(203, 213, 225);
+  doc.setLineWidth(0.4);
+  doc.roundedRect(20, curY, pageWidth - 40, 48, 2, 2, 'FD');
+
+  // Teacher Photo
+  if (teacher.pictureUrl) {
+    safeAddImage(doc, teacher.pictureUrl, pageWidth - 48, curY + 4, 24, 28);
+    doc.setDrawColor(6, 78, 59);
+    doc.setLineWidth(0.4);
+    doc.rect(pageWidth - 48, curY + 4, 24, 28);
+  }
+
+  // Teacher Data Grid
+  doc.setFontSize(8.5);
+  const dataLeftX = 24;
+  const valueLeftX = 64;
+
+  const rows = [
+    ['Teacher Full Name:', teacher.name.toUpperCase()],
+    ["Father's Name:", teacher.fatherName || 'N/A'],
+    ['Designation / Post:', teacher.designation || 'JEST (Junior Elementary School Teacher)'],
+    ['Subject Specialization:', teacher.subjectSpecialist || 'N/A'],
+    ['Govt. Personal ID (PID):', teacher.pid || 'N/A'],
+    ['CNIC Number:', teacher.cnic || 'N/A'],
+    ['Educational Qualification:', teacher.qualification || 'N/A'],
+    ['Contact Cell / WhatsApp:', teacher.mobileNo || 'N/A'],
+  ];
+
+  let rY = curY + 6;
+  rows.forEach(([label, val]) => {
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(71, 85, 105);
+    doc.text(label, dataLeftX, rY);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(15, 23, 42);
+    doc.text(val, valueLeftX, rY);
+    rY += 5.2;
+  });
+
+  curY += 54;
+
+  // Official Statement & Recital
+  doc.setFontSize(8.5);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(30, 41, 59);
+
+  const textP1 = `In pursuance of the Appointment / Transfer Order issued by the competent authority (School Education & Literacy Department, Govt. of Sindh), the educator named above has physically appeared and reported for duty at Government Boys High School Mehrand (SEMIS Code: 406020752), Taluka Kaloi, District Tharparkar on ${joiningDate} (Forenoon).`;
+  const splitP1 = doc.splitTextToSize(textP1, pageWidth - 40);
+  doc.text(splitP1, 20, curY);
+  curY += splitP1.length * 4.5 + 2;
+
+  const textP2 = `The original CNIC, appointment/transfer orders, and educational credentials have been verified and placed in the school faculty establishment dossier. The teacher has been officially enrolled in the institutional register and assigned teaching responsibilities according to the academic timetable.`;
+  const splitP2 = doc.splitTextToSize(textP2, pageWidth - 40);
+  doc.text(splitP2, 20, curY);
+  curY += splitP2.length * 4.5 + 3;
+
+  if (teacher.joiningLetterRemarks) {
+    doc.setFont('helvetica', 'italic');
+    doc.setTextColor(71, 85, 105);
+    const remarkText = `Administrative Remarks: "${teacher.joiningLetterRemarks}"`;
+    const splitRem = doc.splitTextToSize(remarkText, pageWidth - 40);
+    doc.text(splitRem, 20, curY);
+    curY += splitRem.length * 4.5 + 3;
+  }
+
+  // Endorsement / Copy to
+  curY += 2;
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(71, 85, 105);
+  doc.text('Copy forwarded for favor of information and necessary record to:', 20, curY);
+  curY += 4.5;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.text('• Personal File of the Incumbent Teacher', 24, curY);
+  curY += 4;
+  doc.text('• School Biometric & Staff Attendance Register Section', 24, curY);
+  curY += 4;
+  doc.text('• Office Master File (Establishment Branch), GBHS Mehrand', 24, curY);
+
+  // Signatures Section
+  const signY = pageHeight - 40;
+
+  // Teacher signature
+  doc.setDrawColor(148, 163, 184);
+  doc.setLineWidth(0.3);
+  doc.line(22, signY, 75, signY);
+  doc.setFontSize(8.5);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(71, 85, 105);
+  doc.text(teacher.name, 48, signY + 5, { align: 'center' });
+  doc.setFontSize(7.5);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Teacher Signature (${teacher.designation || 'Staff'})`, 48, signY + 9, { align: 'center' });
+
+  // Digital Seal
+  drawQrVerificationBox(doc, 95, signY - 14, 20);
+  doc.setFontSize(6.5);
+  doc.setTextColor(100, 116, 139);
+  doc.text('Official Digital Seal', 105, signY + 9, { align: 'center' });
+
+  // Headmaster Signature
+  doc.line(pageWidth - 75, signY, pageWidth - 22, signY);
+  if (settings.headmasterSignatureUrl) {
+    safeAddImage(doc, settings.headmasterSignatureUrl, pageWidth - 65, signY - 16, 40, 14);
+  }
+
+  doc.setFontSize(8.5);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(6, 78, 59);
+  doc.text(settings.headmasterName || 'Headmaster', pageWidth - 48, signY + 5, { align: 'center' });
+  doc.setFontSize(7.5);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(71, 85, 105);
+  doc.text('Headmaster / Issuing Authority', pageWidth - 48, signY + 9, { align: 'center' });
+  doc.text('GBHS Mehrand, Taluka Kaloi', pageWidth - 48, signY + 13, { align: 'center' });
+
+  // Bottom Notice
+  doc.setFontSize(7);
+  doc.setTextColor(148, 163, 184);
+  doc.text(`Official Document Generated by GBHS Mehrand Institutional Portal • Date: ${new Date().toLocaleDateString('en-GB')}`, 105, pageHeight - 16, { align: 'center' });
+
+  const safeTeacherName = teacher.name.replace(/[^a-zA-Z0-9]/g, '_');
+  doc.save(`GBHS_Mehrand_Joining_Report_${safeTeacherName}.pdf`);
+}
+
+export function downloadTeacherConfirmationLetterPDF(teacher: Teacher, settings: SchoolSettings) {
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4',
+  });
+
+  const pageWidth = 210;
+  const pageHeight = 297;
+
+  // Outer Border
+  doc.setDrawColor(6, 78, 59);
+  doc.setLineWidth(1.2);
+  doc.rect(12, 12, pageWidth - 24, pageHeight - 24);
+
+  doc.setDrawColor(217, 119, 6);
+  doc.setLineWidth(0.4);
+  doc.rect(14, 14, pageWidth - 28, pageHeight - 28);
+
+  // Top Header Banner
+  doc.setFillColor(6, 78, 59);
+  doc.rect(14, 14, pageWidth - 28, 28, 'F');
+
+  if (settings.logoUrl) {
+    safeAddImage(doc, settings.logoUrl, 18, 17, 22, 22);
+  }
+
+  doc.setTextColor(236, 253, 245);
+  doc.setFontSize(8.5);
+  doc.setFont('helvetica', 'bold');
+  doc.text('GOVERNMENT OF SINDH • SCHOOL EDUCATION & LITERACY DEPARTMENT', 112, 21, { align: 'center' });
+
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(13.5);
+  doc.setFont('helvetica', 'bold');
+  doc.text((settings.schoolName || 'GOVERNMENT BOYS HIGH SCHOOL MEHRAND').toUpperCase(), 112, 28, { align: 'center' });
+
+  doc.setTextColor(251, 191, 36);
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`TALUKA KALOI, DISTRICT THARPARKAR @ MITHI • SEMIS CODE: ${settings.semisCode || '406020752'}`, 112, 35, { align: 'center' });
+
+  // Title Pill
+  doc.setFillColor(254, 243, 199);
+  doc.setDrawColor(217, 119, 6);
+  doc.setLineWidth(0.5);
+  doc.roundedRect(45, 46, 120, 9, 2, 2, 'FD');
+
+  doc.setTextColor(146, 64, 14);
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'bold');
+  doc.text('FACULTY APPOINTMENT & SERVICE CONFIRMATION LETTER', 105, 52, { align: 'center' });
+
+  // Reference Row
+  const metaY = 62;
+  doc.setDrawColor(203, 213, 225);
+  doc.setLineWidth(0.3);
+  doc.line(16, metaY, pageWidth - 16, metaY);
+
+  const refNo = `GBHS-MHR/CONF/2026/${teacher.pid?.replace(/\D/g, '').slice(-4) || '2001'}`;
+  const issueDate = teacher.joiningLetterDate || teacher.joinDate || new Date().toLocaleDateString('en-GB');
+
+  doc.setFontSize(8.5);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(71, 85, 105);
+  doc.text(`Reference No: ${refNo}`, 18, metaY + 6);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(6, 78, 59);
+  doc.text(`GOVT PERSONAL ID: ${teacher.pid || 'N/A'}`, 105, metaY + 6, { align: 'center' });
+
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(71, 85, 105);
+  doc.text(`Date: ${issueDate}`, pageWidth - 18, metaY + 6, { align: 'right' });
+
+  doc.line(16, metaY + 9, pageWidth - 16, metaY + 9);
+
+  // Certificate Statement
+  let curY = metaY + 20;
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(6, 78, 59);
+  doc.text('TO WHOM IT MAY CONCERN', 105, curY, { align: 'center' });
+  curY += 10;
+
+  // Teacher Box
+  doc.setFillColor(248, 250, 252);
+  doc.setDrawColor(203, 213, 225);
+  doc.roundedRect(20, curY, pageWidth - 40, 42, 2, 2, 'FD');
+
+  if (teacher.pictureUrl) {
+    safeAddImage(doc, teacher.pictureUrl, pageWidth - 46, curY + 4, 22, 26);
+    doc.setDrawColor(6, 78, 59);
+    doc.rect(pageWidth - 46, curY + 4, 22, 26);
+  }
+
+  doc.setFontSize(9);
+  let dY = curY + 6;
+  const items = [
+    ['Educator Name:', teacher.name.toUpperCase()],
+    ["Father's Name:", teacher.fatherName || 'N/A'],
+    ['Designation:', teacher.designation || 'JEST'],
+    ['Subject Specialist:', teacher.subjectSpecialist || 'N/A'],
+    ['CNIC Number:', teacher.cnic || 'N/A'],
+    ['Date of Joining:', teacher.joinDate || issueDate],
+    ['Academic Qualification:', teacher.qualification || 'N/A'],
+  ];
+
+  items.forEach(([lbl, v]) => {
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(71, 85, 105);
+    doc.text(lbl, 24, dY);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(15, 23, 42);
+    doc.text(v, 68, dY);
+    dY += 5.2;
+  });
+
+  curY += 50;
+
+  doc.setFontSize(9.5);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(30, 41, 59);
+
+  const certText1 = `This is to certify that Mr./Ms. ${teacher.name} S/O ${teacher.fatherName || 'N/A'}, holder of CNIC No. ${teacher.cnic || 'N/A'} and Personal Identification (PID) No. ${teacher.pid || 'N/A'}, is a confirmed, bonafide regular faculty member working in the capacity of ${teacher.designation || 'Teacher'} at Government Boys High School Mehrand (SEMIS Code: 406020752), Taluka Kaloi, District Tharparkar.`;
+  const splitC1 = doc.splitTextToSize(certText1, pageWidth - 40);
+  doc.text(splitC1, 20, curY);
+  curY += splitC1.length * 5 + 4;
+
+  const certText2 = `He/She exhibits commendable pedagogical dedication, exemplary moral character, and punctuality. His/Her appointment and joining orders have been verified and authenticated by the School Administration and Headmaster.`;
+  const splitC2 = doc.splitTextToSize(certText2, pageWidth - 40);
+  doc.text(splitC2, 20, curY);
+  curY += splitC2.length * 5 + 4;
+
+  const certText3 = `This certificate is formally issued upon his/her official request for service confirmation, administrative records, and verification purposes. We wish him/her sustained professional achievement in public educational service.`;
+  const splitC3 = doc.splitTextToSize(certText3, pageWidth - 40);
+  doc.text(splitC3, 20, curY);
+
+  // Signatures
+  const signY = pageHeight - 42;
+  doc.setDrawColor(148, 163, 184);
+  doc.setLineWidth(0.3);
+  doc.line(22, signY, 75, signY);
+  doc.setFontSize(8.5);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(71, 85, 105);
+  doc.text('Administrative Officer', 48, signY + 5, { align: 'center' });
+  doc.setFontSize(7.5);
+  doc.setFont('helvetica', 'normal');
+  doc.text('GBHS Mehrand Verification Cell', 48, signY + 9, { align: 'center' });
+
+  drawQrVerificationBox(doc, 95, signY - 14, 20);
+  doc.setFontSize(6.5);
+  doc.setTextColor(100, 116, 139);
+  doc.text('Verification QR', 105, signY + 9, { align: 'center' });
+
+  doc.line(pageWidth - 75, signY, pageWidth - 22, signY);
+  if (settings.headmasterSignatureUrl) {
+    safeAddImage(doc, settings.headmasterSignatureUrl, pageWidth - 65, signY - 16, 40, 14);
+  }
+
+  doc.setFontSize(8.5);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(6, 78, 59);
+  doc.text(settings.headmasterName || 'Headmaster', pageWidth - 48, signY + 5, { align: 'center' });
+  doc.setFontSize(7.5);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(71, 85, 105);
+  doc.text('Headmaster / Principal Authority', pageWidth - 48, signY + 9, { align: 'center' });
+
+  doc.setFontSize(7);
+  doc.setTextColor(148, 163, 184);
+  doc.text(`Official Document Generated by GBHS Mehrand Institutional Portal • Date: ${new Date().toLocaleDateString('en-GB')}`, 105, pageHeight - 16, { align: 'center' });
+
+  const safeTeacherName = teacher.name.replace(/[^a-zA-Z0-9]/g, '_');
+  doc.save(`GBHS_Mehrand_Confirmation_Letter_${safeTeacherName}.pdf`);
+}
+

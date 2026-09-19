@@ -42,6 +42,7 @@ import {
   CheckSquare,
   Search,
   Filter,
+  Megaphone,
 } from 'lucide-react';
 import { Student, Teacher, TimetableSlot, StudentResult, LeavingCertificateData, SchoolSettings, AttendanceRecord, LeaderMessage } from '../types';
 import { FileUploadZone } from './common/FileUploadZone';
@@ -56,6 +57,8 @@ import { TeacherReportCard } from './cards/TeacherReportCard';
 import { HeadmasterSignatureDisplay } from './common/HeadmasterSignatureDisplay';
 import { AttendanceTrendChart } from './charts/AttendanceTrendChart';
 import { StudentIdCardGenerator } from './admin/StudentIdCardGenerator';
+import { AdminAnnouncementManager } from './AdminAnnouncementManager';
+import { AnnouncementBanner } from './common/AnnouncementBanner';
 
 export const AdminPortal: React.FC = () => {
   const {
@@ -82,6 +85,7 @@ export const AdminPortal: React.FC = () => {
     teachers,
     updateTeacher,
     approveTeacher,
+    approveTeacherWithJoiningLetter,
     rejectTeacher,
     deleteTeacher,
     timetable,
@@ -106,7 +110,7 @@ export const AdminPortal: React.FC = () => {
 
   // Admin Active Tab
   const [activeAdminTab, setActiveAdminTab] = useState<
-    'overview' | 'admissions' | 'teachers' | 'timetable' | 'attendance' | 'id_cards' | 'certificates' | 'cms' | 'messages'
+    'overview' | 'admissions' | 'teachers' | 'timetable' | 'attendance' | 'id_cards' | 'certificates' | 'announcements' | 'cms' | 'messages'
   >('overview');
 
   // State for allotting GR No modal
@@ -114,6 +118,15 @@ export const AdminPortal: React.FC = () => {
   const [allottedGrNo, setAllottedGrNo] = useState('');
   const [allottedSection, setAllottedSection] = useState('A');
   const [allottedRollNo, setAllottedRollNo] = useState('01');
+
+  // State for teacher approval & HM joining letter issuance modal
+  const [selectedTeacherForApproval, setSelectedTeacherForApproval] = useState<Teacher | null>(null);
+  const [approvalLetterType, setApprovalLetterType] = useState<'auto' | 'manual'>('auto');
+  const [manualJoiningLetterUrl, setManualJoiningLetterUrl] = useState<string>('');
+  const [manualJoiningLetterFileName, setManualJoiningLetterFileName] = useState<string>('');
+  const [joiningDispatchNo, setJoiningDispatchNo] = useState<string>('');
+  const [joiningDate, setJoiningDate] = useState<string>('');
+  const [joiningRemarks, setJoiningRemarks] = useState<string>('');
 
   // State for editing student & teacher records (Required: "Admin can edit Teacher and student records")
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
@@ -307,6 +320,33 @@ export const AdminPortal: React.FC = () => {
     if (!selectedStudentForApproval) return;
     approveStudent(selectedStudentForApproval.id, allottedGrNo, allottedSection, allottedRollNo);
     setSelectedStudentForApproval(null);
+  };
+
+  const handleOpenApproveTeacher = (tch: Teacher) => {
+    setSelectedTeacherForApproval(tch);
+    setApprovalLetterType(tch.joiningLetterType || 'auto');
+    setManualJoiningLetterUrl(tch.joiningLetterUrl || tch.manualJoiningLetterUrl || '');
+    setManualJoiningLetterFileName(tch.joiningLetterFileName || tch.manualJoiningLetterFileName || '');
+    setJoiningDispatchNo(tch.joiningLetterDispatchNo || `GBHS-MHR/JON/2026/${Math.floor(1000 + Math.random() * 9000)}`);
+    setJoiningDate(tch.joiningLetterDate || tch.joinDate || new Date().toLocaleDateString('en-GB'));
+    setJoiningRemarks(tch.joiningLetterRemarks || 'Verified original credentials, CNIC, and appointment orders. Appointed to active teaching roster.');
+  };
+
+  const handleConfirmTeacherApproval = () => {
+    if (!selectedTeacherForApproval) return;
+    if (approvalLetterType === 'manual' && !manualJoiningLetterUrl) {
+      alert('Please upload the scanned PDF or image copy of the signed Joining Letter from Headmaster office.');
+      return;
+    }
+    approveTeacherWithJoiningLetter(selectedTeacherForApproval.id, {
+      type: approvalLetterType,
+      manualPdfUrl: manualJoiningLetterUrl || undefined,
+      manualFileName: manualJoiningLetterFileName || undefined,
+      dispatchNo: joiningDispatchNo,
+      date: joiningDate,
+      remarks: joiningRemarks,
+    });
+    setSelectedTeacherForApproval(null);
   };
 
   const handleHeaderSaveAndSync = async () => {
@@ -539,6 +579,17 @@ export const AdminPortal: React.FC = () => {
           { id: 'attendance', label: 'Attendance Hub', icon: Calendar },
           { id: 'id_cards', label: 'Student ID Cards (PDF)', icon: IdCard, badge: 'Auto' },
           { id: 'certificates', label: 'Certificates & Formats', icon: FileCheck },
+          {
+            id: 'announcements',
+            label: 'Announcements & Urgent Broadcasts',
+            icon: Megaphone,
+            badge:
+              (settings.announcements || []).filter(
+                (a) => a.priority === 'urgent' && a.isActive !== false
+              ).length > 0
+                ? `${(settings.announcements || []).filter((a) => a.priority === 'urgent' && a.isActive !== false).length} Flash`
+                : undefined,
+          },
           { id: 'cms', label: 'School CMS & Messages (Minister/Sec/HM)', icon: SettingsIcon },
           { id: 'messages', label: `Inquiries (${inquiries.filter((i) => i.status === 'unread').length})`, icon: Inbox },
         ].map((tab) => {
@@ -569,6 +620,23 @@ export const AdminPortal: React.FC = () => {
       {/* ADMIN TAB 1: Overview */}
       {activeAdminTab === 'overview' && (
         <div className="space-y-6">
+          {/* Live School Announcement Banner in Overview */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-black uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                <Megaphone className="w-3.5 h-3.5 text-amber-500" />
+                Live Broadcast Feed (Synced across Student & Teacher Portals)
+              </span>
+              <button
+                onClick={() => setActiveAdminTab('announcements')}
+                className="text-xs font-bold text-amber-700 hover:text-amber-800 hover:underline flex items-center gap-1"
+              >
+                <span>Manage Announcements & Circulars →</span>
+              </button>
+            </div>
+            <AnnouncementBanner role="admin" />
+          </div>
+
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-1">
               <span className="text-[10px] uppercase font-bold text-slate-400">Total Registered Students</span>
@@ -926,6 +994,210 @@ export const AdminPortal: React.FC = () => {
         </div>
       )}
 
+      {/* ALLOT TEACHER APPROVAL & JOINING LETTER MODAL */}
+      {selectedTeacherForApproval && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 text-xs max-h-[90vh] overflow-y-auto">
+            <div className="border-b border-slate-100 pb-2">
+              <h4 className="text-base font-black text-slate-900 flex items-center gap-2">
+                <CheckCircle2 className="w-5 h-5 text-emerald-700" />
+                Approve Teacher & Issue Joining Letter
+              </h4>
+              <p className="text-slate-500">
+                Approving: <strong>{selectedTeacherForApproval.name}</strong> • PID: <span className="font-mono font-bold text-slate-700">{selectedTeacherForApproval.pid}</span> • Subject: <strong>{selectedTeacherForApproval.subjectSpecialist}</strong>
+              </p>
+            </div>
+
+            {/* Document Verification Check Section */}
+            <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
+              <div className="font-bold text-slate-800 flex items-center gap-1.5">
+                <FileCheck className="w-4 h-4 text-emerald-700" />
+                <span>Uploaded Verification Credentials:</span>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {selectedTeacherForApproval.cnicFileUrl ? (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setPreviewDoc({
+                        url: selectedTeacherForApproval.cnicFileUrl!,
+                        title: `${selectedTeacherForApproval.name} - CNIC Document (${selectedTeacherForApproval.cnicFileName || 'Attached'})`,
+                      })
+                    }
+                    className="px-2.5 py-1.5 bg-white border border-emerald-300 text-emerald-900 rounded-lg font-bold text-xs flex items-center gap-1 hover:bg-emerald-50 transition shadow-xs"
+                  >
+                    <Eye className="w-3.5 h-3.5 text-emerald-700" />
+                    Inspect CNIC Document
+                  </button>
+                ) : (
+                  <span className="text-amber-800 bg-amber-50 px-2 py-1 rounded text-xs border border-amber-200">
+                    ⚠ CNIC Document Not Uploaded
+                  </span>
+                )}
+
+                {selectedTeacherForApproval.appointmentOrderUrl ? (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setPreviewDoc({
+                        url: selectedTeacherForApproval.appointmentOrderUrl!,
+                        title: `${selectedTeacherForApproval.name} - Appointment/Transfer Order (${selectedTeacherForApproval.appointmentOrderFileName || 'Attached'})`,
+                      })
+                    }
+                    className="px-2.5 py-1.5 bg-white border border-blue-300 text-blue-900 rounded-lg font-bold text-xs flex items-center gap-1 hover:bg-blue-50 transition shadow-xs"
+                  >
+                    <Eye className="w-3.5 h-3.5 text-blue-700" />
+                    Inspect Appointment Order
+                  </button>
+                ) : (
+                  <span className="text-amber-800 bg-amber-50 px-2 py-1 rounded text-xs border border-amber-200">
+                    ⚠ Appointment Order Not Uploaded
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Joining Letter Issuance Method: Auto vs Manual */}
+            <div className="space-y-3">
+              <label className="block font-black text-slate-900">
+                Official Joining Letter Issuance Method *
+              </label>
+
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setApprovalLetterType('auto')}
+                  className={`p-3 rounded-xl border-2 text-left transition ${
+                    approvalLetterType === 'auto'
+                      ? 'border-emerald-700 bg-emerald-50/70 text-emerald-950 font-bold shadow-xs'
+                      : 'border-slate-200 bg-white hover:border-slate-300 text-slate-700'
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5 mb-1 font-black text-xs text-emerald-900">
+                    <Sparkles className="w-4 h-4 text-emerald-700" />
+                    <span>Auto-Generated (Official HM Format)</span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 font-normal leading-relaxed">
+                    Official Sindh Education Department format with school SEMIS code, seal, dispatch ref, and digital signature.
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setApprovalLetterType('manual')}
+                  className={`p-3 rounded-xl border-2 text-left transition ${
+                    approvalLetterType === 'manual'
+                      ? 'border-emerald-700 bg-emerald-50/70 text-emerald-950 font-bold shadow-xs'
+                      : 'border-slate-200 bg-white hover:border-slate-300 text-slate-700'
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5 mb-1 font-black text-xs text-emerald-900">
+                    <Upload className="w-4 h-4 text-emerald-700" />
+                    <span>Manual Upload (Scanned Signed PDF/Image)</span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 font-normal leading-relaxed">
+                    Upload scanned copy of physical joining order signed and stamped by Headmaster office.
+                  </p>
+                </button>
+              </div>
+
+              {/* If Manual is chosen, provide FileUploadZone */}
+              {approvalLetterType === 'manual' && (
+                <div className="space-y-2 bg-amber-50/60 p-3.5 rounded-xl border border-amber-200">
+                  <FileUploadZone
+                    label="Upload Signed Headmaster Joining Letter (PDF or Image) *"
+                    accept=".pdf,image/*"
+                    maxSizeMB={10}
+                    onFileSelected={(fileDataUrl, fileName) => {
+                      setManualJoiningLetterUrl(fileDataUrl);
+                      setManualJoiningLetterFileName(fileName);
+                    }}
+                    helpText="Upload the official scanned Joining Order / Report signed by Headmaster"
+                  />
+                  {manualJoiningLetterFileName && (
+                    <div className="flex items-center justify-between bg-white px-3 py-2 rounded-lg border border-emerald-200 text-xs text-emerald-900 font-bold">
+                      <span className="truncate max-w-[280px]">✓ Selected: {manualJoiningLetterFileName}</span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setPreviewDoc({
+                            url: manualJoiningLetterUrl,
+                            title: 'Scanned Joining Letter Preview',
+                          })
+                        }
+                        className="text-emerald-700 underline text-[11px] shrink-0 hover:text-emerald-900"
+                      >
+                        Preview File
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Letter Metadata Fields */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    Dispatch Reference No *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={joiningDispatchNo}
+                    onChange={(e) => setJoiningDispatchNo(e.target.value)}
+                    className="w-full p-2 rounded-lg border border-slate-200 focus:outline-none focus:border-emerald-600 font-mono font-bold text-slate-800"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    Date of Joining *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={joiningDate}
+                    onChange={(e) => setJoiningDate(e.target.value)}
+                    className="w-full p-2 rounded-lg border border-slate-200 focus:outline-none focus:border-emerald-600 font-bold text-slate-800"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">
+                  Headmaster Remarks & Endorsement
+                </label>
+                <textarea
+                  rows={2}
+                  value={joiningRemarks}
+                  onChange={(e) => setJoiningRemarks(e.target.value)}
+                  className="w-full p-2 rounded-lg border border-slate-200 focus:outline-none focus:border-emerald-600 font-medium"
+                  placeholder="e.g. Credentials authenticated. Reported for active duty in morning session."
+                />
+              </div>
+            </div>
+
+            <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setSelectedTeacherForApproval(null)}
+                className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmTeacherApproval}
+                className="px-5 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-700 text-white font-black shadow-md flex items-center gap-1.5 transition"
+              >
+                <CheckCircle2 className="w-4 h-4 text-amber-300" />
+                Approve & Issue Joining Letter
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ADMIN TAB 3: Faculty & Teacher Approvals */}
       {/* Required by user prompt:
           "Teacher registers via email and password... Then submit and review by Admin;
@@ -938,7 +1210,7 @@ export const AdminPortal: React.FC = () => {
                 Faculty & Teacher Registration Review
               </h3>
               <p className="text-xs text-slate-500">
-                Approve teacher applications to feature them on the main Faculty section and grant dashboard access.
+                Approve teacher applications with Headmaster Joining Letter (Auto/Manual) to feature them on the main Faculty section and grant dashboard access.
               </p>
             </div>
             <span className="text-xs font-bold text-teal-800 bg-teal-50 px-3 py-1 rounded-lg border border-teal-200">
@@ -954,7 +1226,9 @@ export const AdminPortal: React.FC = () => {
                   <th className="py-2.5 px-3">PID Number</th>
                   <th className="py-2.5 px-3">CNIC & Cell</th>
                   <th className="py-2.5 px-3">Qualifications</th>
-                  <th className="py-2.5 px-3">Subject Specialist</th>
+                  <th className="py-2.5 px-3">CNIC Document</th>
+                  <th className="py-2.5 px-3">Appointment Order</th>
+                  <th className="py-2.5 px-3">Joining Letter</th>
                   <th className="py-2.5 px-3">Status</th>
                   <th className="py-2.5 px-3 text-right">Actions</th>
                 </tr>
@@ -978,8 +1252,74 @@ export const AdminPortal: React.FC = () => {
                       <div>{tch.cnic}</div>
                       <div className="text-[10px] text-slate-400">{tch.mobileNo}</div>
                     </td>
-                    <td className="py-2.5 px-3 font-medium text-slate-700">{tch.qualification}</td>
-                    <td className="py-2.5 px-3 font-bold text-emerald-800">{tch.subjectSpecialist}</td>
+                    <td className="py-2.5 px-3">
+                      <div className="font-medium text-slate-700">{tch.qualification}</div>
+                      <div className="font-bold text-emerald-800 text-[11px]">{tch.subjectSpecialist}</div>
+                    </td>
+                    {/* CNIC Document verification */}
+                    <td className="py-2.5 px-3">
+                      {tch.cnicFileUrl ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPreviewDoc({
+                              url: tch.cnicFileUrl!,
+                              title: `${tch.name} - CNIC Document (${tch.cnicFileName || 'Both Sides'})`,
+                            })
+                          }
+                          className="inline-flex items-center gap-1 text-emerald-800 hover:text-emerald-950 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2 py-1 rounded font-bold text-[11px] transition"
+                        >
+                          <Eye className="w-3 h-3 text-emerald-700" /> View CNIC
+                        </button>
+                      ) : (
+                        <span className="text-slate-400 italic text-[11px]">Not Uploaded</span>
+                      )}
+                    </td>
+                    {/* Appointment / Transfer Order verification */}
+                    <td className="py-2.5 px-3">
+                      {tch.appointmentOrderUrl ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPreviewDoc({
+                              url: tch.appointmentOrderUrl!,
+                              title: `${tch.name} - Appointment / Transfer Order (${tch.appointmentOrderFileName || 'Order Doc'})`,
+                            })
+                          }
+                          className="inline-flex items-center gap-1 text-blue-700 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-2 py-1 rounded font-bold text-[11px] transition"
+                        >
+                          <Eye className="w-3 h-3 text-blue-600" /> View Order
+                        </button>
+                      ) : (
+                        <span className="text-slate-400 italic text-[11px]">Not Uploaded</span>
+                      )}
+                    </td>
+                    {/* Joining Letter Status */}
+                    <td className="py-2.5 px-3">
+                      {tch.joiningLetterIssued ? (
+                        <div className="space-y-0.5">
+                          <span className="inline-block px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-extrabold text-[10px]">
+                            {tch.joiningLetterType === 'manual' ? 'HM Scanned' : 'Auto Issued'}
+                          </span>
+                          {(tch.joiningLetterUrl || tch.manualJoiningLetterUrl) && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setPreviewDoc({
+                                  url: (tch.joiningLetterUrl || tch.manualJoiningLetterUrl)!,
+                                  title: `${tch.name} - HM Joining Letter`,
+                                })
+                              }
+                              className="block text-[10px] text-teal-800 hover:underline font-bold"
+                            >
+                              View Letter
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-slate-400 text-[11px]">Pending Approval</span>
+                      )}
+                    </td>
                     <td className="py-2.5 px-3">
                       <span
                         className={`px-2 py-0.5 rounded-full font-extrabold text-[10px] ${
@@ -1004,18 +1344,27 @@ export const AdminPortal: React.FC = () => {
                         </button>
                         {tch.status === 'pending' ? (
                           <button
-                            onClick={() => approveTeacher(tch.id)}
-                            className="px-2.5 py-1 bg-teal-800 hover:bg-teal-700 text-white rounded font-bold text-xs"
+                            onClick={() => handleOpenApproveTeacher(tch)}
+                            className="px-2.5 py-1 bg-emerald-800 hover:bg-emerald-700 text-white rounded font-bold text-xs shadow-xs"
                           >
-                            Approve Teacher
+                            Approve & Issue Letter
                           </button>
                         ) : (
-                          <button
-                            onClick={() => rejectTeacher(tch.id)}
-                            className="px-2 py-1 bg-slate-100 hover:bg-red-50 text-slate-600 hover:text-red-600 rounded text-xs"
-                          >
-                            Revoke
-                          </button>
+                          <>
+                            <button
+                              onClick={() => handleOpenApproveTeacher(tch)}
+                              className="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded font-bold text-xs"
+                              title="Reissue / Update Joining Letter"
+                            >
+                              Joining Letter
+                            </button>
+                            <button
+                              onClick={() => rejectTeacher(tch.id)}
+                              className="px-2 py-1 bg-slate-100 hover:bg-red-50 text-slate-600 hover:text-red-600 rounded text-xs"
+                            >
+                              Revoke
+                            </button>
+                          </>
                         )}
                         <button
                           onClick={() => deleteTeacher(tch.id)}
@@ -3047,6 +3396,11 @@ export const AdminPortal: React.FC = () => {
             ))}
           </div>
         </div>
+      )}
+
+      {/* ADMIN TAB: School-Wide Announcements & Flash Broadcasts */}
+      {activeAdminTab === 'announcements' && (
+        <AdminAnnouncementManager />
       )}
 
       {/* Global Document Viewer for Admin Verification */}

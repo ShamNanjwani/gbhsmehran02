@@ -32,6 +32,14 @@ import { Teacher, TimetableSlot, Student, AttendanceRecord } from '../types';
 import { TeacherIdCard } from './cards/TeacherIdCard';
 import { TeacherReportCard } from './cards/TeacherReportCard';
 import { AttendanceTrendChart } from './charts/AttendanceTrendChart';
+import { downloadTeacherJoiningLetterPDF, downloadTeacherConfirmationLetterPDF } from '../utils/pdfGenerator';
+import { printIsolatedElement } from '../utils/printUtils';
+import { HeadmasterSignatureDisplay } from './common/HeadmasterSignatureDisplay';
+import { SchoolLogo } from './common/SchoolLogo';
+import { DocumentViewerModal } from './common/DocumentViewerModal';
+import { TeacherTimetableSection } from './TeacherTimetableSection';
+import { AnnouncementBanner } from './common/AnnouncementBanner';
+import { FileCheck, ShieldCheck, ExternalLink } from 'lucide-react';
 
 export const TeacherDashboard: React.FC = () => {
   const {
@@ -71,15 +79,22 @@ export const TeacherDashboard: React.FC = () => {
   const [regQualification, setRegQualification] = useState('');
   const [regSubject, setRegSubject] = useState('');
   const [regPictureUrl, setRegPictureUrl] = useState('');
+  const [regCnicFileUrl, setRegCnicFileUrl] = useState('');
+  const [regCnicFileName, setRegCnicFileName] = useState('');
+  const [regAppointmentOrderUrl, setRegAppointmentOrderUrl] = useState('');
+  const [regAppointmentOrderFileName, setRegAppointmentOrderFileName] = useState('');
 
   // Selected teacher
   const currentTeacher: Teacher | undefined =
     teachers.find((t) => t.id === currentUser?.id || t.email?.toLowerCase() === currentUser?.email?.toLowerCase()) ||
     teachers[0];
 
+  // Document preview modal
+  const [previewDoc, setPreviewDoc] = useState<{ url: string; title: string } | null>(null);
+
   // Tabs within Teacher Portal
   const [subTab, setSubTab] = useState<
-    'timetable' | 'attendance' | 'remarks' | 'proxy' | 'idcard' | 'report'
+    'timetable' | 'attendance' | 'remarks' | 'proxy' | 'joining-letter' | 'confirmation-letter' | 'idcard' | 'report'
   >('timetable');
 
   // Attendance marking state
@@ -117,10 +132,14 @@ export const TeacherDashboard: React.FC = () => {
       pictureUrl: regPictureUrl,
       designation: regDesignation,
       isAvailableToday: true,
+      cnicFileUrl: regCnicFileUrl,
+      cnicFileName: regCnicFileName,
+      appointmentOrderUrl: regAppointmentOrderUrl,
+      appointmentOrderFileName: regAppointmentOrderFileName,
     });
 
     setRegSuccessMsg(
-      `Registration submitted for ${regName}! Your account is currently pending Headmaster/Admin approval. Once approved, you can sign in with your email (${regEmail}) or PID (${assignedPid}) and password.`
+      `Registration submitted for ${regName}! Your account and uploaded documents (CNIC & Appointment Order) are currently pending Headmaster/Admin scrutiny. Once approved and Joining Letter is issued, you can log in with your email (${regEmail}) or PID (${assignedPid}) and password.`
     );
     setEmail(regEmail);
     setPassword(regPassword);
@@ -130,7 +149,10 @@ export const TeacherDashboard: React.FC = () => {
   // If not logged in as teacher, show teacher login / register screen
   if (currentRole !== 'teacher') {
     return (
-      <div className="max-w-lg mx-auto py-10 px-4 space-y-6">
+      <div className="max-w-2xl mx-auto py-10 px-4 space-y-6">
+        {/* School-Wide Urgent Advisories & Faculty Notices */}
+        <AnnouncementBanner role="teacher" />
+
         <div className="bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden">
           {/* Top Banner */}
           <div className="bg-gradient-to-r from-teal-950 via-teal-900 to-emerald-950 text-white p-6 text-center space-y-2 border-b-4 border-amber-400">
@@ -422,6 +444,40 @@ export const TeacherDashboard: React.FC = () => {
                   />
                 </div>
 
+                <div>
+                  <FileUploadZone
+                    id="teacher-reg-cnic"
+                    label="Teacher CNIC (Front / Back or Combined PDF / Image) *"
+                    required
+                    value={regCnicFileUrl}
+                    fileName={regCnicFileName}
+                    onChange={(val, name) => {
+                      setRegCnicFileUrl(val);
+                      if (name) setRegCnicFileName(name);
+                    }}
+                    previewShape="banner"
+                    helperText="Upload official CNIC copy (scanned image or PDF). Reviewed by Admin/HM for verification."
+                    badgeText="Govt. CNIC Document"
+                  />
+                </div>
+
+                <div>
+                  <FileUploadZone
+                    id="teacher-reg-appointment-order"
+                    label="Transfer / Appointment Order (SELD Official Order PDF / Image) *"
+                    required
+                    value={regAppointmentOrderUrl}
+                    fileName={regAppointmentOrderFileName}
+                    onChange={(val, name) => {
+                      setRegAppointmentOrderUrl(val);
+                      if (name) setRegAppointmentOrderFileName(name);
+                    }}
+                    previewShape="box"
+                    helperText="Upload SELD official appointment or transfer order document (PDF or scanned image)."
+                    badgeText="Govt. Appointment Order"
+                  />
+                </div>
+
                 <button
                   type="submit"
                   className="w-full py-3 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-sm shadow-md transition flex items-center justify-center gap-2"
@@ -513,6 +569,9 @@ export const TeacherDashboard: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      {/* Official School-Wide Announcements & Faculty Broadcasts */}
+      <AnnouncementBanner role="teacher" />
+
       {/* Teacher Profile Top Banner */}
       <div className="bg-gradient-to-r from-teal-950 via-teal-900 to-slate-950 text-white rounded-2xl p-6 sm:p-8 shadow-xl border-b-4 border-amber-400">
         <div className="flex flex-col md:flex-row items-center justify-between gap-6">
@@ -543,6 +602,30 @@ export const TeacherDashboard: React.FC = () => {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => setSubTab('joining-letter')}
+              className={`px-3.5 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 transition ${
+                subTab === 'joining-letter'
+                  ? 'bg-amber-400 text-slate-950 shadow-md'
+                  : 'bg-teal-900/80 hover:bg-teal-800 text-amber-300 border border-amber-400/40'
+              }`}
+            >
+              <FileCheck className="w-3.5 h-3.5" />
+              <span>Joining Letter (HM)</span>
+            </button>
+
+            <button
+              onClick={() => setSubTab('confirmation-letter')}
+              className={`px-3.5 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 transition ${
+                subTab === 'confirmation-letter'
+                  ? 'bg-amber-400 text-slate-950 shadow-md'
+                  : 'bg-teal-900/80 hover:bg-teal-800 text-amber-300 border border-amber-400/40'
+              }`}
+            >
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>Confirmation Letter</span>
+            </button>
+
             <button
               onClick={() => setSubTab('idcard')}
               className={`px-3.5 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 transition ${
@@ -605,6 +688,35 @@ export const TeacherDashboard: React.FC = () => {
       {/* Sub Tabs */}
       <div className="flex items-center gap-2 overflow-x-auto border-b border-slate-200 pb-2 text-xs">
         <button
+          onClick={() => setSubTab('joining-letter')}
+          className={`px-4 py-2 rounded-xl font-black transition flex items-center gap-1.5 shrink-0 ${
+            subTab === 'joining-letter'
+              ? 'bg-amber-400 text-slate-950 shadow-sm'
+              : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+          }`}
+        >
+          <FileCheck className="w-4 h-4 text-emerald-700" />
+          Joining Letter (HM)
+          {currentTeacher.joiningLetterIssued && (
+            <span className="px-1.5 py-0.2 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded-full">
+              Issued
+            </span>
+          )}
+        </button>
+
+        <button
+          onClick={() => setSubTab('confirmation-letter')}
+          className={`px-4 py-2 rounded-xl font-black transition flex items-center gap-1.5 shrink-0 ${
+            subTab === 'confirmation-letter'
+              ? 'bg-amber-400 text-slate-950 shadow-sm'
+              : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+          }`}
+        >
+          <ShieldCheck className="w-4 h-4 text-teal-700" />
+          Confirmation Letter
+        </button>
+
+        <button
           onClick={() => setSubTab('timetable')}
           className={`px-4 py-2 rounded-xl font-black transition flex items-center gap-1.5 shrink-0 ${
             subTab === 'timetable'
@@ -665,59 +777,9 @@ export const TeacherDashboard: React.FC = () => {
         </button>
       </div>
 
-      {/* SUB-TAB 1: Class Timetable */}
-      {/* Required by user prompt:
-          "Teacher can see the class timetable for teaching assigned by admin class day and timewise." */}
+      {/* SUB-TAB 1: Dynamic Timetable Management Section */}
       {subTab === 'timetable' && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-base font-extrabold text-slate-900">
-              Assigned Teaching Schedule (Day & Time-wise)
-            </h3>
-            <span className="text-xs text-slate-500 font-mono">
-              Managed centrally by Headmaster / Admin
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {myTimetable.map((slot) => (
-              <div
-                key={slot.id}
-                className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition space-y-3"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-extrabold text-xs bg-teal-50 text-teal-800 border border-teal-200 px-2.5 py-1 rounded-lg">
-                    {slot.day}
-                  </span>
-                  <span className="font-mono text-xs font-bold text-slate-600">
-                    {slot.time}
-                  </span>
-                </div>
-
-                <div>
-                  <div className="text-xs font-bold text-amber-600 uppercase tracking-wide">
-                    Period {slot.period}
-                  </div>
-                  <h4 className="text-base font-extrabold text-slate-900">{slot.subject}</h4>
-                  <p className="text-xs text-slate-600 font-semibold">{slot.className}</p>
-                </div>
-
-                <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
-                  <span>Room: Main High Block</span>
-                  <span className="text-emerald-700 font-bold">Scheduled</span>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {myTimetable.length === 0 && (
-            <div className="text-center py-12 bg-white rounded-2xl border border-slate-200 space-y-2">
-              <Clock className="w-10 h-10 text-slate-300 mx-auto" />
-              <p className="text-sm font-bold text-slate-700">No timetable assigned yet.</p>
-              <p className="text-xs text-slate-400">The Admin portal can assign subjects and periods to you.</p>
-            </div>
-          )}
-        </div>
+        <TeacherTimetableSection currentTeacher={currentTeacher} />
       )}
 
       {/* SUB-TAB 2: Mark Students Attendance class-wise from Period 1 */}
@@ -1028,6 +1090,452 @@ export const TeacherDashboard: React.FC = () => {
             remarks={remarks}
           />
         </div>
+      )}
+
+      {/* SUB-TAB 6: Official Joining Letter & Joining Report (Issued by HM) */}
+      {subTab === 'joining-letter' && (
+        <div className="space-y-6">
+          {/* Header Action Bar */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="p-2 bg-emerald-100 text-emerald-800 rounded-xl">
+                  <FileCheck className="w-5 h-5" />
+                </span>
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-900">
+                    Official Joining Letter & Report (Issued by Headmaster)
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Government of Sindh • School Education & Literacy Department (SELD)
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              {currentTeacher.joiningLetterType === 'manual' && currentTeacher.manualJoiningLetterUrl ? (
+                <>
+                  <a
+                    href={currentTeacher.manualJoiningLetterUrl}
+                    download={currentTeacher.manualJoiningLetterFileName || `${currentTeacher.name.replace(/\s+/g, '_')}_Joining_Letter.pdf`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-4 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-2 shadow-sm transition"
+                  >
+                    <Download className="w-3.5 h-3.5 text-amber-300" />
+                    Download Original PDF (Admin Uploaded)
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setPreviewDoc({
+                        url: currentTeacher.manualJoiningLetterUrl!,
+                        title: `Official Joining Letter - ${currentTeacher.name}`,
+                      })
+                    }
+                    className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center gap-1.5 transition"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                    Preview Full Document
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => downloadTeacherJoiningLetterPDF(currentTeacher, settings)}
+                  className="px-4 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-2 shadow-sm transition"
+                >
+                  <Download className="w-3.5 h-3.5 text-amber-300" />
+                  Download Joining Letter (PDF)
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() =>
+                  printIsolatedElement(
+                    'official-teacher-joining-letter-paper',
+                    `Joining_Letter_${currentTeacher.name.replace(/\s+/g, '_')}`
+                  )
+                }
+                className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center gap-1.5 transition"
+              >
+                <Printer className="w-3.5 h-3.5" />
+                Print Letter
+              </button>
+            </div>
+          </div>
+
+          {/* If manual file was uploaded by Admin, show direct banner and preview */}
+          {currentTeacher.joiningLetterType === 'manual' && currentTeacher.manualJoiningLetterUrl && (
+            <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-5 shadow-sm space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-amber-950 font-black text-sm">
+                  <FileCheck className="w-5 h-5 text-amber-700" />
+                  <span>Physical Official Joining Letter Uploaded by Admin / HM</span>
+                </div>
+                <span className="text-[10px] font-bold bg-amber-200 text-amber-900 px-2 py-0.5 rounded-full font-mono">
+                  {currentTeacher.manualJoiningLetterFileName || 'Joining_Letter_Signed.pdf'}
+                </span>
+              </div>
+              <p className="text-xs text-amber-900">
+                The school administration has reviewed your original credentials and uploaded this signed physical joining document. You can download this exact PDF/file or preview it below.
+              </p>
+              <div className="flex gap-2">
+                <a
+                  href={currentTeacher.manualJoiningLetterUrl}
+                  download={currentTeacher.manualJoiningLetterFileName || 'Joining_Letter.pdf'}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-lg shadow-sm"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  Download Uploaded PDF File
+                </a>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setPreviewDoc({
+                      url: currentTeacher.manualJoiningLetterUrl!,
+                      title: `HM Uploaded Joining Letter - ${currentTeacher.name}`,
+                    })
+                  }
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-white border border-amber-300 text-amber-900 text-xs font-bold rounded-lg hover:bg-amber-100"
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                  Open Fullscreen Document Viewer
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Formatted Official Joining Letter Document */}
+          <div
+            id="official-teacher-joining-letter-paper"
+            className="bg-white rounded-2xl border-2 border-slate-300 p-8 sm:p-12 shadow-lg max-w-4xl mx-auto space-y-6 text-slate-900 font-serif"
+          >
+            {/* Document Institutional Header */}
+            <div className="border-b-2 border-slate-900 pb-5 text-center relative space-y-1">
+              <div className="flex items-center justify-center gap-3 mb-2">
+                <SchoolLogo logoUrl={settings.logoUrl} size="md" />
+                <div>
+                  <h5 className="text-[11px] font-bold uppercase tracking-widest text-slate-600 font-sans">
+                    GOVERNMENT OF SINDH
+                  </h5>
+                  <h4 className="text-xs font-black uppercase text-emerald-950 font-sans">
+                    SCHOOL EDUCATION & LITERACY DEPARTMENT
+                  </h4>
+                </div>
+              </div>
+              <h2 className="text-xl sm:text-2xl font-black text-slate-950 tracking-tight uppercase font-sans">
+                OFFICE OF THE HEADMASTER
+              </h2>
+              <h3 className="text-base sm:text-lg font-extrabold text-emerald-900 font-sans">
+                {settings.schoolName}
+              </h3>
+              <p className="text-[11px] text-slate-600 font-sans">
+                SEMIS CODE: <strong className="font-mono">{settings.semisCode}</strong> • {settings.address}
+              </p>
+
+              <div className="pt-2 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-700 font-sans border-t border-slate-200 mt-3 font-semibold">
+                <span>Dispatch No: <strong className="font-mono text-slate-950">{currentTeacher.joiningLetterDispatchNo || 'GBHS-MHR/JON/2026/0142'}</strong></span>
+                <span>Dated: <strong className="text-slate-950">{currentTeacher.joiningLetterIssuedAt || new Date().toISOString().split('T')[0]}</strong></span>
+              </div>
+            </div>
+
+            {/* Title */}
+            <div className="text-center py-2">
+              <span className="inline-block border-2 border-slate-900 px-6 py-1 text-sm sm:text-base font-black uppercase tracking-wide bg-slate-50 font-sans">
+                OFFICIAL JOINING & CHARGE ASSUMPTION REPORT
+              </span>
+            </div>
+
+            {/* Directive Text */}
+            <div className="text-xs sm:text-sm text-slate-800 leading-relaxed space-y-4 font-sans">
+              <p>
+                In pursuance of Government of Sindh, School Education & Literacy Department (SELD) appointment / transfer orders and upon physical scrutiny and verification of original credentials, the joining report of the following faculty member is hereby officially accepted and endorsed:
+              </p>
+
+              {/* Particulars Table */}
+              <div className="rounded-xl border border-slate-300 overflow-hidden my-4">
+                <table className="w-full text-xs text-left">
+                  <tbody className="divide-y divide-slate-200">
+                    <tr className="bg-slate-50">
+                      <td className="py-2 px-4 font-bold text-slate-600 w-1/3">Faculty Name</td>
+                      <td className="py-2 px-4 font-black text-slate-950">{currentTeacher.name}</td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 px-4 font-bold text-slate-600">Father's Name</td>
+                      <td className="py-2 px-4 text-slate-900 font-semibold">{currentTeacher.fatherName || 'N/A'}</td>
+                    </tr>
+                    <tr className="bg-slate-50">
+                      <td className="py-2 px-4 font-bold text-slate-600">Designation / Post</td>
+                      <td className="py-2 px-4 font-bold text-emerald-900">{currentTeacher.designation} (BPS-{currentTeacher.designation === 'HST' ? '16' : currentTeacher.designation === 'Subject Specialist' ? '17' : '14'})</td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 px-4 font-bold text-slate-600">Personal ID (PID)</td>
+                      <td className="py-2 px-4 font-mono font-bold text-slate-900">{currentTeacher.pid}</td>
+                    </tr>
+                    <tr className="bg-slate-50">
+                      <td className="py-2 px-4 font-bold text-slate-600">CNIC Number</td>
+                      <td className="py-2 px-4 font-mono text-slate-900">{currentTeacher.cnic}</td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 px-4 font-bold text-slate-600">Subject Specialization</td>
+                      <td className="py-2 px-4 font-bold text-slate-900">{currentTeacher.subjectSpecialist}</td>
+                    </tr>
+                    <tr className="bg-slate-50">
+                      <td className="py-2 px-4 font-bold text-slate-600">Academic Qualifications</td>
+                      <td className="py-2 px-4 text-slate-900">{currentTeacher.qualification}</td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 px-4 font-bold text-slate-600">Effective Date of Joining</td>
+                      <td className="py-2 px-4 font-black text-emerald-900">{currentTeacher.joiningDate || '2026-03-01'} (Forenoon)</td>
+                    </tr>
+                    <tr className="bg-slate-50">
+                      <td className="py-2 px-4 font-bold text-slate-600">Administrative Remarks</td>
+                      <td className="py-2 px-4 text-slate-700 italic">{currentTeacher.joiningRemarks || 'Original CNIC & Appointment order verified and found authentic. Taken on duty.'}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <p>
+                The said faculty member has physically reported on duty at <strong>{settings.schoolName}</strong> on the date specified above. They are hereby directed to assume regular teaching assignments and timetable duties as scheduled.
+              </p>
+            </div>
+
+            {/* Signatures & Seal Box */}
+            <div className="pt-8 border-t border-slate-200 grid grid-cols-2 gap-8 items-end font-sans">
+              <div className="text-center space-y-2">
+                <div className="h-16 flex items-center justify-center font-cursive text-slate-600 italic">
+                  {currentTeacher.name}
+                </div>
+                <div className="border-t border-slate-400 pt-1 text-xs">
+                  <div className="font-extrabold text-slate-900">{currentTeacher.name}</div>
+                  <div className="text-[10px] text-slate-500">Signature of Incumbent / Teacher</div>
+                </div>
+              </div>
+
+              <div className="text-center space-y-1">
+                <HeadmasterSignatureDisplay
+                  signatureUrl={settings.headmasterSignatureUrl}
+                  headmasterName={settings.headmasterName || 'Headmaster'}
+                  label="Headmaster Official Seal & Stamp"
+                  subLabel={settings.schoolName}
+                  size="md"
+                />
+              </div>
+            </div>
+
+            {/* Copy Forwarded */}
+            <div className="pt-6 border-t border-slate-200 text-[10px] text-slate-500 font-sans space-y-1">
+              <div className="font-bold uppercase text-slate-700">A copy is forwarded for information and necessary action to:</div>
+              <ol className="list-decimal list-inside space-y-0.5">
+                <li>The Director of Schools Education (Elementary/Secondary & Higher Secondary), Mirpurkhas Division.</li>
+                <li>The District Education Officer (DEO), Tharparkar @ Mithi.</li>
+                <li>The District Accounts Officer (DAO), Tharparkar @ Mithi.</li>
+                <li>Personal Service Book / File of the official concerned.</li>
+                <li>Office order file.</li>
+              </ol>
+            </div>
+          </div>
+
+          {/* Submitted Verification Documents Section */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <h4 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-emerald-700" />
+                  Teacher Scrutinized Verification Documents
+                </h4>
+                <p className="text-xs text-slate-500">
+                  Original records scrutinized and verified by the Administration prior to issuing this Joining Letter
+                </p>
+              </div>
+              <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
+                Verified & Archived
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+              {/* CNIC */}
+              <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 flex flex-col justify-between space-y-3">
+                <div>
+                  <span className="font-bold text-slate-500 uppercase text-[10px] block">Government CNIC Document</span>
+                  <div className="font-mono font-bold text-slate-900 mt-1">{currentTeacher.cnic}</div>
+                  <div className="text-slate-500 text-[11px] truncate mt-0.5">
+                    {currentTeacher.cnicFileName || 'CNIC_Document.pdf'}
+                  </div>
+                </div>
+
+                {currentTeacher.cnicFileUrl ? (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setPreviewDoc({
+                        url: currentTeacher.cnicFileUrl!,
+                        title: `CNIC Document - ${currentTeacher.name}`,
+                      })
+                    }
+                    className="w-full py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-lg flex items-center justify-center gap-1.5 transition shadow-xs"
+                  >
+                    <Eye className="w-3.5 h-3.5 text-amber-300" />
+                    View Real CNIC Document
+                  </button>
+                ) : (
+                  <span className="text-slate-400 italic">No CNIC file uploaded</span>
+                )}
+              </div>
+
+              {/* Appointment Order */}
+              <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 flex flex-col justify-between space-y-3">
+                <div>
+                  <span className="font-bold text-slate-500 uppercase text-[10px] block">Transfer / Appointment Order</span>
+                  <div className="font-mono font-bold text-slate-900 mt-1">{currentTeacher.pid}</div>
+                  <div className="text-slate-500 text-[11px] truncate mt-0.5">
+                    {currentTeacher.appointmentOrderFileName || 'Appointment_Order.pdf'}
+                  </div>
+                </div>
+
+                {currentTeacher.appointmentOrderUrl ? (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setPreviewDoc({
+                        url: currentTeacher.appointmentOrderUrl!,
+                        title: `Appointment / Transfer Order - ${currentTeacher.name}`,
+                      })
+                    }
+                    className="w-full py-2 bg-emerald-800 hover:bg-emerald-700 text-white font-bold rounded-lg flex items-center justify-center gap-1.5 transition shadow-xs"
+                  >
+                    <Eye className="w-3.5 h-3.5 text-amber-300" />
+                    View Real Appointment Order
+                  </button>
+                ) : (
+                  <span className="text-slate-400 italic">No Appointment order file uploaded</span>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SUB-TAB 7: Faculty Confirmation Letter */}
+      {subTab === 'confirmation-letter' && (
+        <div className="space-y-6">
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+              <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-teal-700" />
+                Faculty Appointment & Confirmation Letter
+              </h3>
+              <p className="text-xs text-slate-500">
+                Official institutional verification document issued by Government Boys High School Mehrand
+              </p>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => downloadTeacherConfirmationLetterPDF(currentTeacher, settings)}
+                className="px-4 py-2 rounded-xl bg-teal-800 hover:bg-teal-700 text-white font-bold text-xs flex items-center gap-2 shadow-sm transition"
+              >
+                <Download className="w-3.5 h-3.5 text-amber-300" />
+                Download Confirmation Letter (PDF)
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  printIsolatedElement(
+                    'official-teacher-confirmation-letter-paper',
+                    `Confirmation_Letter_${currentTeacher.name.replace(/\s+/g, '_')}`
+                  )
+                }
+                className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center gap-1.5 transition"
+              >
+                <Printer className="w-3.5 h-3.5" />
+                Print Letter
+              </button>
+            </div>
+          </div>
+
+          <div
+            id="official-teacher-confirmation-letter-paper"
+            className="bg-white rounded-2xl border-2 border-slate-300 p-8 sm:p-12 shadow-lg max-w-4xl mx-auto space-y-6 text-slate-900 font-sans"
+          >
+            {/* Header */}
+            <div className="border-b-2 border-slate-900 pb-5 text-center relative space-y-1">
+              <div className="flex items-center justify-center gap-3 mb-2">
+                <SchoolLogo logoUrl={settings.logoUrl} size="md" />
+                <div>
+                  <h5 className="text-[11px] font-bold uppercase tracking-widest text-slate-600">
+                    GOVERNMENT OF SINDH
+                  </h5>
+                  <h4 className="text-xs font-black uppercase text-emerald-950">
+                    SCHOOL EDUCATION & LITERACY DEPARTMENT
+                  </h4>
+                </div>
+              </div>
+              <h2 className="text-xl sm:text-2xl font-black text-slate-950 tracking-tight uppercase">
+                {settings.schoolName}
+              </h2>
+              <p className="text-[11px] text-slate-600">
+                SEMIS CODE: <strong className="font-mono">{settings.semisCode}</strong> • {settings.address}
+              </p>
+
+              <div className="pt-2 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-700 border-t border-slate-200 mt-3 font-semibold">
+                <span>Ref: <strong className="font-mono text-slate-950">GBHS-MHR/CONF/{currentTeacher.pid}</strong></span>
+                <span>Date: <strong className="text-slate-950">{new Date().toLocaleDateString('en-GB')}</strong></span>
+              </div>
+            </div>
+
+            {/* Letter Title */}
+            <div className="text-center py-2">
+              <span className="inline-block border-2 border-slate-900 px-6 py-1 text-sm sm:text-base font-black uppercase tracking-wide bg-slate-50">
+                TO WHOM IT MAY CONCERN / SERVICE CONFIRMATION LETTER
+              </span>
+            </div>
+
+            {/* Letter Body */}
+            <div className="text-xs sm:text-sm text-slate-800 leading-relaxed space-y-4">
+              <p>
+                This is to officially certify that <strong>Mr./Ms. {currentTeacher.name}</strong>, S/O / D/O <strong>{currentTeacher.fatherName || 'N/A'}</strong>, holding Government Personal ID <strong>{currentTeacher.pid}</strong> and CNIC No. <strong>{currentTeacher.cnic}</strong>, is a bonafide regular faculty member at <strong>{settings.schoolName}</strong> (SEMIS: {settings.semisCode}).
+              </p>
+
+              <p>
+                The incumbent is actively appointed as <strong>{currentTeacher.designation}</strong> and serves as <strong>Subject Specialist ({currentTeacher.subjectSpecialist})</strong>. According to official institutional records, their joining at this institution stands confirmed with effect from <strong>{currentTeacher.joiningDate || '01-03-2026'}</strong>.
+              </p>
+
+              <p>
+                During their tenure at this institution, their character, conduct, and professional devotion to academic instruction have been exemplary.
+              </p>
+            </div>
+
+            {/* Headmaster Signature */}
+            <div className="pt-10 border-t border-slate-200 flex justify-end">
+              <div className="text-center w-64">
+                <HeadmasterSignatureDisplay
+                  signatureUrl={settings.headmasterSignatureUrl}
+                  headmasterName={settings.headmasterName || 'Headmaster'}
+                  label="Headmaster Official Seal & Stamp"
+                  subLabel={settings.schoolName}
+                  size="md"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Document Viewer Modal */}
+      {previewDoc && (
+        <DocumentViewerModal
+          isOpen={true}
+          onClose={() => setPreviewDoc(null)}
+          documentUrl={previewDoc.url}
+          title={previewDoc.title}
+        />
       )}
     </div>
   );

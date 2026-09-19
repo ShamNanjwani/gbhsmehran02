@@ -32,6 +32,8 @@ import { ConfirmationLetter } from './cards/ConfirmationLetter';
 import { DocumentViewerModal } from './common/DocumentViewerModal';
 import { SafeMediaImage } from './common/SafeMediaImage';
 import { SchoolLogo } from './common/SchoolLogo';
+import { StudentTimetableSection } from './StudentTimetableSection';
+import { AnnouncementBanner } from './common/AnnouncementBanner';
 import { Student } from '../types';
 
 export const StudentDashboard: React.FC = () => {
@@ -97,7 +99,10 @@ export const StudentDashboard: React.FC = () => {
   // IF NOT LOGGED IN AS STUDENT, SHOW LOGIN VIEW
   if (!currentStudent || currentRole !== 'student') {
     return (
-      <div className="max-w-xl mx-auto py-12 px-4 space-y-6">
+      <div className="max-w-2xl mx-auto py-12 px-4 space-y-6">
+        {/* School Announcement Banner for Students & Parents */}
+        <AnnouncementBanner role="student" />
+
         <div className="bg-white rounded-3xl border-2 border-emerald-800/20 shadow-2xl p-6 sm:p-8 space-y-6">
           <div className="text-center space-y-3">
             <div className="flex justify-center">
@@ -222,6 +227,12 @@ export const StudentDashboard: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      {/* Official School-Wide Announcements & Urgent Advisory Banner */}
+      <AnnouncementBanner
+        role="student"
+        targetClass={currentStudent.appliedClass}
+      />
+
       {/* Top Banner / Admission Status */}
       <div className="bg-gradient-to-r from-emerald-950 via-emerald-900 to-teal-950 text-white rounded-2xl p-6 sm:p-8 shadow-xl border-b-4 border-amber-400">
         <div className="flex flex-col md:flex-row items-center justify-between gap-6">
@@ -753,45 +764,9 @@ export const StudentDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* SUB-TAB 8: Timetable */}
+      {/* SUB-TAB 8: Dynamic Timetable Management Section */}
       {activeSubTab === 'timetable' && (
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
-          <div className="border-b border-slate-100 pb-3">
-            <h3 className="text-base font-extrabold text-slate-900">
-              Class Schedule & Teaching Timetable
-            </h3>
-            <p className="text-xs text-slate-500">
-              Period 1 to Period 6 timetable for {currentStudent.appliedClass}
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {classTimetable.map((slot) => (
-              <div
-                key={slot.id}
-                className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-2 hover:border-emerald-500 transition"
-              >
-                <div className="flex items-center justify-between text-xs font-bold">
-                  <span className="bg-emerald-800 text-white px-2 py-0.5 rounded">
-                    Period {slot.period}
-                  </span>
-                  <span className="text-slate-500 font-mono text-[11px]">{slot.time}</span>
-                </div>
-
-                <div>
-                  <h5 className="font-extrabold text-slate-900 text-sm">{slot.subject}</h5>
-                  <p className="text-xs text-slate-600 font-medium">{slot.teacherName}</p>
-                </div>
-
-                {slot.isSubstituted && (
-                  <div className="text-[10px] bg-amber-100 text-amber-900 px-2 py-1 rounded font-bold">
-                    Proxy Teacher Today: {slot.substitutedTeacherName} ({slot.substitutionReason})
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
+        <StudentTimetableSection currentStudent={currentStudent} />
       )}
 
       {/* Global Document Viewer for Student Records */}

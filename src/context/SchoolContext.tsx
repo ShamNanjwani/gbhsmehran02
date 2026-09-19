@@ -11,6 +11,7 @@ import {
   LeaderMessage,
   SchoolSettings,
   ContactInquiry,
+  AnnouncementItem,
 } from '../types';
 import {
   initialSchoolSettings,
@@ -69,6 +70,18 @@ interface SchoolContextType {
   registerTeacher: (teacher: Omit<Teacher, 'id' | 'status' | 'joinDate'>) => { success: boolean; teacherId: string };
   updateTeacher: (teacherId: string, updatedData: Partial<Teacher>) => void;
   approveTeacher: (teacherId: string) => void;
+  approveTeacherWithJoiningLetter: (
+    teacherId: string,
+    options: {
+      type: 'auto' | 'manual';
+      manualPdfUrl?: string;
+      manualFileName?: string;
+      dispatchNo?: string;
+      date?: string;
+      remarks?: string;
+      confirmationLetterUrl?: string;
+    }
+  ) => void;
   rejectTeacher: (teacherId: string) => void;
   deleteTeacher: (teacherId: string) => void;
 
@@ -92,6 +105,14 @@ interface SchoolContextType {
   updateLeaderMessage: (id: string, updated: Partial<LeaderMessage>) => Promise<boolean>;
   submitInquiry: (inquiry: Omit<ContactInquiry, 'id' | 'createdAt' | 'status'>) => void;
   markInquiryRead: (id: string) => void;
+
+  // Announcements & Urgent Updates
+  addAnnouncement: (announcement: Omit<AnnouncementItem, 'id' | 'date'> & { date?: string }) => Promise<boolean>;
+  updateAnnouncement: (id: string, updated: Partial<AnnouncementItem>) => Promise<boolean>;
+  deleteAnnouncement: (id: string) => Promise<boolean>;
+  toggleAnnouncementPin: (id: string) => Promise<boolean>;
+  toggleAnnouncementActive: (id: string) => Promise<boolean>;
+  broadcastUrgentAlert: (title: string, message: string, targetAudience?: 'all' | 'students' | 'teachers', targetClass?: string) => Promise<boolean>;
 
   // Live Website Synchronization, Data Preservation & Backup
   isSyncing: boolean;
@@ -157,10 +178,23 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
   const [settings, setSettings] = useState<SchoolSettings>(() => {
     const s = getStored<SchoolSettings>('settings', initialSchoolSettings);
-    if (s && s.establishedYear === '1985') {
-      return { ...s, establishedYear: '1995' };
+    let finalSettings = s;
+    if (finalSettings && finalSettings.establishedYear === '1985') {
+      finalSettings = { ...finalSettings, establishedYear: '1995' };
     }
-    return s;
+    // Upgrade existing legacy announcement records if missing rich properties
+    if (
+      finalSettings &&
+      (!finalSettings.announcements ||
+        finalSettings.announcements.length === 0 ||
+        !finalSettings.announcements[0]?.priority)
+    ) {
+      finalSettings = {
+        ...finalSettings,
+        announcements: initialSchoolSettings.announcements,
+      };
+    }
+    return finalSettings;
   });
   const [leaderMessages, setLeaderMessages] = useState<LeaderMessage[]>(() => getStored<LeaderMessage[]>('leaderMessages', initialLeaderMessages));
   const [teachers, setTeachers] = useState<Teacher[]>(() => getStored<Teacher[]>('teachers', initialTeachers));
@@ -987,11 +1021,51 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   };
 
   const approveTeacher = (teacherId: string) => {
+    approveTeacherWithJoiningLetter(teacherId, {
+      type: 'auto',
+      date: new Date().toLocaleDateString('en-GB'),
+      dispatchNo: `GBHS-MHR/JON/2026/${Math.floor(1000 + Math.random() * 9000)}`,
+      remarks: 'Verified credentials and approved by Headmaster.',
+    });
+  };
+
+  const approveTeacherWithJoiningLetter = (
+    teacherId: string,
+    options: {
+      type: 'auto' | 'manual';
+      manualPdfUrl?: string;
+      manualFileName?: string;
+      dispatchNo?: string;
+      date?: string;
+      remarks?: string;
+      confirmationLetterUrl?: string;
+    }
+  ) => {
     let updatedList: Teacher[] = [];
+    const today = options.date || new Date().toLocaleDateString('en-GB');
+    const dispatchNo = options.dispatchNo || `GBHS-MHR/JON/2026/${Math.floor(1000 + Math.random() * 9000)}`;
+
     setTeachers((prev) => {
       updatedList = prev.map((t) => {
         if (t.id === teacherId) {
-          const updated = { ...t, status: 'approved' as const };
+          const updated: Teacher = {
+            ...t,
+            status: 'approved',
+            joiningLetterIssued: true,
+            joiningLetterType: options.type,
+            joiningLetterUrl: options.manualPdfUrl || t.joiningLetterUrl,
+            manualJoiningLetterUrl: options.manualPdfUrl || t.manualJoiningLetterUrl || t.joiningLetterUrl,
+            joiningLetterFileName: options.manualFileName || t.joiningLetterFileName,
+            manualJoiningLetterFileName: options.manualFileName || t.manualJoiningLetterFileName || t.joiningLetterFileName,
+            joiningLetterDispatchNo: dispatchNo,
+            joiningLetterDate: today,
+            joiningLetterIssuedAt: today,
+            joiningLetterRemarks: options.remarks || 'Original credentials and appointment orders scrutinized and authenticated by Headmaster.',
+            joiningRemarks: options.remarks || 'Original credentials and appointment orders scrutinized and authenticated by Headmaster.',
+            joiningDate: today,
+            joiningLetterIssuedBy: settings.headmasterName || 'Headmaster, GBHS Mehrand',
+            confirmationLetterUrl: options.confirmationLetterUrl || t.confirmationLetterUrl,
+          };
           if (currentUser?.id === teacherId) {
             setCurrentUser((u: any) => ({ ...u, extra: updated }));
           }
@@ -999,6 +1073,7 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         }
         return t;
       });
+
       fetch('/api/school-data/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1007,7 +1082,12 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       return updatedList;
     });
 
-    showAlert('Teacher Approved!', 'Teacher is now approved, granted access to Teacher Dashboard, and listed publicly on the Faculty tab.', 'success');
+    const letterTypeDesc = options.type === 'manual' ? 'Manual Headmaster Signed Document' : 'Auto-Generated Official Joining Letter';
+    showAlert(
+      'Teacher Approved & Joining Letter Issued!',
+      `Teacher has been approved. Joining Letter (${letterTypeDesc}) has been issued by HM and routed to the Teacher Portal.`,
+      'success'
+    );
   };
 
   const rejectTeacher = (teacherId: string) => {
@@ -1342,6 +1422,80 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     }).catch(() => {});
   };
 
+  // Announcements & Urgent Flash Updates Handlers
+  const addAnnouncement = async (item: Omit<AnnouncementItem, 'id' | 'date'> & { date?: string }): Promise<boolean> => {
+    const newAnn: AnnouncementItem = {
+      ...item,
+      id: `ann-${Date.now()}`,
+      date: item.date || new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
+      priority: item.priority || 'normal',
+      targetAudience: item.targetAudience || 'all',
+      isActive: item.isActive !== false,
+      pinned: item.pinned || false,
+      issuedBy: item.issuedBy || 'Headmaster Office, GBHS Mehrand',
+    };
+    const currentList = settings.announcements || [];
+    const updatedList = [newAnn, ...currentList];
+    const success = await updateSettings({ announcements: updatedList });
+    if (newAnn.priority === 'urgent') {
+      showAlert('Urgent Flash Alert Broadcasted!', `"${newAnn.title}" is now active on Student and Teacher dashboards.`, 'success');
+    } else {
+      showAlert('Announcement Published', `"${newAnn.title}" posted and synced across all portals.`, 'success');
+    }
+    return success;
+  };
+
+  const updateAnnouncement = async (id: string, updated: Partial<AnnouncementItem>): Promise<boolean> => {
+    const currentList = settings.announcements || [];
+    const updatedList = currentList.map((ann) => (ann.id === id ? { ...ann, ...updated } : ann));
+    const success = await updateSettings({ announcements: updatedList });
+    showAlert('Announcement Updated', 'Notice changes saved and synced across dashboards.', 'success');
+    return success;
+  };
+
+  const deleteAnnouncement = async (id: string): Promise<boolean> => {
+    const currentList = settings.announcements || [];
+    const updatedList = currentList.filter((ann) => ann.id !== id);
+    const success = await updateSettings({ announcements: updatedList });
+    showAlert('Announcement Removed', 'Notice removed from student and teacher dashboards.', 'info');
+    return success;
+  };
+
+  const toggleAnnouncementPin = async (id: string): Promise<boolean> => {
+    const currentList = settings.announcements || [];
+    const updatedList = currentList.map((ann) =>
+      ann.id === id ? { ...ann, pinned: !ann.pinned } : ann
+    );
+    return await updateSettings({ announcements: updatedList });
+  };
+
+  const toggleAnnouncementActive = async (id: string): Promise<boolean> => {
+    const currentList = settings.announcements || [];
+    const updatedList = currentList.map((ann) =>
+      ann.id === id ? { ...ann, isActive: !(ann.isActive !== false) } : ann
+    );
+    return await updateSettings({ announcements: updatedList });
+  };
+
+  const broadcastUrgentAlert = async (
+    title: string,
+    message: string,
+    targetAudience: 'all' | 'students' | 'teachers' = 'all',
+    targetClass?: string
+  ): Promise<boolean> => {
+    return await addAnnouncement({
+      title,
+      message,
+      tag: 'Urgent Alert',
+      priority: 'urgent',
+      targetAudience,
+      targetClass: targetClass || 'All Classes',
+      pinned: true,
+      isActive: true,
+      issuedBy: 'Emergency Command / Office of the Headmaster',
+    });
+  };
+
   return (
     <SchoolContext.Provider
       value={{
@@ -1387,6 +1541,7 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         registerTeacher,
         updateTeacher,
         approveTeacher,
+        approveTeacherWithJoiningLetter,
         rejectTeacher,
         deleteTeacher,
         updateTimetableSlot,
@@ -1400,6 +1555,12 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         updateLeaderMessage,
         submitInquiry,
         markInquiryRead,
+        addAnnouncement,
+        updateAnnouncement,
+        deleteAnnouncement,
+        toggleAnnouncementPin,
+        toggleAnnouncementActive,
+        broadcastUrgentAlert,
       }}
     >
       {children}

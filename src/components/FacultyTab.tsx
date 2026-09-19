@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useSchool } from '../context/SchoolContext';
 import { FileUploadZone } from './common/FileUploadZone';
 import { SafeMediaImage } from './common/SafeMediaImage';
+import { SchoolLogo } from './common/SchoolLogo';
 import { HeadmasterSignatureDisplay } from './common/HeadmasterSignatureDisplay';
+import { FacultyProfileModal } from './FacultyProfileModal';
 import {
   Users,
   Mail,
@@ -19,15 +21,30 @@ import {
   Eye,
   EyeOff,
   ShieldCheck,
+  Grid,
+  List,
+  Filter,
+  RotateCcw,
+  GraduationCap,
+  ChevronRight,
+  Sparkles,
+  Calendar,
+  CheckCircle2,
 } from 'lucide-react';
 import { Teacher } from '../types';
 
 export const FacultyTab: React.FC = () => {
-  const { teachers, registerTeacher, setActiveTab, settings, leaderMessages } = useSchool();
+  const { teachers, registerTeacher, setActiveTab, settings, leaderMessages, timetable } = useSchool();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSubject, setSelectedSubject] = useState<string>('All');
+  const [selectedCadre, setSelectedCadre] = useState<string>('All');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [showModalPassword, setShowModalPassword] = useState(false);
+
+  // Professional profile modal state
+  const [selectedTeacherForProfile, setSelectedTeacherForProfile] = useState<Teacher | null>(null);
+  const [isHeadmasterProfileModal, setIsHeadmasterProfileModal] = useState(false);
 
   const headmasterMsg = leaderMessages.find((m) => m.id === 'headmaster');
   const activeHeadmasterName = settings.headmasterName || headmasterMsg?.name || 'Headmaster';
@@ -45,26 +62,102 @@ export const FacultyTab: React.FC = () => {
     subjectSpecialist: '',
     designation: 'JEST',
     pictureUrl: '',
+    cnicFileUrl: '',
+    cnicFileName: '',
+    appointmentOrderUrl: '',
+    appointmentOrderFileName: '',
   });
 
   // Filter approved teachers for public faculty page
-  const approvedTeachers = teachers.filter((t) => t.status === 'approved');
+  const approvedTeachers = useMemo(() => {
+    return teachers.filter((t) => t.status === 'approved');
+  }, [teachers]);
 
-  // Subjects for filter
-  const subjects = ['All', 'Computer Science', 'Mathematics', 'Physics', 'English', 'Chemistry', 'Sindhi'];
+  // Subject categories list with counts
+  const subjectList = [
+    { id: 'All', label: 'All Subjects' },
+    { id: 'Computer Science', label: 'Computer Science' },
+    { id: 'Mathematics', label: 'Mathematics' },
+    { id: 'Physics', label: 'Physics' },
+    { id: 'English', label: 'English' },
+    { id: 'Chemistry', label: 'Chemistry & Biology' },
+    { id: 'Sindhi', label: 'Sindhi Literature' },
+    { id: 'General Science', label: 'General Science' },
+  ];
 
-  const filteredTeachers = approvedTeachers.filter((t) => {
-    const matchesSearch =
-      t.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      t.subjectSpecialist.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      t.qualification.toLowerCase().includes(searchTerm.toLowerCase());
+  // Cadre designations
+  const cadres = ['All', 'JEST', 'HST', 'PST'];
 
-    const matchesSubject =
-      selectedSubject === 'All' ||
-      t.subjectSpecialist.toLowerCase().includes(selectedSubject.toLowerCase());
+  // Filtered teachers logic
+  const filteredTeachers = useMemo(() => {
+    return approvedTeachers.filter((t) => {
+      const term = searchTerm.toLowerCase().trim();
+      const matchesSearch =
+        !term ||
+        t.name.toLowerCase().includes(term) ||
+        t.fatherName.toLowerCase().includes(term) ||
+        t.subjectSpecialist.toLowerCase().includes(term) ||
+        t.qualification.toLowerCase().includes(term) ||
+        (t.pid && t.pid.toLowerCase().includes(term)) ||
+        (t.designation && t.designation.toLowerCase().includes(term));
 
-    return matchesSearch && matchesSubject;
-  });
+      const matchesSubject =
+        selectedSubject === 'All' ||
+        t.subjectSpecialist.toLowerCase().includes(selectedSubject.toLowerCase());
+
+      const matchesCadre =
+        selectedCadre === 'All' ||
+        (t.designation && t.designation.toUpperCase().includes(selectedCadre.toUpperCase()));
+
+      return matchesSearch && matchesSubject && matchesCadre;
+    });
+  }, [approvedTeachers, searchTerm, selectedSubject, selectedCadre]);
+
+  // Subject counts for badge indicators
+  const getSubjectCount = (subId: string) => {
+    if (subId === 'All') return approvedTeachers.length;
+    return approvedTeachers.filter((t) =>
+      t.subjectSpecialist.toLowerCase().includes(subId.toLowerCase())
+    ).length;
+  };
+
+  const resetFilters = () => {
+    setSearchTerm('');
+    setSelectedSubject('All');
+    setSelectedCadre('All');
+  };
+
+  // Construct Headmaster pseudo-teacher object for profile modal
+  const headmasterAsTeacher: Teacher = useMemo(() => {
+    return {
+      id: 'headmaster-gov-profile',
+      name: activeHeadmasterName,
+      fatherName: 'Institutional Incharge',
+      pid: 'PID-HM-406020752',
+      cnic: '44301-XXXXXXX-1',
+      email: settings.contactEmail || 'headmaster.gbhsmehrand@seld.gos.pk',
+      mobileNo: settings.contactPhone || '+92-346-3847836',
+      qualification: 'M.A (Edu), M.Ed, Sindh School Leadership Certified (BPS-17)',
+      subjectSpecialist: 'School Governance, Educational Leadership & Institutional Administration',
+      pictureUrl:
+        headmasterMsg?.pictureUrl ||
+        settings.logoUrl ||
+        'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=500&q=80',
+      status: 'approved',
+      joinDate: '10-04-2012',
+      designation: 'Headmaster (BPS-17)',
+      isAvailableToday: true,
+      joiningLetterIssued: true,
+      joiningLetterDispatchNo: 'SELD-DIR/SE/HYD/2012/0014',
+      joiningLetterDate: '10-04-2012',
+      joiningRemarks: 'Confirmed Head of Institution under School Education & Literacy Department, Sindh.',
+    };
+  }, [activeHeadmasterName, headmasterMsg, settings]);
+
+  const handleOpenProfile = (teacher: Teacher, isHeadmaster = false) => {
+    setSelectedTeacherForProfile(teacher);
+    setIsHeadmasterProfileModal(isHeadmaster);
+  };
 
   const handleSubmitTeacher = (e: React.FormEvent) => {
     e.preventDefault();
@@ -86,6 +179,10 @@ export const FacultyTab: React.FC = () => {
       pictureUrl: formData.pictureUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
       designation: formData.designation,
       isAvailableToday: true,
+      cnicFileUrl: formData.cnicFileUrl,
+      cnicFileName: formData.cnicFileName,
+      appointmentOrderUrl: formData.appointmentOrderUrl,
+      appointmentOrderFileName: formData.appointmentOrderFileName,
     });
 
     alert(
@@ -97,67 +194,35 @@ export const FacultyTab: React.FC = () => {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
       {/* Header & Registration CTA */}
-      <div className="bg-gradient-to-r from-emerald-950 via-emerald-900 to-teal-950 text-white rounded-2xl p-8 shadow-lg flex flex-col md:flex-row items-center justify-between gap-6 border-b-4 border-amber-400">
-        <div className="space-y-2 text-center md:text-left">
+      <div className="bg-gradient-to-r from-emerald-950 via-emerald-900 to-teal-950 text-white rounded-3xl p-6 sm:p-8 shadow-xl flex flex-col md:flex-row items-center justify-between gap-6 border-b-4 border-amber-400 relative overflow-hidden">
+        <div className="space-y-2 text-center md:text-left z-10">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-800 text-emerald-200 text-xs font-semibold">
             <Users className="w-3.5 h-3.5 text-amber-300" />
-            <span>Dedicated Educators of Tharparkar</span>
+            <span>Government Secondary Educators • Tharparkar</span>
           </div>
-          <h2 className="text-2xl sm:text-3xl font-black tracking-tight">
-            Faculty & Teaching Staff
+          <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
+            Interactive Faculty Directory
           </h2>
-          <p className="text-xs sm:text-sm text-emerald-100 max-w-2xl">
-            Meet the esteemed educators at Government Boys High School Mehrand (SEMIS: 406020752), fostering academic rigor, moral character, and scientific advancement.
+          <p className="text-xs sm:text-sm text-emerald-100 max-w-2xl leading-relaxed">
+            Explore verified government teaching personnel at Government Boys High School Mehrand (SEMIS: 406020752). Filter by subject specialist, search by name or PID, and view comprehensive professional credentials.
           </p>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-3">
+        <div className="flex flex-col sm:flex-row gap-3 z-10 shrink-0 w-full sm:w-auto">
           <button
             onClick={() => setShowRegisterModal(true)}
-            className="px-5 py-3 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs sm:text-sm shadow-md transition flex items-center gap-2"
+            className="px-5 py-3 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs sm:text-sm shadow-md transition flex items-center justify-center gap-2"
           >
             <UserPlus className="w-4 h-4" />
-            Teacher Registration / Join Faculty
+            Join Faculty / Register
           </button>
           <button
             onClick={() => setActiveTab('teacher-portal')}
-            className="px-4 py-3 rounded-xl bg-emerald-800/80 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm border border-emerald-600 transition"
+            className="px-4 py-3 rounded-xl bg-emerald-800/80 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm border border-emerald-600 transition flex items-center justify-center gap-1.5"
           >
+            <Briefcase className="w-4 h-4 text-emerald-300" />
             Teacher Portal Login
           </button>
-        </div>
-      </div>
-
-      {/* Filter & Search Bar */}
-      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
-        {/* Search */}
-        <div className="relative w-full md:w-80">
-          <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search teacher by name or subject..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 text-xs sm:text-sm rounded-lg border border-slate-200 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
-          />
-        </div>
-
-        {/* Subject pills */}
-        <div className="flex items-center gap-1.5 overflow-x-auto w-full md:w-auto pb-1 md:pb-0 text-xs">
-          <span className="text-slate-400 font-semibold mr-1 shrink-0">Subject:</span>
-          {subjects.map((sub) => (
-            <button
-              key={sub}
-              onClick={() => setSelectedSubject(sub)}
-              className={`px-3 py-1.5 rounded-lg font-bold shrink-0 transition ${
-                selectedSubject === sub
-                  ? 'bg-emerald-800 text-white shadow-xs'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
-            >
-              {sub}
-            </button>
-          ))}
         </div>
       </div>
 
@@ -165,7 +230,7 @@ export const FacultyTab: React.FC = () => {
       <div className="bg-gradient-to-r from-slate-950 via-emerald-950 to-slate-900 text-white rounded-3xl p-6 sm:p-7 shadow-xl border-2 border-amber-400/40 relative overflow-hidden">
         <div className="flex flex-col md:flex-row items-center justify-between gap-6 relative z-10">
           <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5 text-center sm:text-left">
-            <div className="w-20 h-20 sm:w-22 sm:h-22 rounded-2xl overflow-hidden border-2 border-amber-400 shadow-xl bg-slate-900 shrink-0 flex items-center justify-center">
+            <div className="w-20 h-20 sm:w-22 sm:h-22 rounded-2xl overflow-hidden border-2 border-amber-400 shadow-xl bg-slate-900 shrink-0 flex items-center justify-center relative">
               {headmasterMsg?.pictureUrl ? (
                 <SafeMediaImage
                   src={headmasterMsg.pictureUrl}
@@ -177,8 +242,11 @@ export const FacultyTab: React.FC = () => {
               ) : (
                 <Award className="w-10 h-10 text-amber-400" />
               )}
+              <span className="absolute bottom-1 right-1 bg-amber-400 text-slate-950 p-0.5 rounded-full shadow-2xs">
+                <ShieldCheck className="w-3.5 h-3.5" />
+              </span>
             </div>
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-amber-400/20 border border-amber-400/30 text-amber-300 text-[11px] font-extrabold uppercase tracking-wider">
                 <ShieldCheck className="w-3.5 h-3.5" />
                 <span>Head of Institution</span>
@@ -187,7 +255,7 @@ export const FacultyTab: React.FC = () => {
                 {activeHeadmasterName}
               </h2>
               <p className="text-xs sm:text-sm text-emerald-200 font-semibold">
-                Headmaster & Administrative Incharge • {settings.schoolName}
+                Headmaster & Administrative Incharge (BPS-17) • {settings.schoolName}
               </p>
               <p className="text-xs text-slate-300 max-w-xl pt-0.5 leading-relaxed">
                 Supervising academic quality, faculty duties, student evaluations, admissions, and institutional governance under School Education & Literacy Department, Govt. of Sindh.
@@ -195,113 +263,355 @@ export const FacultyTab: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-3 sm:p-4 border border-white/20 text-center shrink-0 w-full sm:w-auto min-w-[170px]">
-            <span className="text-[10px] uppercase font-extrabold text-amber-300 block mb-1">
-              Institutional Authority Seal
-            </span>
-            <div className="bg-white rounded-xl p-2.5 shadow-inner">
-              <HeadmasterSignatureDisplay
-                signatureUrl={settings.headmasterSignatureUrl}
-                headmasterName={activeHeadmasterName}
-                label="Authority Signature & Seal"
-                subLabel="GBHS Mehrand"
-                size="sm"
-              />
+          <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto shrink-0">
+            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-3 sm:p-4 border border-white/20 text-center w-full sm:w-auto min-w-[160px]">
+              <span className="text-[10px] uppercase font-extrabold text-amber-300 block mb-1">
+                Institutional Authority Seal
+              </span>
+              <div className="bg-white rounded-xl p-2.5 shadow-inner">
+                <HeadmasterSignatureDisplay
+                  signatureUrl={settings.headmasterSignatureUrl}
+                  headmasterName={activeHeadmasterName}
+                  label="Authority Signature & Seal"
+                  subLabel="GBHS Mehrand"
+                  size="sm"
+                />
+              </div>
             </div>
+
+            <button
+              onClick={() => handleOpenProfile(headmasterAsTeacher, true)}
+              className="w-full sm:w-auto px-4 py-3 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs shadow-md transition flex items-center justify-center gap-2"
+            >
+              <Eye className="w-4 h-4" />
+              <span>View Headmaster Profile</span>
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Teachers Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredTeachers.map((teacher) => (
-          <div
-            key={teacher.id}
-            className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col group hover:border-emerald-500"
-          >
-            {/* Top Card Banner */}
-            <div className="h-20 bg-gradient-to-r from-emerald-900 to-teal-800 relative">
-              <div className="absolute top-2 right-3">
-                <span className="text-[10px] font-mono font-bold bg-amber-400 text-slate-950 px-2 py-0.5 rounded shadow-xs">
+      {/* Interactive Directory Search & Filtering Console */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-6 space-y-4">
+        {/* Row 1: Search, Cadre Selector, View Mode */}
+        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+          {/* Search by Name, Subject, or PID */}
+          <div className="relative flex-1">
+            <Search className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search faculty by teacher name, father's name, subject, or PID..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-9 py-2.5 text-xs sm:text-sm rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 shadow-2xs placeholder:text-slate-400"
+            />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm('')}
+                className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 p-0.5 rounded-full hover:bg-slate-100"
+                title="Clear search"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+
+          {/* Cadre Filter Pills */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1 shrink-0 flex items-center gap-1">
+              <Briefcase className="w-3.5 h-3.5 text-slate-400" />
+              Cadre:
+            </span>
+            {cadres.map((cadre) => (
+              <button
+                key={cadre}
+                onClick={() => setSelectedCadre(cadre)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition shrink-0 ${
+                  selectedCadre === cadre
+                    ? 'bg-emerald-800 text-white shadow-2xs'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                {cadre === 'All' ? 'All Cadres' : cadre}
+              </button>
+            ))}
+          </div>
+
+          {/* View Mode Toggle (Grid vs List) */}
+          <div className="flex items-center justify-end gap-1 bg-slate-100 p-1 rounded-xl shrink-0 self-end md:self-auto">
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`p-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition ${
+                viewMode === 'grid'
+                  ? 'bg-white text-emerald-800 shadow-2xs'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+              title="Grid View"
+            >
+              <Grid className="w-4 h-4" />
+              <span className="hidden sm:inline">Grid</span>
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={`p-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition ${
+                viewMode === 'list'
+                  ? 'bg-white text-emerald-800 shadow-2xs'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+              title="List View"
+            >
+              <List className="w-4 h-4" />
+              <span className="hidden sm:inline">List</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Row 2: Subject Filter Pills */}
+        <div className="pt-2 border-t border-slate-100">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
+            <span className="text-slate-400 font-bold uppercase tracking-wider text-[11px] shrink-0 flex items-center gap-1">
+              <BookOpen className="w-3.5 h-3.5 text-amber-600" />
+              Subject:
+            </span>
+            {subjectList.map((sub) => {
+              const count = getSubjectCount(sub.id);
+              const isSelected = selectedSubject === sub.id;
+              return (
+                <button
+                  key={sub.id}
+                  onClick={() => setSelectedSubject(sub.id)}
+                  className={`px-3 py-1.5 rounded-xl font-bold shrink-0 transition flex items-center gap-1.5 ${
+                    isSelected
+                      ? 'bg-emerald-800 text-white shadow-xs'
+                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  }`}
+                >
+                  <span>{sub.label}</span>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+                      isSelected
+                        ? 'bg-emerald-950 text-amber-300'
+                        : 'bg-slate-200 text-slate-600'
+                    }`}
+                  >
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Filter Summary & Active Criteria Counter */}
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 text-xs text-slate-500 border-t border-slate-100">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold">
+              Showing <strong className="text-emerald-800 font-bold">{filteredTeachers.length}</strong> of{' '}
+              {approvedTeachers.length} approved teachers
+            </span>
+            {(searchTerm || selectedSubject !== 'All' || selectedCadre !== 'All') && (
+              <span className="text-slate-400">
+                (Filtered by:{' '}
+                {[
+                  searchTerm ? `"${searchTerm}"` : null,
+                  selectedSubject !== 'All' ? selectedSubject : null,
+                  selectedCadre !== 'All' ? selectedCadre : null,
+                ]
+                  .filter(Boolean)
+                  .join(', ')}
+                )
+              </span>
+            )}
+          </div>
+
+          {(searchTerm || selectedSubject !== 'All' || selectedCadre !== 'All') && (
+            <button
+              onClick={resetFilters}
+              className="text-emerald-700 hover:text-emerald-900 font-bold flex items-center gap-1 text-[11px] transition"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              Reset all filters
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Teachers Grid View */}
+      {viewMode === 'grid' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredTeachers.map((teacher) => (
+            <div
+              key={teacher.id}
+              className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-lg transition-all duration-200 overflow-hidden flex flex-col group hover:border-emerald-500 relative"
+            >
+              {/* Top Card Banner */}
+              <div className="h-20 bg-gradient-to-r from-emerald-950 via-emerald-900 to-teal-900 relative p-3 flex justify-between items-start">
+                <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-800/80 text-emerald-200 px-2.5 py-0.5 rounded border border-emerald-700/50">
+                  GBHS Mehrand
+                </span>
+                <span className="text-[10px] font-mono font-bold bg-amber-400 text-slate-950 px-2 py-0.5 rounded shadow-2xs">
                   {teacher.pid}
                 </span>
               </div>
-            </div>
 
-            {/* Profile Content */}
-            <div className="p-6 pt-0 flex-1 flex flex-col -mt-10">
-              <div className="flex items-end justify-between mb-3">
-                <div className="w-20 h-20 rounded-2xl overflow-hidden border-4 border-white shadow-md group-hover:scale-105 transition-transform shrink-0 bg-slate-100">
-                  <SafeMediaImage
-                    src={teacher.pictureUrl}
-                    alt={teacher.name}
-                  />
-                </div>
-                <span className="text-xs font-extrabold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
-                  {teacher.designation || 'Teacher'}
-                </span>
-              </div>
-
-              <h3 className="text-lg font-extrabold text-slate-900 group-hover:text-emerald-800 transition-colors">
-                {teacher.name}
-              </h3>
-              <p className="text-xs text-slate-500 font-medium">
-                S/O {teacher.fatherName}
-              </p>
-
-              {/* Badges */}
-              <div className="mt-3 space-y-2 text-xs">
-                <div className="flex items-center gap-2 text-slate-700">
-                  <Award className="w-4 h-4 text-emerald-700 shrink-0" />
-                  <span className="font-semibold">{teacher.qualification}</span>
-                </div>
-
-                <div className="flex items-center gap-2 text-slate-700">
-                  <BookOpen className="w-4 h-4 text-amber-600 shrink-0" />
-                  <span className="text-slate-600">Specialist:</span>
-                  <strong className="text-slate-800">{teacher.subjectSpecialist}</strong>
-                </div>
-
-                <div className="flex items-center gap-2 text-slate-600">
-                  <Mail className="w-4 h-4 text-slate-400 shrink-0" />
-                  <span className="truncate font-mono text-[11px]">{teacher.email}</span>
-                </div>
-
-                {teacher.mobileNo && (
-                  <div className="flex items-center gap-2 text-slate-600">
-                    <Phone className="w-4 h-4 text-slate-400 shrink-0" />
-                    <span className="font-mono text-[11px]">{teacher.mobileNo}</span>
+              {/* Profile Content */}
+              <div className="p-6 pt-0 flex-1 flex flex-col -mt-10">
+                <div className="flex items-end justify-between mb-3">
+                  <div className="w-20 h-20 rounded-2xl overflow-hidden border-4 border-white shadow-md group-hover:scale-105 transition-transform shrink-0 bg-slate-100 relative">
+                    <SafeMediaImage
+                      src={teacher.pictureUrl}
+                      alt={teacher.name}
+                      className="w-full h-full object-cover"
+                    />
                   </div>
-                )}
-              </div>
+                  <span className="text-xs font-black text-emerald-900 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
+                    {teacher.designation || 'Teacher'}
+                  </span>
+                </div>
 
-              {/* Status footer */}
-              <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px]">
-                <span className="text-slate-400 font-medium">Joined: {teacher.joinDate}</span>
-                <span className="inline-flex items-center gap-1 text-emerald-700 font-bold">
-                  <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
-                  Govt. Verified
-                </span>
+                <div className="space-y-0.5">
+                  <h3 className="text-lg font-black text-slate-900 group-hover:text-emerald-800 transition-colors">
+                    {teacher.name}
+                  </h3>
+                  <p className="text-xs text-slate-500 font-medium">
+                    Son of {teacher.fatherName}
+                  </p>
+                </div>
+
+                {/* Professional Details Badges */}
+                <div className="mt-3.5 space-y-2 text-xs flex-1">
+                  <div className="flex items-center gap-2 text-slate-700">
+                    <GraduationCap className="w-4 h-4 text-emerald-700 shrink-0" />
+                    <span className="font-semibold truncate">{teacher.qualification}</span>
+                  </div>
+
+                  <div className="flex items-start gap-2 text-slate-700">
+                    <BookOpen className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="text-slate-500 text-[11px] block">Specialization:</span>
+                      <strong className="text-slate-900 font-bold">{teacher.subjectSpecialist}</strong>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 text-slate-600 pt-1">
+                    <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    <span className="truncate font-mono text-[11px]">{teacher.email}</span>
+                  </div>
+
+                  {teacher.mobileNo && (
+                    <div className="flex items-center gap-2 text-slate-600">
+                      <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <span className="font-mono text-[11px]">{teacher.mobileNo}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Status & CTA footer */}
+                <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-between gap-2">
+                  <span className="text-[11px] text-slate-400 font-medium">
+                    Joined: {teacher.joinDate}
+                  </span>
+                  <button
+                    onClick={() => handleOpenProfile(teacher, false)}
+                    className="px-3.5 py-1.5 rounded-lg bg-emerald-800 hover:bg-emerald-700 text-white font-black text-xs shadow-xs transition flex items-center gap-1.5"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                    <span>View Profile</span>
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
-
-      {filteredTeachers.length === 0 && (
-        <div className="text-center py-12 bg-white rounded-xl border border-slate-200">
-          <Users className="w-12 h-12 text-slate-300 mx-auto mb-2" />
-          <p className="text-sm font-bold text-slate-700">No teachers found matching criteria.</p>
-          <p className="text-xs text-slate-400">Try changing the subject filter or search keyword.</p>
+          ))}
         </div>
       )}
 
+      {/* Teachers List View */}
+      {viewMode === 'list' && (
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm divide-y divide-slate-100 overflow-hidden">
+          {filteredTeachers.map((teacher) => (
+            <div
+              key={teacher.id}
+              className="p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 hover:bg-slate-50/80 transition"
+            >
+              <div className="flex items-center gap-4 min-w-0">
+                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl overflow-hidden border-2 border-emerald-800/30 shadow-xs shrink-0 bg-slate-100">
+                  <SafeMediaImage
+                    src={teacher.pictureUrl}
+                    alt={teacher.name}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <div className="min-w-0 space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-base font-black text-slate-900 truncate">
+                      {teacher.name}
+                    </h3>
+                    <span className="text-xs font-extrabold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
+                      {teacher.designation || 'Teacher'}
+                    </span>
+                    <span className="text-xs font-mono font-bold text-amber-900 bg-amber-100 px-2 py-0.5 rounded">
+                      {teacher.pid}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    S/O {teacher.fatherName} • <span className="font-semibold text-slate-700">{teacher.qualification}</span>
+                  </p>
+                  <p className="text-xs text-emerald-900 font-bold">
+                    Specialist in: {teacher.subjectSpecialist}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
+                <div className="text-right hidden md:block">
+                  <span className="text-[11px] text-slate-400 block">Inducted</span>
+                  <span className="text-xs font-bold text-slate-700">{teacher.joinDate}</span>
+                </div>
+                <button
+                  onClick={() => handleOpenProfile(teacher, false)}
+                  className="px-4 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-700 text-white font-black text-xs shadow-xs transition flex items-center gap-1.5"
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                  <span>View Full Profile</span>
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Empty State when no results found */}
+      {filteredTeachers.length === 0 && (
+        <div className="text-center py-16 bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+          <div className="w-16 h-16 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
+            <Users className="w-8 h-8 text-slate-400" />
+          </div>
+          <div className="space-y-1 max-w-md mx-auto">
+            <h3 className="text-base font-black text-slate-800">
+              No faculty members found
+            </h3>
+            <p className="text-xs text-slate-500">
+              No teachers match the current search keyword "{searchTerm}" or subject filter "{selectedSubject}".
+            </p>
+          </div>
+          <button
+            onClick={resetFilters}
+            className="px-5 py-2.5 rounded-xl bg-emerald-800 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition inline-flex items-center gap-1.5"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            Reset all search filters
+          </button>
+        </div>
+      )}
+
+      {/* Brief Professional Profile Modal */}
+      <FacultyProfileModal
+        teacher={selectedTeacherForProfile}
+        isOpen={!!selectedTeacherForProfile}
+        onClose={() => setSelectedTeacherForProfile(null)}
+        isHeadmaster={isHeadmasterProfileModal}
+      />
+
       {/* TEACHER REGISTRATION POP-UP MODAL */}
-      {/* Required by user prompt:
-          "Teacher registers via email and password. After registration, a pop-up form contains
-           Name, F Name, PID, CNIC, Email, Mobile No, Qualification, Subject Specialist, and upload Profile Picture.
-           Then submit and review by Admin; after approval by admin and confirmation pop-up to teacher,
-           display teacher on Main Faculty section with Name, Qualification, and Picture." */}
       {showRegisterModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-4 overflow-y-auto">
           <div className="bg-white rounded-2xl max-w-xl w-full border border-slate-200 shadow-2xl overflow-hidden my-8 animate-in fade-in zoom-in duration-200">
@@ -470,6 +780,46 @@ export const FacultyTab: React.FC = () => {
                     previewShape="avatar"
                     helperText="Upload teacher official portrait in PDF or Image format (PNG, JPG, WebP) — no links needed"
                     badgeText="Govt. Official ID"
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <FileUploadZone
+                    id="teacher-cnic-document"
+                    label="Teacher CNIC (Front / Back or Combined PDF / Image) *"
+                    required
+                    value={formData.cnicFileUrl}
+                    fileName={formData.cnicFileName}
+                    onChange={(val, name) =>
+                      setFormData({
+                        ...formData,
+                        cnicFileUrl: val,
+                        cnicFileName: name || 'CNIC_Document.pdf',
+                      })
+                    }
+                    previewShape="banner"
+                    helperText="Upload official CNIC document (PDF or scanned image). Admin verifies authenticity before approval."
+                    badgeText="Govt. CNIC Document"
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <FileUploadZone
+                    id="teacher-appointment-order"
+                    label="Transfer / Appointment Order (SELD Official Order PDF / Image) *"
+                    required
+                    value={formData.appointmentOrderUrl}
+                    fileName={formData.appointmentOrderFileName}
+                    onChange={(val, name) =>
+                      setFormData({
+                        ...formData,
+                        appointmentOrderUrl: val,
+                        appointmentOrderFileName: name || 'Appointment_Order.pdf',
+                      })
+                    }
+                    previewShape="box"
+                    helperText="Upload School Education & Literacy Department (SELD) appointment or transfer order."
+                    badgeText="Govt. Appointment Order"
                   />
                 </div>
               </div>

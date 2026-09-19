@@ -2,6 +2,7 @@ import React from 'react';
 import { useSchool } from '../context/SchoolContext';
 import { SchoolLogo } from './common/SchoolLogo';
 import { SafeMediaImage } from './common/SafeMediaImage';
+import { AnnouncementBanner } from './common/AnnouncementBanner';
 import {
   GraduationCap,
   Users,
@@ -156,27 +157,9 @@ export const HomeTab: React.FC = () => {
         </div>
       </section>
 
-      {/* Announcements Marquee & Notice Board */}
+      {/* Announcements & Official Circulars */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex flex-col md:flex-row md:items-center gap-3 shadow-sm">
-          <div className="flex items-center gap-2 text-amber-900 font-extrabold text-xs uppercase shrink-0">
-            <span className="w-2.5 h-2.5 rounded-full bg-red-600 animate-ping"></span>
-            <span className="bg-amber-500 text-slate-950 px-2.5 py-1 rounded font-black tracking-wider">
-              LATEST NOTICES
-            </span>
-          </div>
-          <div className="flex-1 flex flex-wrap items-center gap-3 text-xs text-slate-700">
-            {settings.announcements.slice(0, 3).map((ann) => (
-              <div key={ann.id} className="flex items-center gap-1.5 bg-white px-2.5 py-1 rounded border border-amber-200/60 shadow-xs">
-                <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-1.5 py-0.2 rounded">
-                  {ann.tag}
-                </span>
-                <span className="font-semibold text-slate-800">{ann.title}</span>
-                <span className="text-[10px] text-slate-400">({ann.date})</span>
-              </div>
-            ))}
-          </div>
-        </div>
+        <AnnouncementBanner role="guest" />
       </section>
 
       {/* REQUIRED CORE SECTION: 3 KEY LEADERSHIP MESSAGES */}

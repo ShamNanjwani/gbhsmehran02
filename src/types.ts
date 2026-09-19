@@ -49,19 +49,41 @@ export interface Teacher {
   pictureUrl: string;
   status: 'pending' | 'approved' | 'rejected';
   joinDate: string;
+  joiningDate?: string;
   designation?: string; // e.g., "JEST", "PST", "HST", "Headmaster"
   isAvailableToday?: boolean;
+  // Verification documents uploaded during teacher registration
+  cnicFileUrl?: string; // Both sides image or PDF file
+  cnicFileName?: string;
+  appointmentOrderUrl?: string; // Transfer / Appointment order PDF or image file
+  appointmentOrderFileName?: string;
+  // Headmaster Joining Letter & Confirmation Letter
+  joiningLetterIssued?: boolean;
+  joiningLetterType?: 'auto' | 'manual';
+  joiningLetterUrl?: string; // If manual PDF/Image uploaded by Admin/HM
+  manualJoiningLetterUrl?: string;
+  joiningLetterFileName?: string;
+  manualJoiningLetterFileName?: string;
+  joiningLetterDispatchNo?: string;
+  joiningLetterDate?: string;
+  joiningLetterIssuedAt?: string;
+  joiningLetterRemarks?: string;
+  joiningRemarks?: string;
+  joiningLetterIssuedBy?: string;
+  confirmationLetterUrl?: string; // If uploaded or customized
 }
 
 export interface TimetableSlot {
   id: string;
   day: 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'Saturday';
   period: number; // 1 to 6
-  time: string; // e.g. "08:00 AM - 08:45 AM"
+  time: string; // e.g. "08:00 - 08:45 AM"
   className: string; // e.g. "Class 9th", "Class 10th"
   subject: string;
   teacherId: string;
   teacherName: string;
+  room?: string;
+  notes?: string;
   isSubstituted?: boolean;
   substitutedTeacherId?: string;
   substitutedTeacherName?: string;
@@ -150,6 +172,23 @@ export interface LeaderMessage {
   message: string;
 }
 
+export interface AnnouncementItem {
+  id: string;
+  title: string;
+  date: string;
+  tag: string;
+  message?: string;
+  priority?: 'urgent' | 'important' | 'normal';
+  targetAudience?: 'all' | 'students' | 'teachers';
+  targetClass?: string; // e.g. "All Classes" or "Class 9th", "Class 10th"
+  pinned?: boolean;
+  isActive?: boolean;
+  issuedBy?: string; // e.g. "Office of the Headmaster", "DEO Tharparkar"
+  expiresAt?: string;
+  linkUrl?: string;
+  linkText?: string;
+}
+
 export interface SchoolSettings {
   schoolName: string;
   semisCode: string;
@@ -174,7 +213,7 @@ export interface SchoolSettings {
   headmasterSignatureUrl?: string;
   adminUsername?: string;
   adminPassword?: string;
-  announcements: { id: string; title: string; date: string; tag: string }[];
+  announcements: AnnouncementItem[];
 }
 
 export interface ContactInquiry {
