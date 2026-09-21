@@ -197,8 +197,14 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     return finalSettings;
   });
   const [leaderMessages, setLeaderMessages] = useState<LeaderMessage[]>(() => getStored<LeaderMessage[]>('leaderMessages', initialLeaderMessages));
-  const [teachers, setTeachers] = useState<Teacher[]>(() => getStored<Teacher[]>('teachers', initialTeachers));
-  const [students, setStudents] = useState<Student[]>(() => getStored<Student[]>('students', initialStudents));
+  const [teachers, setTeachers] = useState<Teacher[]>(() => {
+    const raw = getStored<Teacher[]>('teachers', initialTeachers);
+    return Array.isArray(raw) ? raw.filter((t) => !['t-1', 't-2', 't-3', 't-4', 't-5'].includes(t.id)) : [];
+  });
+  const [students, setStudents] = useState<Student[]>(() => {
+    const raw = getStored<Student[]>('students', initialStudents);
+    return Array.isArray(raw) ? raw.filter((s) => !['s-1', 's-2', 's-3', 's-4', 's-5'].includes(s.id)) : [];
+  });
   const [timetable, setTimetable] = useState<TimetableSlot[]>(() => getStored<TimetableSlot[]>('timetable', initialTimetableSlots));
   const [remarks, setRemarks] = useState<DailyRemark[]>(() => getStored<DailyRemark[]>('remarks', initialRemarks));
   const [attendance, setAttendance] = useState<AttendanceRecord[]>(() => getStored<AttendanceRecord[]>('attendance', initialAttendance));
@@ -313,7 +319,8 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         // Merge teachers safely by ID
         if (Array.isArray(d.teachers)) {
           setTeachers((prev) => {
-            let merged = mergeCollectionById(prev, d.teachers);
+            const cleanRemote = d.teachers.filter((t: Teacher) => !['t-1', 't-2', 't-3', 't-4', 't-5'].includes(t.id));
+            let merged = mergeCollectionById(prev, cleanRemote).filter((t: Teacher) => !['t-1', 't-2', 't-3', 't-4', 't-5'].includes(t.id));
             if (currentUser?.role === 'teacher' && currentUser.extra?.id) {
               const exists = merged.some((t: Teacher) => t.id === currentUser.extra.id);
               if (!exists) {
@@ -328,7 +335,8 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         // Merge students safely by ID
         if (Array.isArray(d.students)) {
           setStudents((prev) => {
-            let merged = mergeCollectionById(prev, d.students);
+            const cleanRemote = d.students.filter((s: Student) => !['s-1', 's-2', 's-3', 's-4', 's-5'].includes(s.id));
+            let merged = mergeCollectionById(prev, cleanRemote).filter((s: Student) => !['s-1', 's-2', 's-3', 's-4', 's-5'].includes(s.id));
             if (currentUser?.role === 'student' && currentUser.extra?.id) {
               const exists = merged.some((s: Student) => s.id === currentUser.extra.id);
               if (!exists) {

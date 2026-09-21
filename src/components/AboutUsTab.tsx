@@ -1,6 +1,5 @@
 import React from 'react';
 import { useSchool } from '../context/SchoolContext';
-import { HeadmasterSignatureDisplay } from './common/HeadmasterSignatureDisplay';
 import { SafeMediaImage } from './common/SafeMediaImage';
 import {
   GraduationCap,
@@ -124,18 +123,18 @@ export const AboutUsTab: React.FC = () => {
             </p>
           </div>
 
-          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex flex-col items-center justify-center text-center space-y-2">
-            <span className="text-[10px] font-extrabold uppercase text-slate-500 tracking-wider">
-              Official Headmaster Seal & Stamp
+          <div className="bg-emerald-950 text-white border border-emerald-800/60 rounded-2xl p-4 flex flex-col items-center justify-center text-center space-y-2.5 shadow-md">
+            <span className="text-[10px] font-extrabold uppercase text-amber-300 tracking-wider">
+              Institutional Authority
             </span>
-            <div className="bg-white p-3 rounded-xl border border-slate-200 w-full shadow-xs">
-              <HeadmasterSignatureDisplay
-                signatureUrl={settings.headmasterSignatureUrl}
-                headmasterName={activeHeadmasterName}
-                label="Official Authority Seal"
-                subLabel="GBHS Mehrand • Taluka Kaloi"
-                size="md"
-              />
+            <div className="bg-emerald-900/80 p-3 rounded-xl border border-emerald-700/50 w-full text-center space-y-1">
+              <div className="inline-flex items-center gap-1.5 text-xs font-bold text-white">
+                <ShieldCheck className="w-4 h-4 text-amber-400" />
+                <span>SELD Govt. of Sindh</span>
+              </div>
+              <div className="text-[11px] text-emerald-200 font-mono">
+                Taluka Kaloi • SEMIS {settings.semisCode}
+              </div>
             </div>
           </div>
         </div>

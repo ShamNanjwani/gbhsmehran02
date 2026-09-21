@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { SafeMediaImage } from './common/SafeMediaImage';
 import { SchoolLogo } from './common/SchoolLogo';
-import { HeadmasterSignatureDisplay } from './common/HeadmasterSignatureDisplay';
 import {
   X,
   Award,
@@ -461,14 +460,17 @@ export const FacultyProfileModal: React.FC<FacultyProfileModalProps> = ({
               )}
             </div>
 
-            <div className="shrink-0 bg-white p-2 rounded-xl border border-slate-200 shadow-2xs text-center min-w-[150px]">
-              <HeadmasterSignatureDisplay
-                signatureUrl={settings.headmasterSignatureUrl}
-                headmasterName={settings.headmasterName || 'Headmaster'}
-                label="Verified by Headmaster"
-                subLabel="GBHS Mehrand"
-                size="sm"
-              />
+            <div className="shrink-0 bg-emerald-50/80 p-2.5 rounded-xl border border-emerald-200 text-center min-w-[150px] space-y-1">
+              <div className="text-[10px] font-extrabold uppercase text-emerald-900 tracking-wider flex items-center justify-center gap-1">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" />
+                <span>Verified Record</span>
+              </div>
+              <p className="text-[10px] text-emerald-800 font-bold">
+                {settings.headmasterName || 'Headmaster'}
+              </p>
+              <span className="text-[9px] text-emerald-600 block">
+                GBHS Mehrand
+              </span>
             </div>
           </div>
         </div>

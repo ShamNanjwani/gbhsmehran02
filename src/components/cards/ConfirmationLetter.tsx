@@ -1,11 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Student, SchoolSettings } from '../../types';
 import { Download, Printer, FileText, CheckCircle2, ShieldCheck, QrCode } from 'lucide-react';
 import { downloadConfirmationLetterPDF } from '../../utils/pdfGenerator';
-import { printIsolatedElement } from '../../utils/printUtils';
 import { SchoolLogo } from '../common/SchoolLogo';
 import { SafeMediaImage } from '../common/SafeMediaImage';
 import { HeadmasterSignatureDisplay } from '../common/HeadmasterSignatureDisplay';
+import { DocumentPrintPreviewModal } from '../common/DocumentPrintPreviewModal';
 
 interface ConfirmationLetterProps {
   student: Student;
@@ -13,10 +13,11 @@ interface ConfirmationLetterProps {
 }
 
 export const ConfirmationLetter: React.FC<ConfirmationLetterProps> = ({ student, settings }) => {
+  const [showPrintPreview, setShowPrintPreview] = useState(false);
   const cardId = `confirmation-letter-${student.id}`;
 
   const handlePrint = () => {
-    printIsolatedElement(cardId, `Admission_Confirmation_${student.name.replace(/\s+/g, '_')}`);
+    setShowPrintPreview(true);
   };
 
   const handleDownload = () => {
@@ -35,11 +36,11 @@ export const ConfirmationLetter: React.FC<ConfirmationLetterProps> = ({ student,
           <button
             type="button"
             onClick={handlePrint}
-            className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center gap-1.5 transition"
-            title="Print only this confirmation letter"
+            className="px-3.5 py-1.5 rounded-lg bg-emerald-950 hover:bg-emerald-900 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition"
+            title="Preview verified admission letter before printing"
           >
-            <Printer className="w-3.5 h-3.5" />
-            Print
+            <Printer className="w-3.5 h-3.5 text-amber-300" />
+            Verify & Print Letter
           </button>
           <button
             type="button"
@@ -183,6 +184,48 @@ export const ConfirmationLetter: React.FC<ConfirmationLetterProps> = ({ student,
           </div>
         </div>
       </div>
+
+      {/* Standardized Confirmation Letter Print Preview Modal */}
+      <DocumentPrintPreviewModal
+        isOpen={showPrintPreview}
+        onClose={() => setShowPrintPreview(false)}
+        documentType="confirmation-letter"
+        title={`Admission Confirmation Verification — ${student.name}`}
+        elementIdToPrint={cardId}
+        printDocumentTitle={`Admission_Confirmation_${student.name.replace(/\s+/g, '_')}`}
+        holderName={student.name}
+        holderPhotoUrl={student.pictureUrl}
+        particulars={[
+          { label: 'Student Name', value: student.name, highlight: true },
+          { label: "Father's Name", value: student.fatherName || 'N/A' },
+          { label: 'General Register (G.R.) No', value: student.grNo, badge: 'Enrolled' },
+          { label: 'Admitted Class', value: student.appliedClass, highlight: true },
+          { label: 'Date of Birth', value: student.dob || 'N/A' },
+          { label: 'Emergency Contact', value: student.mobileNo || student.guardianMobileNo || 'N/A' },
+          { label: 'Issuing Institution', value: `${settings.schoolName} (SEMIS: ${settings.semisCode})` },
+          { label: 'Admission Status', value: student.status === 'approved' ? 'Officially Approved & Enrolled' : student.status },
+        ]}
+        onDownloadPdf={handleDownload}
+        downloadPdfLabel="Download Confirmation PDF"
+      >
+        <div className="bg-white rounded-xl border border-slate-300 p-6 max-w-xl mx-auto space-y-3.5 text-xs font-sans text-slate-800">
+          <div className="text-center border-b pb-3">
+            <span className="text-[10px] uppercase font-bold text-emerald-800">Govt of Sindh • SELD Tharparkar</span>
+            <h4 className="font-black text-sm text-slate-950 uppercase">{settings.schoolName}</h4>
+            <div className="mt-1 inline-block bg-emerald-900 text-amber-300 text-[10px] font-extrabold px-3 py-0.5 rounded-full uppercase">
+              Official Admission Confirmation Letter
+            </div>
+          </div>
+          <div className="space-y-1.5 text-[11px]">
+            <p>This is to certify that <strong>{student.name}</strong>, S/O <strong>{student.fatherName || 'N/A'}</strong>, has been officially admitted into <strong>{student.appliedClass}</strong> under G.R. No: <span className="font-mono font-bold text-emerald-900">{student.grNo}</span>.</p>
+            <p>Admission documents and eligibility have been verified in accordance with Sindh Education & Literacy Department guidelines.</p>
+          </div>
+          <div className="pt-3 border-t flex justify-between items-end text-[10px] text-slate-500">
+            <span>Admission Committee</span>
+            <span className="font-bold text-slate-900">Headmaster Seal & Stamp</span>
+          </div>
+        </div>
+      </DocumentPrintPreviewModal>
     </div>
   );
 };

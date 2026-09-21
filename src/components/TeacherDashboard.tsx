@@ -37,6 +37,7 @@ import { printIsolatedElement } from '../utils/printUtils';
 import { HeadmasterSignatureDisplay } from './common/HeadmasterSignatureDisplay';
 import { SchoolLogo } from './common/SchoolLogo';
 import { DocumentViewerModal } from './common/DocumentViewerModal';
+import { DocumentPrintPreviewModal } from './common/DocumentPrintPreviewModal';
 import { TeacherTimetableSection } from './TeacherTimetableSection';
 import { AnnouncementBanner } from './common/AnnouncementBanner';
 import { FileCheck, ShieldCheck, ExternalLink } from 'lucide-react';
@@ -86,11 +87,12 @@ export const TeacherDashboard: React.FC = () => {
 
   // Selected teacher
   const currentTeacher: Teacher | undefined =
-    teachers.find((t) => t.id === currentUser?.id || t.email?.toLowerCase() === currentUser?.email?.toLowerCase()) ||
-    teachers[0];
+    teachers.find((t) => t.id === currentUser?.id || t.email?.toLowerCase() === currentUser?.email?.toLowerCase());
 
-  // Document preview modal
+  // Document preview modals
   const [previewDoc, setPreviewDoc] = useState<{ url: string; title: string } | null>(null);
+  const [showJoiningLetterPreview, setShowJoiningLetterPreview] = useState(false);
+  const [showConfirmationLetterPreview, setShowConfirmationLetterPreview] = useState(false);
 
   // Tabs within Teacher Portal
   const [subTab, setSubTab] = useState<
@@ -105,7 +107,7 @@ export const TeacherDashboard: React.FC = () => {
 
   // Remarks posting state
   const [remarkStudentId, setRemarkStudentId] = useState('');
-  const [remarkSubject, setRemarkSubject] = useState(currentTeacher?.subjectSpecialist.split('&')[0].trim() || 'Computer Science');
+  const [remarkSubject, setRemarkSubject] = useState(currentTeacher?.subjectSpecialist?.split('&')[0]?.trim() || 'Computer Science');
   const [classWorkText, setClassWorkText] = useState('');
   const [homeworkText, setHomeworkText] = useState('');
   const [remarkPerformance, setRemarkPerformance] = useState('Excellent performance, quick grasp.');
@@ -147,7 +149,7 @@ export const TeacherDashboard: React.FC = () => {
   };
 
   // If not logged in as teacher, show teacher login / register screen
-  if (currentRole !== 'teacher') {
+  if (currentRole !== 'teacher' || !currentTeacher) {
     return (
       <div className="max-w-2xl mx-auto py-10 px-4 space-y-6">
         {/* School-Wide Urgent Advisories & Faculty Notices */}
@@ -1153,16 +1155,12 @@ export const TeacherDashboard: React.FC = () => {
 
               <button
                 type="button"
-                onClick={() =>
-                  printIsolatedElement(
-                    'official-teacher-joining-letter-paper',
-                    `Joining_Letter_${currentTeacher.name.replace(/\s+/g, '_')}`
-                  )
-                }
-                className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center gap-1.5 transition"
+                onClick={() => setShowJoiningLetterPreview(true)}
+                className="px-3.5 py-2 rounded-xl bg-emerald-900 hover:bg-emerald-800 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs transition"
+                title="Preview joining report before printing"
               >
-                <Printer className="w-3.5 h-3.5" />
-                Print Letter
+                <Printer className="w-3.5 h-3.5 text-amber-300" />
+                <span>Verify & Print Letter</span>
               </button>
             </div>
           </div>
@@ -1340,6 +1338,51 @@ export const TeacherDashboard: React.FC = () => {
             </div>
           </div>
 
+          {/* Standardized Joining Letter Print Preview Modal */}
+          <DocumentPrintPreviewModal
+            isOpen={showJoiningLetterPreview}
+            onClose={() => setShowJoiningLetterPreview(false)}
+            documentType="joining-letter"
+            title={`Joining Report Verification — ${currentTeacher.name}`}
+            elementIdToPrint="official-teacher-joining-letter-paper"
+            printDocumentTitle={`Joining_Letter_${currentTeacher.name.replace(/\s+/g, '_')}`}
+            holderName={currentTeacher.name}
+            holderPhotoUrl={currentTeacher.pictureUrl}
+            particulars={[
+              { label: 'Faculty Name', value: currentTeacher.name, highlight: true },
+              { label: "Father's Name", value: currentTeacher.fatherName || 'N/A' },
+              { label: 'Designation / Post', value: `${currentTeacher.designation} (BPS-${currentTeacher.designation === 'HST' ? '16' : currentTeacher.designation === 'Subject Specialist' ? '17' : '14'})`, highlight: true },
+              { label: 'Personal ID (PID)', value: currentTeacher.pid, badge: 'SELD Verified' },
+              { label: 'CNIC Number', value: currentTeacher.cnic },
+              { label: 'Dispatch Number', value: currentTeacher.joiningLetterDispatchNo || 'GBHS-MHR/JON/2026/0142' },
+              { label: 'Reported Joining Date', value: currentTeacher.joiningDate || '2026-03-01' },
+              { label: 'Issuing Authority', value: settings.headmasterName || 'Headmaster, GBHS Mehrand' },
+            ]}
+            onDownloadPdf={() => downloadTeacherJoiningLetterPDF(currentTeacher, settings)}
+            downloadPdfLabel="Download Joining Letter PDF"
+          >
+            <div className="bg-white rounded-xl border border-slate-300 p-6 max-w-xl mx-auto space-y-4 text-xs font-sans text-slate-800">
+              <div className="text-center border-b pb-3">
+                <span className="text-[10px] uppercase font-bold text-slate-500">Government of Sindh • SELD</span>
+                <h4 className="font-black text-sm text-slate-900">{settings.schoolName}</h4>
+                <div className="mt-1 inline-block bg-slate-900 text-white text-[10px] font-extrabold px-3 py-0.5 rounded">
+                  OFFICIAL JOINING & CHARGE ASSUMPTION REPORT
+                </div>
+              </div>
+              <div className="space-y-1.5 text-[11px]">
+                <p><strong>Faculty:</strong> {currentTeacher.name} (S/O {currentTeacher.fatherName || 'N/A'})</p>
+                <p><strong>Cadre:</strong> {currentTeacher.designation} • <strong>PID:</strong> {currentTeacher.pid}</p>
+                <p><strong>CNIC:</strong> {currentTeacher.cnic}</p>
+                <p><strong>Joining Date:</strong> {currentTeacher.joiningDate || '2026-03-01'} (Forenoon)</p>
+                <p><strong>SELD Status:</strong> Taken on duty at GBHS Mehrand pursuant to verified appointment order.</p>
+              </div>
+              <div className="pt-3 border-t flex justify-between items-end text-[10px] text-slate-500">
+                <span>Teacher Signature</span>
+                <span className="font-bold text-slate-800">Headmaster Seal & Stamp</span>
+              </div>
+            </div>
+          </DocumentPrintPreviewModal>
+
           {/* Submitted Verification Documents Section */}
           <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
@@ -1446,16 +1489,12 @@ export const TeacherDashboard: React.FC = () => {
 
               <button
                 type="button"
-                onClick={() =>
-                  printIsolatedElement(
-                    'official-teacher-confirmation-letter-paper',
-                    `Confirmation_Letter_${currentTeacher.name.replace(/\s+/g, '_')}`
-                  )
-                }
-                className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center gap-1.5 transition"
+                onClick={() => setShowConfirmationLetterPreview(true)}
+                className="px-3.5 py-2 rounded-xl bg-teal-900 hover:bg-teal-800 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs transition"
+                title="Preview confirmation letter before printing"
               >
-                <Printer className="w-3.5 h-3.5" />
-                Print Letter
+                <Printer className="w-3.5 h-3.5 text-amber-300" />
+                <span>Verify & Print Letter</span>
               </button>
             </div>
           </div>
@@ -1525,6 +1564,49 @@ export const TeacherDashboard: React.FC = () => {
               </div>
             </div>
           </div>
+
+          {/* Standardized Confirmation Letter Print Preview Modal */}
+          <DocumentPrintPreviewModal
+            isOpen={showConfirmationLetterPreview}
+            onClose={() => setShowConfirmationLetterPreview(false)}
+            documentType="confirmation-letter"
+            title={`Faculty Confirmation Letter Verification — ${currentTeacher.name}`}
+            elementIdToPrint="official-teacher-confirmation-letter-paper"
+            printDocumentTitle={`Confirmation_Letter_${currentTeacher.name.replace(/\s+/g, '_')}`}
+            holderName={currentTeacher.name}
+            holderPhotoUrl={currentTeacher.pictureUrl}
+            particulars={[
+              { label: 'Faculty Name', value: currentTeacher.name, highlight: true },
+              { label: "Father's Name", value: currentTeacher.fatherName || 'N/A' },
+              { label: 'Cadre / Designation', value: currentTeacher.designation, highlight: true },
+              { label: 'Personal ID (PID)', value: currentTeacher.pid, badge: 'SELD Sindh' },
+              { label: 'CNIC Number', value: currentTeacher.cnic },
+              { label: 'Subject Specialization', value: currentTeacher.subjectSpecialist },
+              { label: 'Academic Qualification', value: currentTeacher.qualification },
+              { label: 'Verified Duty Date', value: currentTeacher.joiningDate || '2026-03-01' },
+              { label: 'Issuing Institution', value: `${settings.schoolName} (SEMIS: ${settings.semisCode})` },
+            ]}
+            onDownloadPdf={() => downloadTeacherConfirmationLetterPDF(currentTeacher, settings)}
+            downloadPdfLabel="Download Confirmation Letter PDF"
+          >
+            <div className="bg-white rounded-xl border border-slate-300 p-6 max-w-xl mx-auto space-y-4 text-xs font-sans text-slate-800">
+              <div className="text-center border-b pb-3">
+                <span className="text-[10px] uppercase font-bold text-slate-500">Government of Sindh • SELD</span>
+                <h4 className="font-black text-sm text-slate-900">{settings.schoolName}</h4>
+                <div className="mt-1 inline-block bg-teal-900 text-white text-[10px] font-extrabold px-3 py-0.5 rounded">
+                  FACULTY APPOINTMENT & CONFIRMATION CERTIFICATE
+                </div>
+              </div>
+              <div className="space-y-1.5 text-[11px]">
+                <p>This is to certify that <strong>{currentTeacher.name}</strong> (PID: <span className="font-mono font-bold">{currentTeacher.pid}</span>, CNIC: <span className="font-mono">{currentTeacher.cnic}</span>) is a confirmed and verified faculty member serving as <strong>{currentTeacher.designation}</strong> ({currentTeacher.subjectSpecialist}) at {settings.schoolName}.</p>
+                <p>This credential certificate is issued under the authority of the Headmaster for official service record and verification purposes.</p>
+              </div>
+              <div className="pt-3 border-t flex justify-between items-end text-[10px] text-slate-500">
+                <span>SELD Verification</span>
+                <span className="font-bold text-slate-800">Headmaster Seal & Stamp</span>
+              </div>
+            </div>
+          </DocumentPrintPreviewModal>
         </div>
       )}
 

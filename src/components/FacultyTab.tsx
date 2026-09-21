@@ -3,7 +3,6 @@ import { useSchool } from '../context/SchoolContext';
 import { FileUploadZone } from './common/FileUploadZone';
 import { SafeMediaImage } from './common/SafeMediaImage';
 import { SchoolLogo } from './common/SchoolLogo';
-import { HeadmasterSignatureDisplay } from './common/HeadmasterSignatureDisplay';
 import { FacultyProfileModal } from './FacultyProfileModal';
 import {
   Users,
@@ -264,24 +263,24 @@ export const FacultyTab: React.FC = () => {
           </div>
 
           <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto shrink-0">
-            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-3 sm:p-4 border border-white/20 text-center w-full sm:w-auto min-w-[160px]">
+            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-3.5 sm:p-4 border border-white/20 text-center w-full sm:w-auto min-w-[170px]">
               <span className="text-[10px] uppercase font-extrabold text-amber-300 block mb-1">
-                Institutional Authority Seal
+                Institutional Authority
               </span>
-              <div className="bg-white rounded-xl p-2.5 shadow-inner">
-                <HeadmasterSignatureDisplay
-                  signatureUrl={settings.headmasterSignatureUrl}
-                  headmasterName={activeHeadmasterName}
-                  label="Authority Signature & Seal"
-                  subLabel="GBHS Mehrand"
-                  size="sm"
-                />
+              <div className="bg-emerald-950/70 rounded-xl p-2.5 border border-emerald-700/50 text-left space-y-1">
+                <div className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-100">
+                  <ShieldCheck className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                  <span>SELD Govt. of Sindh</span>
+                </div>
+                <div className="text-[10px] text-emerald-300/90 font-mono">
+                  SEMIS: {settings.semisCode}
+                </div>
               </div>
             </div>
 
             <button
               onClick={() => handleOpenProfile(headmasterAsTeacher, true)}
-              className="w-full sm:w-auto px-4 py-3 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs shadow-md transition flex items-center justify-center gap-2"
+              className="w-full sm:w-auto px-5 py-3 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs shadow-md transition flex items-center justify-center gap-2"
             >
               <Eye className="w-4 h-4" />
               <span>View Headmaster Profile</span>
@@ -579,27 +578,45 @@ export const FacultyTab: React.FC = () => {
         </div>
       )}
 
-      {/* Empty State when no results found */}
+      {/* Empty State */}
       {filteredTeachers.length === 0 && (
         <div className="text-center py-16 bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
-          <div className="w-16 h-16 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
-            <Users className="w-8 h-8 text-slate-400" />
+          <div className="w-16 h-16 rounded-full bg-emerald-50 text-emerald-800 flex items-center justify-center mx-auto border border-emerald-200">
+            <Users className="w-8 h-8 text-emerald-700" />
           </div>
-          <div className="space-y-1 max-w-md mx-auto">
-            <h3 className="text-base font-black text-slate-800">
-              No faculty members found
-            </h3>
-            <p className="text-xs text-slate-500">
-              No teachers match the current search keyword "{searchTerm}" or subject filter "{selectedSubject}".
-            </p>
-          </div>
-          <button
-            onClick={resetFilters}
-            className="px-5 py-2.5 rounded-xl bg-emerald-800 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition inline-flex items-center gap-1.5"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            Reset all search filters
-          </button>
+          {approvedTeachers.length === 0 ? (
+            <div className="space-y-3 max-w-md mx-auto">
+              <h3 className="text-base font-black text-slate-800">
+                No Faculty Members Approved Yet
+              </h3>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                By default, teachers appear here only after submitting their credentials and receiving official approval from the Headmaster / Admin.
+              </p>
+              <button
+                onClick={() => setShowRegisterModal(true)}
+                className="px-5 py-2.5 rounded-xl bg-emerald-800 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition inline-flex items-center gap-2"
+              >
+                <UserPlus className="w-4 h-4 text-amber-300" />
+                <span>Submit Teacher Registration</span>
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-3 max-w-md mx-auto">
+              <h3 className="text-base font-black text-slate-800">
+                No Faculty Members Found
+              </h3>
+              <p className="text-xs text-slate-500">
+                No approved teachers match the current search keyword "{searchTerm}" or selected filters.
+              </p>
+              <button
+                onClick={resetFilters}
+                className="px-5 py-2.5 rounded-xl bg-emerald-800 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition inline-flex items-center gap-1.5"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                Reset all search filters
+              </button>
+            </div>
+          )}
         </div>
       )}
 

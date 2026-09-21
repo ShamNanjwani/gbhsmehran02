@@ -6,6 +6,7 @@ import { printIsolatedElement } from '../../utils/printUtils';
 import { SchoolLogo } from '../common/SchoolLogo';
 import { SafeMediaImage } from '../common/SafeMediaImage';
 import { HeadmasterSignatureDisplay } from '../common/HeadmasterSignatureDisplay';
+import { DocumentPrintPreviewModal } from '../common/DocumentPrintPreviewModal';
 
 interface StudentIdCardProps {
   student: Student;
@@ -14,10 +15,11 @@ interface StudentIdCardProps {
 
 export const StudentIdCard: React.FC<StudentIdCardProps> = ({ student, settings }) => {
   const [activeSide, setActiveSide] = useState<'both' | 'front' | 'back'>('both');
+  const [showPrintPreview, setShowPrintPreview] = useState(false);
   const cardId = `student-id-card-${student.id}`;
 
   const handlePrint = () => {
-    printIsolatedElement(cardId, `Student_ID_Card_${student.name.replace(/\s+/g, '_')}`);
+    setShowPrintPreview(true);
   };
 
   const handleDownload = () => {
@@ -72,11 +74,11 @@ export const StudentIdCard: React.FC<StudentIdCardProps> = ({ student, settings 
           <button
             type="button"
             onClick={handlePrint}
-            className="px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition"
-            title="Trigger browser printing dialog"
+            className="px-3.5 py-1.5 rounded-xl bg-emerald-950 hover:bg-emerald-900 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition"
+            title="Preview verified card details before printing"
           >
             <Printer className="w-3.5 h-3.5 text-amber-300" />
-            Print ID Card
+            Verify & Print Card
           </button>
           <button
             type="button"
@@ -274,8 +276,71 @@ export const StudentIdCard: React.FC<StudentIdCardProps> = ({ student, settings 
       </div>
 
       <div className="text-center no-print text-xs text-slate-500">
-        💡 <strong>Printing Tip:</strong> Click <em>Print ID Card</em> to launch the browser print preview. Under printer destination, choose <strong>Save as PDF</strong> or select your color photo card printer.
+        💡 <strong>Printing Tip:</strong> Click <em>Verify & Print Card</em> to review all verified credentials before generating or printing.
       </div>
+
+      {/* Standardized Student ID Card Print Preview Modal */}
+      <DocumentPrintPreviewModal
+        isOpen={showPrintPreview}
+        onClose={() => setShowPrintPreview(false)}
+        documentType="student-id"
+        title={`Student Identity Badge Verification — ${student.name}`}
+        elementIdToPrint={cardId}
+        printDocumentTitle={`Student_ID_Card_${student.name.replace(/\s+/g, '_')}`}
+        holderName={student.name}
+        holderPhotoUrl={student.pictureUrl}
+        particulars={[
+          { label: 'Student Name', value: student.name, highlight: true },
+          { label: "Father's Name", value: student.fatherName || 'N/A' },
+          { label: 'General Register (G.R.) No', value: student.grNo, badge: 'Official G.R.' },
+          { label: 'Roll Number', value: student.rollNo || 'Pending' },
+          { label: 'Class / Grade', value: student.appliedClass, highlight: true },
+          { label: 'Date of Birth', value: student.dob || 'N/A' },
+          { label: 'Emergency Contact', value: student.mobileNo || student.guardianMobileNo || 'N/A' },
+          { label: 'Enrollment Status', value: student.status === 'approved' ? 'Verified Enrolled Student' : student.status },
+        ]}
+        onDownloadPdf={handleDownload}
+        downloadPdfLabel="Download ID Card PDF"
+      >
+        <div className="w-[300px] max-w-full mx-auto bg-white rounded-2xl border-2 border-emerald-900 shadow-xl overflow-hidden font-sans text-slate-900">
+          <div className="bg-gradient-to-r from-emerald-950 via-emerald-900 to-teal-900 text-white p-3 text-center border-b-2 border-amber-400">
+            <div className="flex items-center justify-center gap-2 mb-1">
+              <SchoolLogo logoUrl={settings.logoUrl} size="sm" showBorder={false} />
+              <span className="text-[9px] font-black uppercase tracking-widest text-emerald-200">
+                GOVT OF SINDH • SELD
+              </span>
+            </div>
+            <h5 className="font-black text-xs uppercase">{settings.schoolName}</h5>
+            <p className="text-[9px] text-amber-300 font-mono font-bold">
+              SEMIS: {settings.semisCode} • TALUKA KALOI
+            </p>
+          </div>
+          <div className="p-4 space-y-2.5 text-xs">
+            <div className="flex items-center gap-3">
+              <div className="w-16 h-20 rounded-lg overflow-hidden border border-emerald-700 bg-slate-100 flex items-center justify-center shrink-0">
+                {student.pictureUrl ? (
+                  <SafeMediaImage src={student.pictureUrl} alt={student.name} className="w-full h-full object-cover" />
+                ) : (
+                  <User className="w-6 h-6 text-slate-400" />
+                )}
+              </div>
+              <div className="space-y-1 min-w-0">
+                <span className="text-[10px] font-bold text-emerald-900 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 block truncate">
+                  {student.appliedClass}
+                </span>
+                <p className="text-xs font-black text-slate-900 truncate">{student.name}</p>
+                <p className="text-[10px] text-slate-500 truncate">S/O {student.fatherName}</p>
+                <p className="text-[10px] font-mono text-emerald-900 font-bold">G.R. #{student.grNo}</p>
+              </div>
+            </div>
+            <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[9px] text-slate-500">
+              <span>Valid: 2026–2027</span>
+              <span className="font-mono text-slate-700">Roll: {student.rollNo || '—'}</span>
+              <span className="font-bold text-emerald-900">GBHS Mehrand</span>
+            </div>
+          </div>
+        </div>
+      </DocumentPrintPreviewModal>
     </div>
   );
 };
