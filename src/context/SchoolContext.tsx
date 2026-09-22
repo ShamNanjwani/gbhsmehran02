@@ -149,22 +149,19 @@ function setStored<T>(key: string, value: T): void {
   }
 }
 
-// Safely merges collections by unique ID so local records are never discarded on background refresh
+// Safely merges collections by unique ID: local items are preserved, but remote server updates (such as admin approvals, GR allotments, joining letters) take precedence
 function mergeCollectionById<T extends { id: string }>(localList: T[] = [], remoteList: T[] = []): T[] {
   const map = new Map<string, T>();
-  for (const item of remoteList) {
+  // 1. Insert local items first
+  for (const item of localList) {
     if (item && item.id) {
       map.set(item.id, item);
     }
   }
-  for (const item of localList) {
+  // 2. Insert/overwrite with authoritative remote items from central server
+  for (const item of remoteList) {
     if (item && item.id) {
-      const existing = map.get(item.id);
-      if (existing) {
-        map.set(item.id, { ...existing, ...item });
-      } else {
-        map.set(item.id, item);
-      }
+      map.set(item.id, item);
     }
   }
   return Array.from(map.values());
@@ -394,26 +391,35 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         }
 
         // Keep logged-in user profile synced with server updates (e.g. GR allotment, approval status)
-        if (currentUser && currentUser.extra?.id) {
-          if (currentUser.role === 'student' && Array.isArray(d.students)) {
-            const match = d.students.find((s: Student) => s.id === currentUser.extra.id);
+        if (currentUser && (currentUser.id || currentUser.extra?.id)) {
+          const uId = currentUser.id || currentUser.extra?.id;
+          if ((currentRole === 'student' || currentUser.role === 'student') && Array.isArray(d.students)) {
+            const match = d.students.find((s: Student) => s.id === uId || s.email?.toLowerCase() === currentUser.email?.toLowerCase());
             if (match) {
-              setCurrentUser((prev: any) => ({
-                ...prev,
-                name: match.name,
-                email: match.email,
-                extra: match,
-              }));
+              setCurrentUser((prev: any) => {
+                const updated = {
+                  ...prev,
+                  name: match.name,
+                  email: match.email,
+                  extra: match,
+                };
+                setStored('currentUser', updated);
+                return updated;
+              });
             }
-          } else if (currentUser.role === 'teacher' && Array.isArray(d.teachers)) {
-            const match = d.teachers.find((t: Teacher) => t.id === currentUser.extra.id);
+          } else if ((currentRole === 'teacher' || currentUser.role === 'teacher') && Array.isArray(d.teachers)) {
+            const match = d.teachers.find((t: Teacher) => t.id === uId || t.email?.toLowerCase() === currentUser.email?.toLowerCase() || (t.pid && t.pid === currentUser.extra?.pid));
             if (match) {
-              setCurrentUser((prev: any) => ({
-                ...prev,
-                name: match.name,
-                email: match.email,
-                extra: match,
-              }));
+              setCurrentUser((prev: any) => {
+                const updated = {
+                  ...prev,
+                  name: match.name,
+                  email: match.email,
+                  extra: match,
+                };
+                setStored('currentUser', updated);
+                return updated;
+              });
             }
           }
         }
@@ -933,11 +939,18 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         }
         return s;
       });
+      // Direct atomic write to server
+      fetch('/api/approve-student', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ studentId, grNumber, section, rollNo }),
+      }).catch((e) => console.warn('Direct approve student notice:', e));
+
       // Synchronously sync to server with newly computed updatedList
       fetch('/api/school-data/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ data: { students: updatedList } }),
+        body: JSON.stringify({ data: { students: updatedList }, forceClientOverwrite: true }),
       }).catch((e) => console.warn('Sync notice:', e));
       return updatedList;
     });
@@ -949,10 +962,16 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     let updatedList: Student[] = [];
     setStudents((prev) => {
       updatedList = prev.map((s) => (s.id === studentId ? { ...s, status: 'rejected' as const } : s));
+      fetch('/api/reject-student', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ studentId }),
+      }).catch((e) => console.warn('Direct reject student notice:', e));
+
       fetch('/api/school-data/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ data: { students: updatedList } }),
+        body: JSON.stringify({ data: { students: updatedList }, forceClientOverwrite: true }),
       }).catch((e) => console.warn('Sync notice:', e));
       return updatedList;
     });
@@ -964,10 +983,16 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     let updatedList: Student[] = [];
     setStudents((prev) => {
       updatedList = prev.filter((s) => s.id !== studentId);
+      fetch('/api/delete-student', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ studentId }),
+      }).catch((e) => console.warn('Direct delete student notice:', e));
+
       fetch('/api/school-data/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ data: { students: updatedList } }),
+        body: JSON.stringify({ data: { students: updatedList }, forceClientOverwrite: true }),
       }).catch((e) => console.warn('Sync notice:', e));
       return updatedList;
     });
@@ -1082,10 +1107,17 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         return t;
       });
 
+      // Direct atomic write to server
+      fetch('/api/approve-teacher', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ teacherId, ...options }),
+      }).catch((e) => console.warn('Direct approve teacher notice:', e));
+
       fetch('/api/school-data/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ data: { teachers: updatedList } }),
+        body: JSON.stringify({ data: { teachers: updatedList }, forceClientOverwrite: true }),
       }).catch((e) => console.warn('Sync notice:', e));
       return updatedList;
     });
@@ -1102,10 +1134,16 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     let updatedList: Teacher[] = [];
     setTeachers((prev) => {
       updatedList = prev.map((t) => (t.id === teacherId ? { ...t, status: 'rejected' as const } : t));
+      fetch('/api/reject-teacher', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ teacherId }),
+      }).catch((e) => console.warn('Direct reject teacher notice:', e));
+
       fetch('/api/school-data/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ data: { teachers: updatedList } }),
+        body: JSON.stringify({ data: { teachers: updatedList }, forceClientOverwrite: true }),
       }).catch((e) => console.warn('Sync notice:', e));
       return updatedList;
     });
@@ -1117,10 +1155,16 @@ export const SchoolProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     let updatedList: Teacher[] = [];
     setTeachers((prev) => {
       updatedList = prev.filter((t) => t.id !== teacherId);
+      fetch('/api/delete-teacher', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ teacherId }),
+      }).catch((e) => console.warn('Direct delete teacher notice:', e));
+
       fetch('/api/school-data/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ data: { teachers: updatedList } }),
+        body: JSON.stringify({ data: { teachers: updatedList }, forceClientOverwrite: true }),
       }).catch((e) => console.warn('Sync notice:', e));
       return updatedList;
     });

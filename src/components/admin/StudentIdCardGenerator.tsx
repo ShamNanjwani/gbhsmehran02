@@ -30,6 +30,8 @@ import { printIsolatedElement } from '../../utils/printUtils';
 import { SchoolLogo } from '../common/SchoolLogo';
 import { SafeMediaImage } from '../common/SafeMediaImage';
 import { HeadmasterSignatureDisplay } from '../common/HeadmasterSignatureDisplay';
+import { IdCardQrCode } from '../common/IdCardQrCode';
+import { getStudentQrData } from '../../utils/qrCodeHelper';
 
 interface StudentIdCardGeneratorProps {
   students: Student[];
@@ -891,9 +893,15 @@ export const StudentIdCardGenerator: React.FC<StudentIdCardGeneratorProps> = ({
                       </div>
                       <div className="flex justify-center items-center pb-0.5">
                         {showQrCode && (
-                          <div className="w-8 h-8 text-slate-700">
-                            <QrCode className="w-full h-full text-emerald-800" />
-                          </div>
+                          <IdCardQrCode
+                            value={getStudentQrData(previewStudent, settings)}
+                            size={42}
+                            fgColor="#064e3b"
+                            label="Scan QR"
+                            holderName={previewStudent.name}
+                            holderRole={`${previewStudent.appliedClass} (Roll: ${previewStudent.rollNo || '01'})`}
+                            holderCode={previewStudent.grNumber || previewStudent.id}
+                          />
                         )}
                       </div>
                       {showSignature ? (
@@ -1076,9 +1084,19 @@ export const StudentIdCardGenerator: React.FC<StudentIdCardGeneratorProps> = ({
                               )}
                             </div>
 
-                            <div className="pt-1 border-t border-slate-200 flex items-center justify-between text-[7.5px] text-slate-400">
+                            <div className="pt-1 border-t border-slate-200 grid grid-cols-3 items-end gap-1 text-[7px] text-slate-400">
                               <span>Student Sign</span>
-                              <span className="font-bold text-emerald-800">HM Official Seal</span>
+                              <div className="flex justify-center">
+                                {showQrCode && (
+                                  <IdCardQrCode
+                                    value={getStudentQrData(st, settings)}
+                                    size={28}
+                                    fgColor="#064e3b"
+                                    showModalOnClick={false}
+                                  />
+                                )}
+                              </div>
+                              <span className="font-bold text-emerald-800 text-right">HM Seal</span>
                             </div>
                           </div>
 

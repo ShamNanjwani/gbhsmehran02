@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { Teacher, SchoolSettings } from '../../types';
-import { Download, Printer, Shield, QrCode, Award, User, Eye } from 'lucide-react';
+import { Download, Printer, Shield, Award, User, Eye } from 'lucide-react';
 import { downloadTeacherIdCardPDF } from '../../utils/pdfGenerator';
 import { SchoolLogo } from '../common/SchoolLogo';
 import { SafeMediaImage } from '../common/SafeMediaImage';
 import { HeadmasterSignatureDisplay } from '../common/HeadmasterSignatureDisplay';
 import { DocumentPrintPreviewModal } from '../common/DocumentPrintPreviewModal';
+import { IdCardQrCode } from '../common/IdCardQrCode';
+import { getTeacherQrData } from '../../utils/qrCodeHelper';
 
 interface TeacherIdCardProps {
   teacher: Teacher;
@@ -150,10 +152,16 @@ export const TeacherIdCard: React.FC<TeacherIdCardProps> = ({ teacher, settings 
               <div className="h-6 border-b border-dashed border-slate-400 w-16 mx-auto mb-0.5"></div>
               <span>Teacher Sign</span>
             </div>
-            <div className="flex justify-center items-center pb-1">
-              <div className="w-8 h-8 text-teal-900">
-                <QrCode className="w-full h-full text-teal-900" />
-              </div>
+            <div className="flex justify-center items-center pb-0.5">
+              <IdCardQrCode
+                value={getTeacherQrData(teacher, settings)}
+                size={42}
+                fgColor="#134e4a"
+                label="Scan QR"
+                holderName={teacher.name}
+                holderRole={`${teacher.designation} (${teacher.subjectSpecialist})`}
+                holderCode={teacher.pid}
+              />
             </div>
             <HeadmasterSignatureDisplay
               signatureUrl={settings.headmasterSignatureUrl}

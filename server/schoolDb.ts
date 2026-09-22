@@ -246,6 +246,150 @@ export function registerTeacherInDb(teacher: any): { success: boolean; teacher: 
   return { success: true, teacher: savedTeacher, totalTeachers: teachers.length };
 }
 
+// Approve student and allocate GR number on server
+export function approveStudentInDb(studentId: string, grNumber: string, section: string = 'A', rollNo: string = '01'): { success: boolean; student: any; totalStudents: number } {
+  const db = readSchoolDatabase();
+  const students = Array.isArray(db.students) ? [...db.students] : [];
+  const idx = students.findIndex((s: any) => s.id === studentId);
+  if (idx < 0) {
+    throw new Error(`Student with ID ${studentId} not found in database`);
+  }
+
+  const allottedGr = grNumber || students[idx].grNumber || `GR-406020752-${Math.floor(1000 + Math.random() * 9000)}`;
+  students[idx] = {
+    ...students[idx],
+    status: 'approved',
+    grNumber: allottedGr,
+    section: section || students[idx].section || 'A',
+    rollNo: rollNo || students[idx].rollNo || '01',
+  };
+
+  const updatedDb: SchoolDatabasePayload = {
+    ...db,
+    students,
+    lastSyncedAt: new Date().toISOString(),
+    version: (db.version || 1) + 1,
+  };
+
+  writeSchoolDatabase(updatedDb, false);
+  return { success: true, student: students[idx], totalStudents: students.length };
+}
+
+// Approve teacher and issue joining letter on server
+export function approveTeacherInDb(
+  teacherId: string,
+  options: {
+    type?: 'auto' | 'manual';
+    manualPdfUrl?: string;
+    manualFileName?: string;
+    dispatchNo?: string;
+    date?: string;
+    remarks?: string;
+    confirmationLetterUrl?: string;
+  }
+): { success: boolean; teacher: any; totalTeachers: number } {
+  const db = readSchoolDatabase();
+  const teachers = Array.isArray(db.teachers) ? [...db.teachers] : [];
+  const idx = teachers.findIndex((t: any) => t.id === teacherId);
+  if (idx < 0) {
+    throw new Error(`Teacher with ID ${teacherId} not found in database`);
+  }
+
+  const today = options?.date || new Date().toLocaleDateString('en-GB');
+  const dispatchNo = options?.dispatchNo || `GBHS-MHR/JON/2026/${Math.floor(1000 + Math.random() * 9000)}`;
+
+  teachers[idx] = {
+    ...teachers[idx],
+    status: 'approved',
+    joiningLetterIssued: true,
+    joiningLetterType: options?.type || 'auto',
+    joiningLetterUrl: options?.manualPdfUrl || teachers[idx].joiningLetterUrl,
+    manualJoiningLetterUrl: options?.manualPdfUrl || teachers[idx].manualJoiningLetterUrl || teachers[idx].joiningLetterUrl,
+    joiningLetterFileName: options?.manualFileName || teachers[idx].joiningLetterFileName,
+    manualJoiningLetterFileName: options?.manualFileName || teachers[idx].manualJoiningLetterFileName || teachers[idx].joiningLetterFileName,
+    joiningLetterDispatchNo: dispatchNo,
+    joiningLetterDate: today,
+    joiningLetterIssuedAt: today,
+    joiningLetterRemarks: options?.remarks || 'Original credentials and appointment orders scrutinized and authenticated by Headmaster.',
+    joiningRemarks: options?.remarks || 'Original credentials and appointment orders scrutinized and authenticated by Headmaster.',
+    joiningDate: today,
+    joiningLetterIssuedBy: db.settings?.headmasterName || 'Headmaster, GBHS Mehrand',
+    confirmationLetterUrl: options?.confirmationLetterUrl || teachers[idx].confirmationLetterUrl,
+  };
+
+  const updatedDb: SchoolDatabasePayload = {
+    ...db,
+    teachers,
+    lastSyncedAt: new Date().toISOString(),
+    version: (db.version || 1) + 1,
+  };
+
+  writeSchoolDatabase(updatedDb, false);
+  return { success: true, teacher: teachers[idx], totalTeachers: teachers.length };
+}
+
+// Reject student
+export function rejectStudentInDb(studentId: string): { success: boolean; student: any } {
+  const db = readSchoolDatabase();
+  const students = Array.isArray(db.students) ? [...db.students] : [];
+  const idx = students.findIndex((s: any) => s.id === studentId);
+  if (idx < 0) throw new Error('Student not found');
+  students[idx] = { ...students[idx], status: 'rejected' };
+  const updatedDb: SchoolDatabasePayload = {
+    ...db,
+    students,
+    lastSyncedAt: new Date().toISOString(),
+    version: (db.version || 1) + 1,
+  };
+  writeSchoolDatabase(updatedDb, false);
+  return { success: true, student: students[idx] };
+}
+
+// Reject teacher
+export function rejectTeacherInDb(teacherId: string): { success: boolean; teacher: any } {
+  const db = readSchoolDatabase();
+  const teachers = Array.isArray(db.teachers) ? [...db.teachers] : [];
+  const idx = teachers.findIndex((t: any) => t.id === teacherId);
+  if (idx < 0) throw new Error('Teacher not found');
+  teachers[idx] = { ...teachers[idx], status: 'rejected' };
+  const updatedDb: SchoolDatabasePayload = {
+    ...db,
+    teachers,
+    lastSyncedAt: new Date().toISOString(),
+    version: (db.version || 1) + 1,
+  };
+  writeSchoolDatabase(updatedDb, false);
+  return { success: true, teacher: teachers[idx] };
+}
+
+// Delete student
+export function deleteStudentInDb(studentId: string): { success: boolean; totalStudents: number } {
+  const db = readSchoolDatabase();
+  const students = (db.students || []).filter((s: any) => s.id !== studentId);
+  const updatedDb: SchoolDatabasePayload = {
+    ...db,
+    students,
+    lastSyncedAt: new Date().toISOString(),
+    version: (db.version || 1) + 1,
+  };
+  writeSchoolDatabase(updatedDb, false);
+  return { success: true, totalStudents: students.length };
+}
+
+// Delete teacher
+export function deleteTeacherInDb(teacherId: string): { success: boolean; totalTeachers: number } {
+  const db = readSchoolDatabase();
+  const teachers = (db.teachers || []).filter((t: any) => t.id !== teacherId);
+  const updatedDb: SchoolDatabasePayload = {
+    ...db,
+    teachers,
+    lastSyncedAt: new Date().toISOString(),
+    version: (db.version || 1) + 1,
+  };
+  writeSchoolDatabase(updatedDb, false);
+  return { success: true, totalTeachers: teachers.length };
+}
+
 // Update and save updates to disk without wiping omitted fields
 export function updateSchoolDatabase(updates: Partial<SchoolDatabasePayload>, options?: { forceReplaceCollections?: boolean }): SchoolDatabasePayload {
   const current = readSchoolDatabase();

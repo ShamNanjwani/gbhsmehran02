@@ -9,6 +9,7 @@ import {
   AttendanceRecord,
   DailyRemark,
 } from '../types';
+import { generateQrDataUrl, getStudentQrData, getTeacherQrData } from './qrCodeHelper';
 
 export interface IdCardOptions {
   colorScheme?: 'emerald' | 'navy' | 'maroon' | 'slate';
@@ -88,7 +89,20 @@ function safeAddImage(
   return false;
 }
 
-function drawQrVerificationBox(doc: jsPDF, x: number, y: number, size: number) {
+function drawQrVerificationBox(doc: jsPDF, x: number, y: number, size: number, qrPayload?: string) {
+  if (qrPayload) {
+    const dataUrl = generateQrDataUrl(qrPayload, 160);
+    if (dataUrl) {
+      const added = safeAddImage(doc, dataUrl, x, y, size, size);
+      if (added) {
+        doc.setDrawColor(203, 213, 225);
+        doc.setLineWidth(0.2);
+        doc.rect(x, y, size, size, 'S');
+        return;
+      }
+    }
+  }
+
   doc.setFillColor(255, 255, 255);
   doc.setDrawColor(203, 213, 225);
   doc.setLineWidth(0.2);
@@ -333,7 +347,8 @@ export function renderStudentIdCardOnDoc(
 
   // QR Code Verification Box
   if (options?.showQrCode !== false) {
-    drawQrVerificationBox(doc, x + 37, sigY, 11);
+    const studentQr = getStudentQrData(student, settings);
+    drawQrVerificationBox(doc, x + 37, sigY, 11, studentQr);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(3.8);
     doc.setTextColor(100, 116, 139);
@@ -1871,10 +1886,11 @@ export function downloadTeacherConfirmationLetterPDF(teacher: Teacher, settings:
   doc.setFont('helvetica', 'normal');
   doc.text('GBHS Mehrand Verification Cell', 48, signY + 9, { align: 'center' });
 
-  drawQrVerificationBox(doc, 95, signY - 14, 20);
+  const teacherQr = getTeacherQrData(teacher, settings);
+  drawQrVerificationBox(doc, 95, signY - 14, 20, teacherQr);
   doc.setFontSize(6.5);
   doc.setTextColor(100, 116, 139);
-  doc.text('Verification QR', 105, signY + 9, { align: 'center' });
+  doc.text('Scan to Verify', 105, signY + 9, { align: 'center' });
 
   doc.line(pageWidth - 75, signY, pageWidth - 22, signY);
   if (settings.headmasterSignatureUrl) {

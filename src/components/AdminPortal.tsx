@@ -43,6 +43,7 @@ import {
   Search,
   Filter,
   Megaphone,
+  QrCode,
 } from 'lucide-react';
 import { Student, Teacher, TimetableSlot, StudentResult, LeavingCertificateData, SchoolSettings, AttendanceRecord, LeaderMessage } from '../types';
 import { FileUploadZone } from './common/FileUploadZone';
@@ -56,9 +57,11 @@ import { StudentReportCard } from './cards/StudentReportCard';
 import { TeacherReportCard } from './cards/TeacherReportCard';
 import { HeadmasterSignatureDisplay } from './common/HeadmasterSignatureDisplay';
 import { AttendanceTrendChart } from './charts/AttendanceTrendChart';
+import { RechartsAttendanceSummary } from './charts/RechartsAttendanceSummary';
 import { StudentIdCardGenerator } from './admin/StudentIdCardGenerator';
 import { AdminAnnouncementManager } from './AdminAnnouncementManager';
 import { AnnouncementBanner } from './common/AnnouncementBanner';
+import { QrAttendanceScannerModal } from './admin/QrAttendanceScannerModal';
 
 export const AdminPortal: React.FC = () => {
   const {
@@ -199,6 +202,7 @@ export const AdminPortal: React.FC = () => {
   const [adminAttendanceSearch, setAdminAttendanceSearch] = useState<string>('');
   const [adminAttendanceFilterType, setAdminAttendanceFilterType] = useState<'all' | 'student' | 'teacher'>('all');
   const [adminAttendanceFilterStatus, setAdminAttendanceFilterStatus] = useState<string>('all');
+  const [showQrAttendanceScanner, setShowQrAttendanceScanner] = useState(false);
 
   // Picture direct save feedback states
   const [pictureSaveFeedback, setPictureSaveFeedback] = useState<Record<string, string>>({});
@@ -737,6 +741,32 @@ export const AdminPortal: React.FC = () => {
                 CMS Editor
               </button>
             </div>
+          </div>
+
+          {/* Daily Attendance Summary by Class (Recharts) */}
+          <div className="space-y-3 pt-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <BarChart3 className="w-5 h-5 text-emerald-700" />
+                <h3 className="text-base font-extrabold text-slate-900">
+                  Daily Attendance Patterns by Class (Last 30 Days)
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveAdminTab('attendance');
+                  setAdminAttendanceTarget('analytics');
+                }}
+                className="text-xs font-bold text-emerald-800 hover:text-emerald-950 flex items-center gap-1 hover:underline"
+              >
+                Attendance Command Center →
+              </button>
+            </div>
+            <RechartsAttendanceSummary
+              attendance={attendance}
+              students={students}
+            />
           </div>
         </div>
       )}
@@ -1659,14 +1689,25 @@ export const AdminPortal: React.FC = () => {
                   </p>
                 </div>
 
-                {/* Quick Status Pill */}
-                <div className="flex items-center gap-3 bg-slate-50 px-4 py-2.5 rounded-xl border border-slate-200 text-xs">
-                  <div className="text-right">
-                    <div className="font-extrabold text-slate-800">
-                      {todayStudentsPresent} / {todayStudentsTotal || approvedStudentsList.length} Students Present
-                    </div>
-                    <div className="text-[11px] text-teal-700 font-bold">
-                      {todayTeachersPresent} / {todayTeachersTotal || approvedTeachersList.length} Faculty on Duty
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setShowQrAttendanceScanner(true)}
+                    className="px-4 py-2.5 bg-gradient-to-r from-emerald-800 to-teal-800 hover:from-emerald-700 hover:to-teal-700 text-amber-300 font-black text-xs rounded-xl shadow-md transition flex items-center gap-2 border border-emerald-600/30"
+                  >
+                    <QrCode className="w-4 h-4 text-amber-300" />
+                    <span>Scan ID Card (QR Scanner)</span>
+                  </button>
+
+                  {/* Quick Status Pill */}
+                  <div className="hidden sm:flex items-center gap-3 bg-slate-50 px-4 py-2.5 rounded-xl border border-slate-200 text-xs">
+                    <div className="text-right">
+                      <div className="font-extrabold text-slate-800">
+                        {todayStudentsPresent} / {todayStudentsTotal || approvedStudentsList.length} Students Present
+                      </div>
+                      <div className="text-[11px] text-teal-700 font-bold">
+                        {todayTeachersPresent} / {todayTeachersTotal || approvedTeachersList.length} Faculty on Duty
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1711,12 +1752,12 @@ export const AdminPortal: React.FC = () => {
                   onClick={() => setAdminAttendanceTarget('analytics')}
                   className={`px-4 py-2.5 rounded-xl transition flex items-center gap-2 ${
                     adminAttendanceTarget === 'analytics'
-                      ? 'bg-amber-600 text-white shadow-md'
+                      ? 'bg-emerald-800 text-white shadow-md'
                       : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                   }`}
                 >
                   <BarChart3 className="w-4 h-4" />
-                  30-Day D3 Attendance Visualizer
+                  30-Day Attendance Patterns (Recharts)
                 </button>
 
                 <button
@@ -2177,23 +2218,32 @@ export const AdminPortal: React.FC = () => {
               </div>
             )}
 
-            {/* SUB-VIEW 3: D3 ATTENDANCE ANALYTICS & TRENDS */}
+            {/* SUB-VIEW 3: RECHARTS ATTENDANCE SUMMARY & CLASS PATTERNS */}
             {adminAttendanceTarget === 'analytics' && (
-              <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-6">
-                <div className="border-b border-slate-100 pb-4">
-                  <h4 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
-                    <BarChart3 className="w-5 h-5 text-amber-600" />
-                    D3-Powered 30-Day Attendance Trend Analysis
-                  </h4>
-                  <p className="text-xs text-slate-500">
-                    Interactive data visualization showing student and school-wide daily attendance percentages, peak trends, and participation rates.
-                  </p>
-                </div>
-
-                <AttendanceTrendChart
+              <div className="space-y-6">
+                <RechartsAttendanceSummary
                   attendance={attendance}
-                  selectedClass={adminAttendanceClass}
+                  students={students}
+                  initialClass={adminAttendanceClass}
                 />
+
+                {/* Collapsible / Supplementary D3 Continuous Curve */}
+                <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+                  <div className="border-b border-slate-100 pb-3">
+                    <h4 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+                      <TrendingUp className="w-4 h-4 text-teal-700" />
+                      Supplementary D3.js Mathematical Continuous Curve
+                    </h4>
+                    <p className="text-[11px] text-slate-500">
+                      High-frequency vector curve visualization with interactive data point inspection.
+                    </p>
+                  </div>
+
+                  <AttendanceTrendChart
+                    attendance={attendance}
+                    selectedClass={adminAttendanceClass}
+                  />
+                </div>
               </div>
             )}
 
@@ -3440,6 +3490,12 @@ export const AdminPortal: React.FC = () => {
           }}
         />
       )}
+
+      {/* Admin QR Code Attendance & Verification Scanner Modal */}
+      <QrAttendanceScannerModal
+        isOpen={showQrAttendanceScanner}
+        onClose={() => setShowQrAttendanceScanner(false)}
+      />
       {/* Floating Admin Action Toast */}
       {adminToast && (
         <div className="fixed bottom-6 right-6 z-50 max-w-sm bg-slate-950 text-white rounded-2xl p-4 shadow-2xl border-2 border-amber-400 animate-bounce flex items-start gap-3">

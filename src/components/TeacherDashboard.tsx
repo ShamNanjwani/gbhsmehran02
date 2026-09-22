@@ -40,7 +40,8 @@ import { DocumentViewerModal } from './common/DocumentViewerModal';
 import { DocumentPrintPreviewModal } from './common/DocumentPrintPreviewModal';
 import { TeacherTimetableSection } from './TeacherTimetableSection';
 import { AnnouncementBanner } from './common/AnnouncementBanner';
-import { FileCheck, ShieldCheck, ExternalLink } from 'lucide-react';
+import { FileCheck, ShieldCheck, ExternalLink, QrCode } from 'lucide-react';
+import { QrAttendanceScannerModal } from './admin/QrAttendanceScannerModal';
 
 export const TeacherDashboard: React.FC = () => {
   const {
@@ -104,6 +105,7 @@ export const TeacherDashboard: React.FC = () => {
   const [selectedPeriod, setSelectedPeriod] = useState(1);
   const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split('T')[0]);
   const [attendanceStatusMap, setAttendanceStatusMap] = useState<Record<string, 'Present' | 'Absent' | 'Leave'>>({});
+  const [showQrAttendanceScanner, setShowQrAttendanceScanner] = useState(false);
 
   // Remarks posting state
   const [remarkStudentId, setRemarkStudentId] = useState('');
@@ -799,13 +801,23 @@ export const TeacherDashboard: React.FC = () => {
               </p>
             </div>
 
-            <button
-              onClick={handleSaveAttendance}
-              className="px-5 py-2.5 rounded-xl bg-teal-800 hover:bg-teal-700 text-white font-black text-xs shadow-md transition flex items-center gap-1.5"
-            >
-              <CheckCircle2 className="w-4 h-4 text-amber-300" />
-              Save Attendance Record
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowQrAttendanceScanner(true)}
+                className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-800 to-teal-800 hover:from-emerald-700 hover:to-teal-700 text-amber-300 font-black text-xs shadow-md transition flex items-center gap-1.5 border border-emerald-600/30"
+              >
+                <QrCode className="w-4 h-4 text-amber-300" />
+                <span>Scan Student QR</span>
+              </button>
+              <button
+                onClick={handleSaveAttendance}
+                className="px-5 py-2.5 rounded-xl bg-teal-800 hover:bg-teal-700 text-white font-black text-xs shadow-md transition flex items-center gap-1.5"
+              >
+                <CheckCircle2 className="w-4 h-4 text-amber-300" />
+                Save Attendance Record
+              </button>
+            </div>
           </div>
 
           {/* Controls Bar */}
@@ -1619,6 +1631,13 @@ export const TeacherDashboard: React.FC = () => {
           title={previewDoc.title}
         />
       )}
+
+      {/* QR Attendance & Verification Scanner Modal */}
+      <QrAttendanceScannerModal
+        isOpen={showQrAttendanceScanner}
+        onClose={() => setShowQrAttendanceScanner(false)}
+        defaultMode="student"
+      />
     </div>
   );
 };

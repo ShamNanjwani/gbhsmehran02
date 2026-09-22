@@ -7,6 +7,12 @@ import {
   resetSchoolDatabase,
   registerStudentInDb,
   registerTeacherInDb,
+  approveStudentInDb,
+  approveTeacherInDb,
+  rejectStudentInDb,
+  rejectTeacherInDb,
+  deleteStudentInDb,
+  deleteTeacherInDb,
   smartSyncSchoolDatabase,
   restoreSchoolDatabase,
   exportSchoolDatabase,
@@ -177,6 +183,106 @@ async function startServer() {
     } catch (error: any) {
       console.error('Error registering teacher on server:', error);
       res.status(500).json({ success: false, message: 'Failed to save teacher registration on server' });
+    }
+  });
+
+  // POST approve student (Allot GR number and activate student)
+  app.post('/api/approve-student', (req, res) => {
+    try {
+      const { studentId, grNumber, section, rollNo } = req.body || {};
+      if (!studentId) {
+        return res.status(400).json({ success: false, message: 'studentId is required' });
+      }
+      const result = approveStudentInDb(studentId, grNumber, section, rollNo);
+      res.json({
+        success: true,
+        message: `Student successfully approved with GR Number ${result.student.grNumber}.`,
+        student: result.student,
+        totalStudents: result.totalStudents,
+      });
+    } catch (error: any) {
+      console.error('Error approving student:', error);
+      res.status(500).json({ success: false, message: error.message || 'Failed to approve student' });
+    }
+  });
+
+  // POST approve teacher (issue joining letter and activate faculty)
+  app.post('/api/approve-teacher', (req, res) => {
+    try {
+      const { teacherId, ...options } = req.body || {};
+      if (!teacherId) {
+        return res.status(400).json({ success: false, message: 'teacherId is required' });
+      }
+      const result = approveTeacherInDb(teacherId, options);
+      res.json({
+        success: true,
+        message: `Teacher ${result.teacher.name} approved and Joining Letter issued.`,
+        teacher: result.teacher,
+        totalTeachers: result.totalTeachers,
+      });
+    } catch (error: any) {
+      console.error('Error approving teacher:', error);
+      res.status(500).json({ success: false, message: error.message || 'Failed to approve teacher' });
+    }
+  });
+
+  // POST reject student
+  app.post('/api/reject-student', (req, res) => {
+    try {
+      const { studentId } = req.body || {};
+      if (!studentId) {
+        return res.status(400).json({ success: false, message: 'studentId is required' });
+      }
+      const result = rejectStudentInDb(studentId);
+      res.json({ success: true, message: 'Student application rejected.', student: result.student });
+    } catch (error: any) {
+      console.error('Error rejecting student:', error);
+      res.status(500).json({ success: false, message: error.message || 'Failed to reject student' });
+    }
+  });
+
+  // POST reject teacher
+  app.post('/api/reject-teacher', (req, res) => {
+    try {
+      const { teacherId } = req.body || {};
+      if (!teacherId) {
+        return res.status(400).json({ success: false, message: 'teacherId is required' });
+      }
+      const result = rejectTeacherInDb(teacherId);
+      res.json({ success: true, message: 'Teacher application rejected.', teacher: result.teacher });
+    } catch (error: any) {
+      console.error('Error rejecting teacher:', error);
+      res.status(500).json({ success: false, message: error.message || 'Failed to reject teacher' });
+    }
+  });
+
+  // POST delete student
+  app.post('/api/delete-student', (req, res) => {
+    try {
+      const { studentId } = req.body || {};
+      if (!studentId) {
+        return res.status(400).json({ success: false, message: 'studentId is required' });
+      }
+      const result = deleteStudentInDb(studentId);
+      res.json({ success: true, message: 'Student record deleted from database.', totalStudents: result.totalStudents });
+    } catch (error: any) {
+      console.error('Error deleting student:', error);
+      res.status(500).json({ success: false, message: error.message || 'Failed to delete student' });
+    }
+  });
+
+  // POST delete teacher
+  app.post('/api/delete-teacher', (req, res) => {
+    try {
+      const { teacherId } = req.body || {};
+      if (!teacherId) {
+        return res.status(400).json({ success: false, message: 'teacherId is required' });
+      }
+      const result = deleteTeacherInDb(teacherId);
+      res.json({ success: true, message: 'Teacher record deleted from database.', totalTeachers: result.totalTeachers });
+    } catch (error: any) {
+      console.error('Error deleting teacher:', error);
+      res.status(500).json({ success: false, message: error.message || 'Failed to delete teacher' });
     }
   });
 

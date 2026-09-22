@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { Student, SchoolSettings } from '../../types';
-import { Download, Printer, Shield, GraduationCap, QrCode, User, Phone, MapPin, Calendar, CheckCircle2 } from 'lucide-react';
+import { Download, Printer, Shield, GraduationCap, User, Phone, MapPin, Calendar, CheckCircle2 } from 'lucide-react';
 import { downloadStudentIdCardPDF } from '../../utils/pdfGenerator';
 import { printIsolatedElement } from '../../utils/printUtils';
 import { SchoolLogo } from '../common/SchoolLogo';
 import { SafeMediaImage } from '../common/SafeMediaImage';
 import { HeadmasterSignatureDisplay } from '../common/HeadmasterSignatureDisplay';
 import { DocumentPrintPreviewModal } from '../common/DocumentPrintPreviewModal';
+import { IdCardQrCode } from '../common/IdCardQrCode';
+import { getStudentQrData } from '../../utils/qrCodeHelper';
 
 interface StudentIdCardProps {
   student: Student;
@@ -183,10 +185,16 @@ export const StudentIdCard: React.FC<StudentIdCardProps> = ({ student, settings 
                   <div className="h-6 border-b border-dashed border-slate-400 w-16 mx-auto mb-0.5"></div>
                   <span>Student Sign</span>
                 </div>
-                <div className="flex justify-center items-center pb-1">
-                  <div className="w-8 h-8 text-slate-700">
-                    <QrCode className="w-full h-full text-emerald-800" />
-                  </div>
+                <div className="flex justify-center items-center pb-0.5">
+                  <IdCardQrCode
+                    value={getStudentQrData(student, settings)}
+                    size={42}
+                    fgColor="#064e3b"
+                    label="Scan QR"
+                    holderName={student.name}
+                    holderRole={`${student.appliedClass} (Roll: ${student.rollNo || '01'})`}
+                    holderCode={student.grNumber || student.id}
+                  />
                 </div>
                 <HeadmasterSignatureDisplay
                   signatureUrl={settings.headmasterSignatureUrl}
