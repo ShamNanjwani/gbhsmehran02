@@ -18,6 +18,8 @@ import {
   LogOut,
   Sparkles,
   BookOpen,
+  Database,
+  Calendar,
 } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
@@ -36,6 +38,8 @@ export const Navbar: React.FC = () => {
 
   const navTabs = [
     { id: 'home', label: 'HOME', icon: BookOpen },
+    { id: 'seld-database', label: 'SE&LD DATABASE', icon: Database },
+    { id: 'timetable', label: 'TIMETABLE', icon: Calendar },
     { id: 'faculty', label: 'FACULTY', icon: Users },
     { id: 'admission', label: 'ADMISSION', icon: GraduationCap },
     { id: 'about', label: 'ABOUT US', icon: Sparkles },

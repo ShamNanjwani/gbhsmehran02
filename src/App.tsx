@@ -10,6 +10,8 @@ import { TeacherDashboard } from './components/TeacherDashboard';
 import { AdminPortal } from './components/AdminPortal';
 import { AboutUsTab } from './components/AboutUsTab';
 import { ContactUsTab } from './components/ContactUsTab';
+import { DatabaseIntegrationTab } from './components/DatabaseIntegrationTab';
+import { AutoTimetableManager } from './components/AutoTimetableManager';
 import {
   Smartphone,
   CheckCircle2,
@@ -59,6 +61,17 @@ const SchoolAppInner: React.FC = () => {
         return <AboutUsTab />;
       case 'contact':
         return <ContactUsTab />;
+      case 'seld-database':
+      case 'database':
+      case 'database-integration':
+        return <DatabaseIntegrationTab />;
+      case 'timetable':
+      case 'timetable-engine':
+        return (
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <AutoTimetableManager />
+          </div>
+        );
       default:
         return <HomeTab />;
     }

@@ -3,6 +3,7 @@ import { useSchool } from '../context/SchoolContext';
 import { SchoolLogo } from './common/SchoolLogo';
 import { SafeMediaImage } from './common/SafeMediaImage';
 import { AnnouncementBanner } from './common/AnnouncementBanner';
+import { SeldBiometricRecordsSection } from './home/SeldBiometricRecordsSection';
 import {
   GraduationCap,
   Users,
@@ -19,19 +20,24 @@ import {
   FileText,
   Star,
   Quote,
+  MapPin,
+  Fingerprint,
+  Database,
 } from 'lucide-react';
 
 export const HomeTab: React.FC = () => {
-  const { settings, leaderMessages, setActiveTab } = useSchool();
+  const { settings, leaderMessages, setActiveTab, teachers } = useSchool();
 
   const minister = leaderMessages.find((m) => m.id === 'minister');
   const secretary = leaderMessages.find((m) => m.id === 'secretary');
   const headmaster = leaderMessages.find((m) => m.id === 'headmaster');
 
+  const verifiedCount = teachers.filter((t) => t.status === 'approved' && (t.verifiedBadgeIssued || t.seldVerified)).length;
+
   const stats = [
     { label: 'SEMIS Code', value: settings.semisCode, icon: Shield, note: 'School Education Dept' },
     { label: 'Enrolled Students', value: '450+', icon: GraduationCap, note: 'Classes 1st to 10th' },
-    { label: 'Teaching Faculty', value: '18', icon: Users, note: 'HST, JEST, PST Officers' },
+    { label: 'Verified Faculty', value: verifiedCount.toString(), icon: Users, note: 'SE&LD Checker Verified' },
     { label: 'Matric Pass Rate', value: '96.8%', icon: Award, note: 'BISE Mirpurkhas Board' },
   ];
 
@@ -88,6 +94,14 @@ export const HomeTab: React.FC = () => {
                 >
                   <UserCheck className="w-4 h-4 text-teal-300" />
                   Teacher Timetable & Remarks
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('database-integration')}
+                  className="px-5 py-3 rounded-xl bg-gradient-to-r from-emerald-800 to-teal-800 hover:from-emerald-700 hover:to-teal-700 text-amber-300 font-bold text-sm border border-emerald-500/60 shadow transition flex items-center gap-2"
+                >
+                  <Database className="w-4 h-4 text-amber-300" />
+                  SEMIS 406020752 Portal
                 </button>
 
                 <button
@@ -160,6 +174,11 @@ export const HomeTab: React.FC = () => {
       {/* Announcements & Official Circulars */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <AnnouncementBanner role="guest" />
+      </section>
+
+      {/* Official SE&LD Live Institutional & Biometric Records for SEMIS Code 406020752 */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <SeldBiometricRecordsSection />
       </section>
 
       {/* REQUIRED CORE SECTION: 3 KEY LEADERSHIP MESSAGES */}

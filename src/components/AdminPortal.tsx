@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSchool } from '../context/SchoolContext';
 import {
   Shield,
+  ShieldCheck,
   Users,
   GraduationCap,
   Calendar,
@@ -50,6 +51,7 @@ import { FileUploadZone } from './common/FileUploadZone';
 import { DocumentViewerModal } from './common/DocumentViewerModal';
 import { EditStudentModal } from './admin/EditStudentModal';
 import { EditTeacherModal } from './admin/EditTeacherModal';
+import { SeldVerificationModal } from './common/SeldVerificationModal';
 import { StudentIdCard } from './cards/StudentIdCard';
 import { TeacherIdCard } from './cards/TeacherIdCard';
 import { EnrollmentCard } from './cards/EnrollmentCard';
@@ -62,6 +64,7 @@ import { StudentIdCardGenerator } from './admin/StudentIdCardGenerator';
 import { AdminAnnouncementManager } from './AdminAnnouncementManager';
 import { AnnouncementBanner } from './common/AnnouncementBanner';
 import { QrAttendanceScannerModal } from './admin/QrAttendanceScannerModal';
+import { AutoTimetableManager } from './AutoTimetableManager';
 
 export const AdminPortal: React.FC = () => {
   const {
@@ -124,6 +127,7 @@ export const AdminPortal: React.FC = () => {
 
   // State for teacher approval & HM joining letter issuance modal
   const [selectedTeacherForApproval, setSelectedTeacherForApproval] = useState<Teacher | null>(null);
+  const [selectedTeacherForVerificationModal, setSelectedTeacherForVerificationModal] = useState<Teacher | null>(null);
   const [approvalLetterType, setApprovalLetterType] = useState<'auto' | 'manual'>('auto');
   const [manualJoiningLetterUrl, setManualJoiningLetterUrl] = useState<string>('');
   const [manualJoiningLetterFileName, setManualJoiningLetterFileName] = useState<string>('');
@@ -1207,6 +1211,33 @@ export const AdminPortal: React.FC = () => {
               </div>
             </div>
 
+            {/* SE&LD Checker Integration Protocol & Verified Badge Box */}
+            <div className="bg-gradient-to-r from-emerald-950 via-emerald-900 to-teal-950 text-white p-4 rounded-xl border-2 border-amber-400 space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 font-black text-amber-300">
+                  <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                  <span>Sindh Education Checker Verification Protocol</span>
+                </div>
+                <span className="text-[10px] bg-emerald-500 text-slate-950 font-black px-2 py-0.5 rounded-full uppercase">
+                  Verified Badge Auto-Issue
+                </span>
+              </div>
+              <p className="text-[11px] text-emerald-100 leading-relaxed">
+                Approving will link this teacher's account with <strong>https://checker.sindheducation.gov.pk/</strong>, issue an authentic <strong>SE&LD Verified Badge</strong>, and feature them on the public Faculty section.
+              </p>
+              <div className="flex items-center justify-between text-[10px] text-amber-300 font-mono pt-1.5 border-t border-emerald-800">
+                <span>Badge ID: SELD-VERIFIED-406020752-{selectedTeacherForApproval.pid}</span>
+                <a
+                  href="https://checker.sindheducation.gov.pk/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline hover:text-white flex items-center gap-1 text-[11px]"
+                >
+                  checker.sindheducation.gov.pk <ExternalLink className="w-3 h-3" />
+                </a>
+              </div>
+            </div>
+
             <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
               <button
                 type="button"
@@ -1221,7 +1252,7 @@ export const AdminPortal: React.FC = () => {
                 className="px-5 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-700 text-white font-black shadow-md flex items-center gap-1.5 transition"
               >
                 <CheckCircle2 className="w-4 h-4 text-amber-300" />
-                Approve & Issue Joining Letter
+                Approve, Verify with SE&LD Checker & Issue Letter
               </button>
             </div>
           </div>
@@ -1259,6 +1290,7 @@ export const AdminPortal: React.FC = () => {
                   <th className="py-2.5 px-3">CNIC Document</th>
                   <th className="py-2.5 px-3">Appointment Order</th>
                   <th className="py-2.5 px-3">Joining Letter</th>
+                  <th className="py-2.5 px-3">SE&LD Verification & Badge</th>
                   <th className="py-2.5 px-3">Status</th>
                   <th className="py-2.5 px-3 text-right">Actions</th>
                 </tr>
@@ -1350,6 +1382,31 @@ export const AdminPortal: React.FC = () => {
                         <span className="text-slate-400 text-[11px]">Pending Approval</span>
                       )}
                     </td>
+                    {/* SE&LD Official Verification & Badge */}
+                    <td className="py-2.5 px-3">
+                      {tch.status === 'approved' && (tch.verifiedBadgeIssued || tch.seldVerified) ? (
+                        <div className="space-y-1">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-900 border border-emerald-300 font-extrabold text-[10px]">
+                            <ShieldCheck className="w-3 h-3 text-emerald-700" />
+                            Verified Badge
+                          </span>
+                          <div className="font-mono text-[10px] text-slate-500 truncate max-w-[120px]">
+                            {tch.verifiedBadgeId || `SELD-VERIFIED-406020752-${tch.pid}`}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedTeacherForVerificationModal(tch)}
+                            className="text-[10px] font-bold text-emerald-700 hover:text-emerald-950 underline flex items-center gap-0.5"
+                          >
+                            <ExternalLink className="w-2.5 h-2.5 text-amber-600" /> Check Status
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-slate-400 text-[10px] italic">
+                          {tch.status === 'pending' ? 'Pending Approval' : 'Not Verified'}
+                        </span>
+                      )}
+                    </td>
                     <td className="py-2.5 px-3">
                       <span
                         className={`px-2 py-0.5 rounded-full font-extrabold text-[10px] ${
@@ -1419,6 +1476,9 @@ export const AdminPortal: React.FC = () => {
            if any students/teachers are on leave, then assign any other teacher to engage the class." */}
       {activeAdminTab === 'timetable' && (
         <div className="space-y-6">
+          {/* Automated Scheduling Engine Component for Classes 1 to 10 */}
+          <AutoTimetableManager />
+
           {/* Proxy / Teacher on Leave Substitution Box */}
           <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-6 shadow-sm space-y-4">
             <div className="flex items-center gap-2 text-amber-950 font-black text-sm">
@@ -3496,6 +3556,14 @@ export const AdminPortal: React.FC = () => {
         isOpen={showQrAttendanceScanner}
         onClose={() => setShowQrAttendanceScanner(false)}
       />
+
+      {/* SE&LD Checker Verification Status Modal */}
+      <SeldVerificationModal
+        teacher={selectedTeacherForVerificationModal}
+        isOpen={!!selectedTeacherForVerificationModal}
+        onClose={() => setSelectedTeacherForVerificationModal(null)}
+      />
+
       {/* Floating Admin Action Toast */}
       {adminToast && (
         <div className="fixed bottom-6 right-6 z-50 max-w-sm bg-slate-950 text-white rounded-2xl p-4 shadow-2xl border-2 border-amber-400 animate-bounce flex items-start gap-3">

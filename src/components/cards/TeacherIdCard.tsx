@@ -139,6 +139,18 @@ export const TeacherIdCard: React.FC<TeacherIdCardProps> = ({ teacher, settings 
               <span className="font-mono text-[10px] text-slate-800 truncate max-w-[170px]">{teacher.email}</span>
             </div>
             <div className="flex justify-between py-0.5 border-b border-slate-100">
+              <span className="text-slate-500 font-semibold">SE&LD Verified Badge:</span>
+              <span className="font-mono font-bold text-emerald-800 text-[10px]">
+                {teacher.verifiedBadgeId || `SELD-VERIFIED-406020752-${teacher.pid}`}
+              </span>
+            </div>
+            <div className="flex justify-between py-0.5 border-b border-slate-100">
+              <span className="text-slate-500 font-semibold">Checker Portal:</span>
+              <span className="text-emerald-700 font-bold text-[9px] underline">
+                checker.sindheducation.gov.pk
+              </span>
+            </div>
+            <div className="flex justify-between py-0.5 border-b border-slate-100">
               <span className="text-slate-500 font-semibold">Status:</span>
               <span className="font-black text-teal-800 uppercase text-[10px]">
                 {teacher.status === 'approved' ? 'Verified Government Faculty' : teacher.status}
@@ -197,6 +209,8 @@ export const TeacherIdCard: React.FC<TeacherIdCardProps> = ({ teacher, settings 
           { label: 'Designation / Post', value: teacher.designation, highlight: true },
           { label: 'Qualification', value: teacher.qualification },
           { label: 'Subject Specialist', value: teacher.subjectSpecialist },
+          { label: 'SE&LD Verified Badge', value: teacher.verifiedBadgeId || `SELD-VERIFIED-406020752-${teacher.pid}`, badge: 'SELD Verified' },
+          { label: 'Checker Portal Link', value: 'https://checker.sindheducation.gov.pk/' },
           { label: 'Appointment Date', value: teacher.joinDate },
           { label: 'Institutional Role', value: 'Government High School Faculty' },
         ]}

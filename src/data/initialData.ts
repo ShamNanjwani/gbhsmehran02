@@ -1,5 +1,6 @@
 import { Student, Teacher, TimetableSlot, DailyRemark, AttendanceRecord, StudentResult, LeavingCertificateData, LeaderMessage, SchoolSettings, ContactInquiry } from '../types';
 import { officialSchoolLogo } from './schoolLogo';
+import { buildDefaultUnassignedTimetable } from '../utils/defaultTimetable';
 
 export const initialSchoolSettings: SchoolSettings = {
   schoolName: 'GOVERNMENT BOYS HIGH SCHOOL MEHRAND',
@@ -120,132 +121,13 @@ export const initialTeachers: Teacher[] = [];
 
 export const initialStudents: Student[] = [];
 
-export const initialTimetableSlots: TimetableSlot[] = [
-  // Monday
-  { id: 'tt-1', day: 'Monday', period: 1, time: '08:00 - 08:45 AM', className: 'Class 10th', subject: 'Mathematics', teacherId: 't-1', teacherName: 'Ghanshamdas JEST', room: 'Room 10' },
-  { id: 'tt-2', day: 'Monday', period: 2, time: '08:45 - 09:30 AM', className: 'Class 9th', subject: 'Computer Science', teacherId: 't-1', teacherName: 'Ghanshamdas JEST', room: 'Computer Lab' },
-  { id: 'tt-3', day: 'Monday', period: 3, time: '09:30 - 10:15 AM', className: 'Class 10th', subject: 'Physics', teacherId: 't-2', teacherName: 'Muhammad Ali Rahimoon', room: 'Science Lab' },
-  { id: 'tt-4', day: 'Monday', period: 4, time: '10:30 - 11:15 AM', className: 'Class 9th', subject: 'English', teacherId: 't-3', teacherName: 'Ramesh Kumar Meghwar', room: 'Room 09' },
-  { id: 'tt-5', day: 'Monday', period: 5, time: '11:15 - 12:00 PM', className: 'Class 8th', subject: 'General Science', teacherId: 't-4', teacherName: 'Abdul Kareem Sand', room: 'Room 08' },
-  { id: 'tt-6', day: 'Monday', period: 6, time: '12:00 - 12:45 PM', className: 'Class 9th', subject: 'Sindhi', teacherId: 't-5', teacherName: 'Kewal Ram Suthar', room: 'Room 09' },
+// Default State: Keep all timetables unassigned ("Not Assigned") by default.
+// No slots populate until a teacher successfully registers and is assigned a subject/class.
+export const initialTimetableSlots: TimetableSlot[] = buildDefaultUnassignedTimetable();
 
-  // Tuesday
-  { id: 'tt-7', day: 'Tuesday', period: 1, time: '08:00 - 08:45 AM', className: 'Class 9th', subject: 'Computer Science (Lab)', teacherId: 't-1', teacherName: 'Ghanshamdas JEST', room: 'Computer Lab' },
-  { id: 'tt-8', day: 'Tuesday', period: 2, time: '08:45 - 09:30 AM', className: 'Class 10th', subject: 'Physics (Practical)', teacherId: 't-2', teacherName: 'Muhammad Ali Rahimoon', room: 'Science Lab' },
-  { id: 'tt-9', day: 'Tuesday', period: 3, time: '09:30 - 10:15 AM', className: 'Class 8th', subject: 'Mathematics', teacherId: 't-1', teacherName: 'Ghanshamdas JEST', room: 'Room 08' },
-  { id: 'tt-10', day: 'Tuesday', period: 4, time: '10:30 - 11:15 AM', className: 'Class 10th', subject: 'Chemistry', teacherId: 't-4', teacherName: 'Abdul Kareem Sand', room: 'Science Lab' },
-  { id: 'tt-11', day: 'Tuesday', period: 5, time: '11:15 - 12:00 PM', className: 'Class 9th', subject: 'English Grammar', teacherId: 't-3', teacherName: 'Ramesh Kumar Meghwar', room: 'Room 09' },
-  { id: 'tt-12', day: 'Tuesday', period: 6, time: '12:00 - 12:45 PM', className: 'Class 7th', subject: 'Social Studies', teacherId: 't-5', teacherName: 'Kewal Ram Suthar', room: 'Room 07' },
+export const initialRemarks: DailyRemark[] = [];
 
-  // Wednesday
-  { id: 'tt-13', day: 'Wednesday', period: 1, time: '08:00 - 08:45 AM', className: 'Class 10th', subject: 'Mathematics (Geometry)', teacherId: 't-1', teacherName: 'Ghanshamdas JEST', room: 'Room 10' },
-  { id: 'tt-14', day: 'Wednesday', period: 2, time: '08:45 - 09:30 AM', className: 'Class 9th', subject: 'Biology / Chemistry', teacherId: 't-4', teacherName: 'Abdul Kareem Sand', room: 'Science Lab' },
-  { id: 'tt-15', day: 'Wednesday', period: 3, time: '09:30 - 10:15 AM', className: 'Class 10th', subject: 'English Essays', teacherId: 't-3', teacherName: 'Ramesh Kumar Meghwar', room: 'Room 10' },
-  { id: 'tt-16', day: 'Wednesday', period: 4, time: '10:30 - 11:15 AM', className: 'Class 9th', subject: 'Physics Numericals', teacherId: 't-2', teacherName: 'Muhammad Ali Rahimoon', room: 'Room 09' },
-  { id: 'tt-17', day: 'Wednesday', period: 5, time: '11:15 - 12:00 PM', className: 'Class 8th', subject: 'Sindhi', teacherId: 't-5', teacherName: 'Kewal Ram Suthar', room: 'Room 08' },
-  { id: 'tt-18', day: 'Wednesday', period: 6, time: '12:00 - 12:45 PM', className: 'Class 6th', subject: 'Basic Math', teacherId: 't-1', teacherName: 'Ghanshamdas JEST', room: 'Room 06' },
-
-  // Thursday
-  { id: 'tt-19', day: 'Thursday', period: 1, time: '08:00 - 08:45 AM', className: 'Class 9th', subject: 'Mathematics (Algebra)', teacherId: 't-1', teacherName: 'Ghanshamdas JEST', room: 'Room 09' },
-  { id: 'tt-20', day: 'Thursday', period: 2, time: '08:45 - 09:30 AM', className: 'Class 10th', subject: 'Computer Programming', teacherId: 't-1', teacherName: 'Ghanshamdas JEST', room: 'Computer Lab' },
-  { id: 'tt-21', day: 'Thursday', period: 3, time: '09:30 - 10:15 AM', className: 'Class 9th', subject: 'Chemistry (Theory)', teacherId: 't-4', teacherName: 'Abdul Kareem Sand', room: 'Science Lab' },
-  { id: 'tt-22', day: 'Thursday', period: 4, time: '10:30 - 11:15 AM', className: 'Class 10th', subject: 'Pakistan Studies', teacherId: 't-5', teacherName: 'Kewal Ram Suthar', room: 'Room 10' },
-  { id: 'tt-23', day: 'Thursday', period: 5, time: '11:15 - 12:00 PM', className: 'Class 9th', subject: 'English Composition', teacherId: 't-3', teacherName: 'Ramesh Kumar Meghwar', room: 'Room 09' },
-  { id: 'tt-24', day: 'Thursday', period: 6, time: '12:00 - 12:45 PM', className: 'Class 8th', subject: 'Ethics / Islamiat', teacherId: 't-5', teacherName: 'Kewal Ram Suthar', room: 'Room 08' },
-
-  // Friday (Sindh Govt Friday timing with early prayer recess)
-  { id: 'tt-25', day: 'Friday', period: 1, time: '08:00 - 08:40 AM', className: 'Class 9th', subject: 'Sindhi Literature', teacherId: 't-5', teacherName: 'Kewal Ram Suthar', room: 'Room 09' },
-  { id: 'tt-26', day: 'Friday', period: 2, time: '08:40 - 09:20 AM', className: 'Class 10th', subject: 'General Science & Environment', teacherId: 't-4', teacherName: 'Abdul Kareem Sand', room: 'Room 10' },
-  { id: 'tt-27', day: 'Friday', period: 3, time: '09:20 - 10:00 AM', className: 'Class 9th', subject: 'Mathematics (Matrices)', teacherId: 't-1', teacherName: 'Ghanshamdas JEST', room: 'Room 09' },
-  { id: 'tt-28', day: 'Friday', period: 4, time: '10:15 - 10:55 AM', className: 'Class 10th', subject: 'English Poetry', teacherId: 't-3', teacherName: 'Ramesh Kumar Meghwar', room: 'Room 10' },
-  { id: 'tt-29', day: 'Friday', period: 5, time: '10:55 - 11:35 AM', className: 'Class 8th', subject: 'Computer Applications', teacherId: 't-1', teacherName: 'Ghanshamdas JEST', room: 'Computer Lab' },
-
-  // Saturday
-  { id: 'tt-30', day: 'Saturday', period: 1, time: '08:00 - 08:45 AM', className: 'Class 9th', subject: 'Physics (Optics & Sound)', teacherId: 't-2', teacherName: 'Muhammad Ali Rahimoon', room: 'Science Lab' },
-  { id: 'tt-31', day: 'Saturday', period: 2, time: '08:45 - 09:30 AM', className: 'Class 10th', subject: 'Mathematics (Past Papers)', teacherId: 't-1', teacherName: 'Ghanshamdas JEST', room: 'Room 10' },
-  { id: 'tt-32', day: 'Saturday', period: 3, time: '09:30 - 10:15 AM', className: 'Class 9th', subject: 'Computer Practical & Typing', teacherId: 't-1', teacherName: 'Ghanshamdas JEST', room: 'Computer Lab' },
-  { id: 'tt-33', day: 'Saturday', period: 4, time: '10:30 - 11:15 AM', className: 'Class 8th', subject: 'English Spoken & Reading', teacherId: 't-3', teacherName: 'Ramesh Kumar Meghwar', room: 'Room 08' },
-  { id: 'tt-34', day: 'Saturday', period: 5, time: '11:15 - 12:00 PM', className: 'Class 10th', subject: 'Sindhi / Urdu Grammar', teacherId: 't-5', teacherName: 'Kewal Ram Suthar', room: 'Room 10' },
-  { id: 'tt-35', day: 'Saturday', period: 6, time: '12:00 - 12:45 PM', className: 'Class 9th', subject: 'Ethics & Moral Studies', teacherId: 't-5', teacherName: 'Kewal Ram Suthar', room: 'Room 09' },
-];
-
-export const initialRemarks: DailyRemark[] = [
-  {
-    id: 'rem-1',
-    date: '2026-09-11',
-    studentId: 's-1',
-    studentName: 'Dileep Kumar',
-    className: 'Class 9th',
-    teacherId: 't-1',
-    teacherName: 'Ghanshamdas JEST',
-    subject: 'Computer Science',
-    classWork: 'Completed Algorithm flowchart drawing exercise and pseudocode for finding greatest of 3 numbers.',
-    homeworkTask: 'Write Python algorithm step by step in neat homework notebook. Exercise 3.2 Q4.',
-    performanceRemark: 'Outstanding understanding and quick problem-solving. Diligent student.',
-    rating: 5,
-  },
-  {
-    id: 'rem-2',
-    date: '2026-09-10',
-    studentId: 's-1',
-    studentName: 'Dileep Kumar',
-    className: 'Class 9th',
-    teacherId: 't-2',
-    teacherName: 'Muhammad Ali Rahimoon',
-    subject: 'Physics',
-    classWork: 'Newton’s 2nd Law of Motion F=ma derivation on chalkboard.',
-    homeworkTask: 'Solve numerical problems 3.1 to 3.4 from textbook page 78.',
-    performanceRemark: 'Very attentive, asked good questions during derivation.',
-    rating: 5,
-  },
-  {
-    id: 'rem-3',
-    date: '2026-09-09',
-    studentId: 's-1',
-    studentName: 'Dileep Kumar',
-    className: 'Class 9th',
-    teacherId: 't-3',
-    teacherName: 'Ramesh Kumar Meghwar',
-    subject: 'English',
-    classWork: 'Reading Comprehension passage from Unit 4 (The Thar Desert Ecosystem).',
-    homeworkTask: 'Memorize synonyms and antonyms; write 10 sentences using vocabulary words.',
-    performanceRemark: 'Good handwriting and active participation in oral reading.',
-    rating: 4,
-  },
-  {
-    id: 'rem-4',
-    date: '2026-09-11',
-    studentId: 's-2',
-    studentName: 'Kamran Ali',
-    className: 'Class 10th',
-    teacherId: 't-1',
-    teacherName: 'Ghanshamdas JEST',
-    subject: 'Mathematics',
-    classWork: 'Quadratic Equation factorization method and discriminant formula.',
-    homeworkTask: 'Exercise 2.1 question 1 to 5 complete.',
-    performanceRemark: 'Excellent speed and neat calculations.',
-    rating: 5,
-  },
-];
-
-export const initialAttendance: AttendanceRecord[] = [
-  { id: 'att-1', date: '2026-09-12', personId: 's-1', personName: 'Dileep Kumar', type: 'student', className: 'Class 9th', period: 1, status: 'Present', markedBy: 'Ghanshamdas JEST' },
-  { id: 'att-2', date: '2026-09-11', personId: 's-1', personName: 'Dileep Kumar', type: 'student', className: 'Class 9th', period: 1, status: 'Present', markedBy: 'Ghanshamdas JEST' },
-  { id: 'att-3', date: '2026-09-10', personId: 's-1', personName: 'Dileep Kumar', type: 'student', className: 'Class 9th', period: 1, status: 'Present', markedBy: 'Ghanshamdas JEST' },
-  { id: 'att-4', date: '2026-09-09', personId: 's-1', personName: 'Dileep Kumar', type: 'student', className: 'Class 9th', period: 1, status: 'Present', markedBy: 'Ghanshamdas JEST' },
-  { id: 'att-5', date: '2026-09-08', personId: 's-1', personName: 'Dileep Kumar', type: 'student', className: 'Class 9th', period: 1, status: 'Leave', markedBy: 'Ghanshamdas JEST' },
-  { id: 'att-6', date: '2026-09-07', personId: 's-1', personName: 'Dileep Kumar', type: 'student', className: 'Class 9th', period: 1, status: 'Present', markedBy: 'Ghanshamdas JEST' },
-
-  { id: 'att-7', date: '2026-09-12', personId: 's-2', personName: 'Kamran Ali', type: 'student', className: 'Class 10th', period: 1, status: 'Present', markedBy: 'Muhammad Ali Rahimoon' },
-  { id: 'att-8', date: '2026-09-11', personId: 's-2', personName: 'Kamran Ali', type: 'student', className: 'Class 10th', period: 1, status: 'Present', markedBy: 'Muhammad Ali Rahimoon' },
-
-  // Teacher Attendance
-  { id: 'att-t-1', date: '2026-09-12', personId: 't-1', personName: 'Ghanshamdas JEST', type: 'teacher', status: 'Present', markedBy: 'Headmaster' },
-  { id: 'att-t-2', date: '2026-09-12', personId: 't-2', personName: 'Muhammad Ali Rahimoon', type: 'teacher', status: 'Present', markedBy: 'Headmaster' },
-  { id: 'att-t-3', date: '2026-09-12', personId: 't-3', personName: 'Ramesh Kumar Meghwar', type: 'teacher', status: 'Present', markedBy: 'Headmaster' },
-  { id: 'att-t-4', date: '2026-09-12', personId: 't-4', personName: 'Abdul Kareem Sand', type: 'teacher', status: 'Present', markedBy: 'Headmaster' },
-  { id: 'att-t-5', date: '2026-09-12', personId: 't-5', personName: 'Kewal Ram Suthar', type: 'teacher', status: 'Present', markedBy: 'Headmaster' },
-];
+export const initialAttendance: AttendanceRecord[] = [];
 
 export const initialStudentResults: StudentResult[] = [
   {

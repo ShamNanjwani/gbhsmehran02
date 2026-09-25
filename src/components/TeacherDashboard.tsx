@@ -40,8 +40,10 @@ import { DocumentViewerModal } from './common/DocumentViewerModal';
 import { DocumentPrintPreviewModal } from './common/DocumentPrintPreviewModal';
 import { TeacherTimetableSection } from './TeacherTimetableSection';
 import { AnnouncementBanner } from './common/AnnouncementBanner';
-import { FileCheck, ShieldCheck, ExternalLink, QrCode } from 'lucide-react';
+import { DigitalNoticeBoard } from './common/DigitalNoticeBoard';
+import { FileCheck, ShieldCheck, ExternalLink, QrCode, Megaphone } from 'lucide-react';
 import { QrAttendanceScannerModal } from './admin/QrAttendanceScannerModal';
+import { SeldVerificationModal } from './common/SeldVerificationModal';
 
 export const TeacherDashboard: React.FC = () => {
   const {
@@ -67,6 +69,7 @@ export const TeacherDashboard: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loginError, setLoginError] = useState('');
   const [regSuccessMsg, setRegSuccessMsg] = useState('');
+  const [selectedTeacherForVerificationModal, setSelectedTeacherForVerificationModal] = useState<Teacher | null>(null);
 
   // Registration Form State
   const [regName, setRegName] = useState('');
@@ -143,7 +146,7 @@ export const TeacherDashboard: React.FC = () => {
     });
 
     setRegSuccessMsg(
-      `Registration submitted for ${regName}! Your account and uploaded documents (CNIC & Appointment Order) are currently pending Headmaster/Admin scrutiny. Once approved and Joining Letter is issued, you can log in with your email (${regEmail}) or PID (${assignedPid}) and password.`
+      `Registration submitted for ${regName}! Your account is pending Admin review. Once approved by Admin and linked with the Sindh Education Checker (https://checker.sindheducation.gov.pk/), your SE&LD Verified Badge will be issued and your profile will be displayed in the Faculty section. You can then sign in with your email (${regEmail}) or PID (${assignedPid}).`
     );
     setEmail(regEmail);
     setPassword(regPassword);
@@ -602,6 +605,25 @@ export const TeacherDashboard: React.FC = () => {
               <p className="text-[11px] text-teal-300 font-mono">
                 CNIC: {currentTeacher.cnic} • Cell: {currentTeacher.mobileNo}
               </p>
+
+              {/* SE&LD Official Verified Badge & Checker Link */}
+              <div className="flex flex-wrap items-center gap-2 pt-1.5">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-400 text-emerald-200 text-xs font-bold shadow-xs">
+                  <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                  <span>SE&LD Verified Faculty</span>
+                  <span className="text-[10px] font-mono text-amber-300">
+                    {currentTeacher.verifiedBadgeId || `SELD-VERIFIED-406020752-${currentTeacher.pid}`}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedTeacherForVerificationModal(currentTeacher)}
+                  className="px-2.5 py-1 rounded-lg bg-emerald-800 hover:bg-emerald-700 text-amber-300 hover:text-white text-xs font-bold border border-emerald-600 transition flex items-center gap-1"
+                >
+                  <ExternalLink className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Check Status (checker.sindheducation.gov.pk)</span>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -1637,6 +1659,13 @@ export const TeacherDashboard: React.FC = () => {
         isOpen={showQrAttendanceScanner}
         onClose={() => setShowQrAttendanceScanner(false)}
         defaultMode="student"
+      />
+
+      {/* SE&LD Checker Verification Status Modal */}
+      <SeldVerificationModal
+        teacher={selectedTeacherForVerificationModal}
+        isOpen={!!selectedTeacherForVerificationModal}
+        onClose={() => setSelectedTeacherForVerificationModal(null)}
       />
     </div>
   );

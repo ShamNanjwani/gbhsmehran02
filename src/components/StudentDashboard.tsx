@@ -22,6 +22,7 @@ import {
   User,
   Shield,
   KeyRound,
+  Megaphone,
 } from 'lucide-react';
 import { StudentIdCard } from './cards/StudentIdCard';
 import { EnrollmentCard } from './cards/EnrollmentCard';
@@ -34,6 +35,7 @@ import { SafeMediaImage } from './common/SafeMediaImage';
 import { SchoolLogo } from './common/SchoolLogo';
 import { StudentTimetableSection } from './StudentTimetableSection';
 import { AnnouncementBanner } from './common/AnnouncementBanner';
+import { DigitalNoticeBoard } from './common/DigitalNoticeBoard';
 import { Student } from '../types';
 
 export const StudentDashboard: React.FC = () => {
@@ -59,7 +61,7 @@ export const StudentDashboard: React.FC = () => {
   const [loginError, setLoginError] = useState('');
 
   const [activeSubTab, setActiveSubTab] = useState<
-    'overview' | 'letter' | 'idcard' | 'enrollment' | 'report' | 'result' | 'slc' | 'remarks' | 'attendance' | 'timetable'
+    'overview' | 'notices' | 'letter' | 'idcard' | 'enrollment' | 'report' | 'result' | 'slc' | 'remarks' | 'attendance' | 'timetable'
   >('overview');
 
   const [previewDoc, setPreviewDoc] = useState<{ url: string; title: string } | null>(null);
@@ -99,11 +101,11 @@ export const StudentDashboard: React.FC = () => {
   // IF NOT LOGGED IN AS STUDENT, SHOW LOGIN VIEW
   if (!currentStudent || currentRole !== 'student') {
     return (
-      <div className="max-w-2xl mx-auto py-12 px-4 space-y-6">
-        {/* School Announcement Banner for Students & Parents */}
-        <AnnouncementBanner role="student" />
+      <div className="max-w-4xl mx-auto py-12 px-4 space-y-6">
+        {/* School Digital Notice Board for Students & Parents */}
+        <DigitalNoticeBoard role="student" title="Student & Parent Notice Board" />
 
-        <div className="bg-white rounded-3xl border-2 border-emerald-800/20 shadow-2xl p-6 sm:p-8 space-y-6">
+        <div className="bg-white rounded-3xl border-2 border-emerald-800/20 shadow-2xl p-6 sm:p-8 space-y-6 max-w-2xl mx-auto">
           <div className="text-center space-y-3">
             <div className="flex justify-center">
               <SchoolLogo logoUrl={settings.logoUrl} size="lg" className="shadow-lg" />
@@ -332,6 +334,7 @@ export const StudentDashboard: React.FC = () => {
       <div className="flex items-center gap-1.5 overflow-x-auto border-b border-slate-200 pb-2 text-xs">
         {[
           { id: 'overview', label: 'Dashboard & Admission Letter', icon: FileCheck },
+          { id: 'notices', label: 'Digital Notice Board', icon: Megaphone },
           { id: 'letter', label: 'Confirmation Letter', icon: FileText },
           { id: 'idcard', label: 'Official ID Card', icon: IdCard },
           { id: 'enrollment', label: 'Enrollment Card', icon: FileText },
@@ -390,6 +393,13 @@ export const StudentDashboard: React.FC = () => {
               <span className="text-xs text-slate-500 font-medium">{studentResult?.position || 'Top 5'}</span>
             </div>
           </div>
+
+          {/* Urgent School Notice Board Bulletin directly on Homepage */}
+          <DigitalNoticeBoard
+            role="student"
+            targetClass={currentStudent.appliedClass}
+            title="Digital Notice Board • Urgent School Bulletins"
+          />
 
           {/* Official Admission Confirmation Letter Component */}
           <ConfirmationLetter student={currentStudent} settings={settings} />
@@ -548,6 +558,17 @@ export const StudentDashboard: React.FC = () => {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* SUB-TAB: Digital Notice Board & Circulars Archive */}
+      {activeSubTab === 'notices' && (
+        <div className="space-y-6">
+          <DigitalNoticeBoard
+            role="student"
+            targetClass={currentStudent.appliedClass}
+            title="School Digital Notice Board & Circulars"
+          />
         </div>
       )}
 

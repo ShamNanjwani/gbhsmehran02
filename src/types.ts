@@ -71,19 +71,33 @@ export interface Teacher {
   joiningRemarks?: string;
   joiningLetterIssuedBy?: string;
   confirmationLetterUrl?: string; // If uploaded or customized
+  // Subject & Class Mappings for Timetable Engine
+  assignedSubjects?: string[]; // e.g. ["Mathematics", "Computer Science"]
+  assignedClasses?: string[]; // e.g. ["Class 9th", "Class 10th"]
+  // SE&LD Official Checker Integration (https://checker.sindheducation.gov.pk/)
+  seldVerified?: boolean;
+  seldCheckerStatus?: 'Verified' | 'Pending' | 'Active / On Duty' | 'Biometric Matched';
+  seldCheckerUrl?: string; // Direct link to https://checker.sindheducation.gov.pk/
+  seldVerificationDate?: string;
+  verifiedBadgeIssued?: boolean;
+  verifiedBadgeId?: string;
+  biometricMatched?: boolean;
 }
 
 export interface TimetableSlot {
   id: string;
   day: 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'Saturday';
-  period: number; // 1 to 6
-  time: string; // e.g. "08:00 - 08:45 AM"
-  className: string; // e.g. "Class 9th", "Class 10th"
+  period: number; // 0 (Assembly), 1-8, 99 (Break)
+  time: string; // e.g. "08:20 AM - 09:00 AM"
+  className: string; // e.g. "Class 1st" ... "Class 10th"
   subject: string;
   teacherId: string;
   teacherName: string;
   room?: string;
   notes?: string;
+  isLockedSlot?: boolean;
+  isAssembly?: boolean;
+  isBreak?: boolean;
   isSubstituted?: boolean;
   substitutedTeacherId?: string;
   substitutedTeacherName?: string;
@@ -225,4 +239,75 @@ export interface ContactInquiry {
   message: string;
   createdAt: string;
   status: 'unread' | 'read' | 'replied';
+}
+
+// SE&LD (School Education & Literacy Department, Sindh) Biometric and Institutional Records
+export interface SeldTeacherRecord {
+  pid: string; // Personal ID (e.g. 10482931)
+  name: string;
+  fatherName: string;
+  cnic: string;
+  designation: string; // e.g. "Headmaster (BPS-17)", "JEST (BPS-14)"
+  subjectSpecialist?: string;
+  bpsGrade: number; // 14, 16, 17, etc.
+  biometricStatus: 'M&E Matched' | 'ETS Verified' | 'On Leave' | 'Discrepancy';
+  lastSalaryDrawn: string; // e.g. "August 2026 (Paid)"
+  ddoCode: string; // e.g. "TP-4060"
+  employeeThumbScanned: {
+    status: 'Scanned & Verified' | 'Pending Today' | 'Late Arrival' | 'Exempted';
+    lastScanTime: string;
+    deviceId: string;
+    confidenceScore: number;
+    terminalLocation: string;
+  };
+  appointmentDate: string;
+  postingStatus: 'Active / On Duty' | 'Transferred' | 'Deputation' | 'Training';
+  phone?: string;
+  monitoringRemarks?: string;
+}
+
+export interface SeldStudentEnrollmentRecord {
+  id: string;
+  className: string;
+  sanctionedSeats: number;
+  enrolledCount: number;
+  attendanceTodayCount: number;
+  attendanceRate: number; // percentage
+  bFormVerifiedCount: number;
+  bFormPendingCount: number;
+  freeTextbooksDistributed: number;
+  stipendBeneficiaries: number;
+  classTeacherName: string;
+  biometricCardIssuedCount: number;
+}
+
+export interface SeldInstitutionalData {
+  semisCode: string;
+  institutionName: string;
+  taluka: string;
+  district: string;
+  region: string;
+  schoolLevel: string;
+  gender: string;
+  medium: string;
+  officialPortalUrl: string;
+  lastSyncedAt: string;
+  isLiveConnected: boolean;
+  cacheSource: 'live' | 'cache';
+  totalSanctionedPosts: number;
+  totalWorkingStaff: number;
+  biometricMatchedPercentage: number;
+  totalStudentsEnrolled: number;
+  averageStudentAttendanceRate: number;
+  teachers: SeldTeacherRecord[];
+  enrollmentByClass: SeldStudentEnrollmentRecord[];
+  auditLogs: Array<{
+    id: string;
+    timestamp: string;
+    title: string;
+    officer: string;
+    category: 'biometric' | 'salary' | 'enrollment' | 'sync';
+    status: 'success' | 'warning' | 'alert';
+    details: string;
+  }>;
 }
